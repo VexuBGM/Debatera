@@ -1,9 +1,11 @@
+'use client'
+
 import Image from 'next/image'
 import React from 'react'
 
 const Loader = () => {
   return (
-    <div className='flex-center h-screen w-full'>
+    <div className='flex-center h-screen w-full bg-transparent'>
       <Image 
         src={"/icons/loading-circle.svg"}
         alt="Loading..."

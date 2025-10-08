@@ -5,7 +5,11 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <main>
       <StreamVideoProvider>
-        {children}
+        <section className='flex min-h-screen flex-1 flex-col'>
+          <div className='w-full'>
+            {children}
+          </div>
+        </section>
       </StreamVideoProvider>
     </main>
   )

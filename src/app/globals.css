@@ -13,6 +13,20 @@
   }
 }
 
+@theme {
+  --color-dark-1: #1C1F2E;
+  --color-dark-2: #161925;
+  --color-dark-3: #252A41;
+  --color-dark-4: #1E2757;
+  --color-blue-1: #0E78F9;
+  --color-sky-1: #C9DDFF;
+  --color-sky-2: #ECF0FF;
+  --color-sky-3: #F5FCFF;
+  --color-orange-1: #FF742E;
+  --color-purple-1: #830EF9;
+  --color-yellow-1: #F9A90E;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
