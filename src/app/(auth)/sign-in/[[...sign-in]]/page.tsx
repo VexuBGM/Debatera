@@ -3,7 +3,7 @@ import { SignIn } from "@clerk/nextjs";
 
 const SignInPage = () => {
   return (
-    <div>
+    <div className='flex-center h-screen w-full'>
       <SignIn />
     </div>
   )
