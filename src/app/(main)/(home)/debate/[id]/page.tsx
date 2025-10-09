@@ -10,7 +10,6 @@ import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 
 const Meeting = () => {
-  // Read route params in a Client Component
   const params = useParams<{ id: string }>();
   const id = params?.id;
 

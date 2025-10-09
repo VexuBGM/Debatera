@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-// @ts-ignore: allow side-effect CSS import without type declarations
 import "./globals.css";
 import { ClerkProvider, SignedIn, UserButton } from "@clerk/nextjs";
+
+import "@stream-io/video-react-sdk/dist/css/styles.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
