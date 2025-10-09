@@ -41,7 +41,7 @@ const CreateMeetingButton = () => {
       setCallDetails(call);
 
       if(!values.description) {
-        router.push(`/meeting/${call.id}`);
+        router.push(`/debate/${call.id}`);
       }
     } catch (error) {
       console.error("Error creating meeting:", error);

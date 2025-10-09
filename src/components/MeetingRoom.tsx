@@ -40,7 +40,7 @@ const MeetingRoom = () => {
         <div className='flex size-full max-w-[1000px] items-center'>
           <CallLayout />
         </div>
-        <div className={cn('h-[calc(100vh-86px)] ml-2', { hidden: !showParticipants, block: showParticipants })}>
+        <div className={cn('h-[calc(100vh-86px)] ml-2 rounded-2xl bg-[#2a3140] p-4', { hidden: !showParticipants, block: showParticipants })}>
           <CallParticipantsList onClose={() => setShowParticipants(false)} />
         </div>
       </div>
