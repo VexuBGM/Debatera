@@ -97,10 +97,29 @@ const MeetingRoom = () => {
   if (callingState === CallingState.JOINING) return <Loader />
 
   return (
-    <section className="h-screen w-full flex flex-col bg-[#0a1a2b] text-white p-4">
+    <section className="h-screen w-full flex flex-col bg-[#0a1a2b] text-white p-2">
+      {/* Controls */}
+      <div className="flex items-center justify-between bg-[#0d2036] border border-blue-900 rounded-lg px-6 py-1 mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+          <div>
+            <p className="font-semibold text-sm">Debate Room</p>
+            <p className="text-xs text-muted-foreground">Round 1 — Motion: Technology Benefits Society</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <CallControls />
+        </div>
+
+        <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
+          <p className="text-xs text-muted-foreground">Time Remaining</p>
+          <p className="text-xl font-mono font-bold">05:30</p>
+        </div>
+      </div>
       <div className="flex flex-1 gap-4">
         {/* Left (Proposition) */}
-        <div className="flex flex-col w-64 gap-4">
+        <div className="flex flex-col flex-1 w-64 gap-3">
           <div className="bg-blue-900/30 border-2 border-blue-600 rounded-lg px-4 py-2">
             <h2 className="text-center font-bold uppercase text-sm">PROPOSITION</h2>
           </div>
@@ -118,33 +137,19 @@ const MeetingRoom = () => {
         </div>
 
         {/* Center (Active Speaker Area) */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-3 flex flex-col gap-4">
           <div className="flex-1 bg-card rounded-lg border-2 border-primary overflow-hidden relative">
             {centerParticipant ? (
               <>
                 {/* background video */}
-                <div className="absolute inset-0">
-                  <ParticipantView participant={centerParticipant} className="w-full h-full object-cover" />
-                </div>
-
-                {/* overlay center info */}
-                <div className="absolute inset-0 flex items-center justify-center bg-[#0d2036]/50">
-                  <div className="text-center">
-                    <div className="w-32 h-32 rounded-full bg-blue-700/20 border-4 border-blue-400 mx-auto mb-4 flex items-center justify-center">
-                      <span className="text-5xl font-bold text-blue-400">{((centerParticipant as any)?.user?.name || (centerParticipant as any)?.userId || '?').charAt(0)}</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-1">{(centerParticipant as any)?.user?.name || (centerParticipant as any)?.userId}</h3>
-                    <p className="text-muted-foreground text-lg">{((centerParticipant as any)?.user?.role) || ''}</p>
-                    <div className="mt-3 inline-block px-4 py-1 rounded-full bg-blue-700/30 border border-blue-600">
-                      <span className="text-sm font-semibold text-foreground uppercase">Active Speaker</span>
-                    </div>
-                  </div>
+                <div className="absolute inset-0 bg-[#0A1A2B] w-full h-full ">
+                  <ParticipantView participant={centerParticipant} className="min-w-full object-cover" />
                 </div>
               </>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
                 <div className="text-center">
-                  <div className="w-32 h-32 rounded-full bg-primary/20 border-4 border-primary mx-auto mb-4 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-xl bg-primary/20 border-4 border-primary mx-auto mb-4 flex items-center justify-center">
                     <span className="text-5xl font-bold text-primary">S</span>
                   </div>
                   <h3 className="text-2xl font-bold text-foreground mb-1">Waiting for speaker…</h3>
@@ -155,8 +160,8 @@ const MeetingRoom = () => {
 
           {/* Judges Panel - Bottom Center */}
           <div className="h-40">
-            <div className="bg-accent/20 border border-accent rounded-lg px-4 py-2 mb-3">
-              <h3 className="text-sm font-bold text-center text-foreground uppercase tracking-wide">Judges Panel</h3>
+            <div className="px-4 mb-3 bg-[#0d2036] border border-blue-900 rounded-lg py-2">
+              <h3 className="text-sm font-semibold text-center uppercase tracking-wide text-white">Judges Panel</h3>
             </div>
             <div className="flex gap-3 h-28">
               {judges.length > 0 ? (
@@ -181,11 +186,11 @@ const MeetingRoom = () => {
         </div>
 
         {/* Right (Opposition) */}
-        <div className="flex flex-col w-64 gap-4">
+        <div className="flex flex-col flex-1 w-64 gap-3">
           <div className="bg-red-900/30 border-2 border-red-600 rounded-lg px-4 py-2">
             <h2 className="text-center font-bold uppercase text-sm">OPPOSITION</h2>
           </div>
-          <div className="flex-1 flex flex-col gap-3 min-h-0">
+          <div className="flex-1 flex flex-col gap-2 min-h-0">
             {oppSlots.map((p, i) =>
               p ? (
                 <div key={p.sessionId} className="flex-1 bg-card rounded-lg border border-border overflow-hidden relative">
@@ -199,37 +204,9 @@ const MeetingRoom = () => {
         </div>
       </div>
 
-      {/* Judges Panel */}
-      <div className="mt-4 bg-[#0d2036] border border-blue-900 rounded-lg py-2">
-        <h3 className="text-center text-xs uppercase font-semibold mb-2 tracking-wide">Judges Panel</h3>
-        <div className="flex justify-center gap-4 flex-wrap px-2">
-          {judges.length > 0 ? (
-            judges.map((j) => <JudgeTile key={j.sessionId} participant={j} />)
-          ) : (
-            <div className="text-xs text-muted-foreground py-2">No judges assigned</div>
-          )}
-        </div>
-      </div>
+      
 
-      {/* Footer Controls */}
-      <div className="mt-4 flex items-center justify-between bg-[#0d2036] border border-blue-900 rounded-lg px-6 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-          <div>
-            <p className="font-semibold text-sm">Debate Room</p>
-            <p className="text-xs text-muted-foreground">Round 1 — Motion: Technology Benefits Society</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <CallControls />
-        </div>
-
-        <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
-          <p className="text-xs text-muted-foreground">Time Remaining</p>
-          <p className="text-xl font-mono font-bold">05:30</p>
-        </div>
-      </div>
+      
     </section>
   )
 }
