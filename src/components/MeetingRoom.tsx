@@ -1,12 +1,16 @@
-'use client'
+"use client"
 
-import React, { useMemo } from 'react'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import React, { useEffect, useMemo } from 'react'
 import {
   CallControls,
   CallingState,
   ParticipantView,
   useCallStateHooks,
+  useCall,
 } from '@stream-io/video-react-sdk'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import Loader from '@/components/Loader'
 
@@ -62,11 +66,21 @@ const JudgeTile = ({ participant }: { participant: any }) => (
   </div>
 )
 
-const MeetingRoom = () => {
+const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
   const { useParticipants, useDominantSpeaker, useCallCallingState } = useCallStateHooks()
   const participants = useParticipants()
   const dominant = useDominantSpeaker()
   const callingState = useCallCallingState()
+  const call = useCall()
+  const router = useRouter()
+
+  // Redirect to home when the call ends / is left
+  useEffect(() => {
+    if (!call) return
+    if (callingState === CallingState.LEFT) {
+      router.push('/')
+    }
+  }, [callingState, call, router])
 
   const centerParticipant = dominant || participants[0]
 
@@ -109,7 +123,7 @@ const MeetingRoom = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <CallControls />
+          {!hideControls && <CallControls />}
         </div>
 
         <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
@@ -149,7 +163,7 @@ const MeetingRoom = () => {
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
                 <div className="text-center">
-                  <div className="w-32 h-32 rounded-xl bg-primary/20 border-4 border-primary mx-auto mb-4 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-xl bg-primary/20 border-4 border-primary  mb-4 flex items-center justify-center">
                     <span className="text-5xl font-bold text-primary">S</span>
                   </div>
                   <h3 className="text-2xl font-bold text-foreground mb-1">Waiting for speaker…</h3>
