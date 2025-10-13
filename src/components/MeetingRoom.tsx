@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import Loader from '@/components/Loader'
+import CustomCallControls from './CustomCallControls'
 
 type Team = 'prop' | 'opp' | 'judge' | 'unknown'
 
@@ -123,7 +124,7 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
         </div>
 
         <div className="flex items-center gap-3">
-          {!hideControls && <CallControls />}
+          {!hideControls && <CustomCallControls />}
         </div>
 
         <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
