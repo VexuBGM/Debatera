@@ -1,16 +1,17 @@
 'use client';
 
-import { DeviceSettings, useCall, VideoPreview, JoinCallData } from '@stream-io/video-react-sdk'
+import { DeviceSettings, useCall, VideoPreview } from '@stream-io/video-react-sdk'
 import React, { useEffect, useState } from 'react'
 import { Button } from './ui/button';
+import { useUser } from '@clerk/nextjs';
 
 const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: boolean) => void}) => {
   const [isMicCamToggledOn, setIsMicCamToggledOn] = useState(false);
   type Role = 'judge' | 'debater' | 'spectator';
-  type JoinWithRole = JoinCallData & { role?: 'judge' | 'debater' | 'spectator' };
   const [selectedRole, setSelectedRole] = useState<Role>('spectator');
-
+  const { user } = useUser();
   const call = useCall();
+  const localParticipant = call?.state.localParticipant;
 
   if(!call) {
     throw new Error("usecall must be used within a StreamCall component")
@@ -76,8 +77,23 @@ const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: bool
       <Button
         className="rounded-md bg-green-500 px-4 py-2.5"
         onClick={async () => {
+          if (!user?.id) {
+            console.error('Unable to join call without an authenticated user');
+            return;
+          }
+
           try {
-            await call.join({ role: selectedRole } as JoinWithRole);
+            await call.updateCallMembers({
+              update_members: [
+                {
+                  user_id: user.id,
+                  role: selectedRole
+                },
+              ],
+            });
+            
+            await call.join();
+
             setIsSetupComplete(true);
           } catch (err) {
             console.error("Failed to join call:", err);

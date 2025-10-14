@@ -22,7 +22,7 @@ const Meeting = () => {
     <main className="min-h-screen w-full flex-center px-4">
       <div className="max-w-md w-full rounded-xl border bg-card/60 backdrop-blur p-6 text-center shadow">
         <h1 className="text-xl font-semibold">Meeting not found</h1>
-        <p className="mt-2 text-muted-foreground">We couldn't locate this meeting. It may have ended or the link is incorrect.</p>
+        <p className="mt-2 text-muted-foreground">We couldn&apos;t locate this meeting. It may have ended or the link is incorrect.</p>
       </div>
     </main>
   );
