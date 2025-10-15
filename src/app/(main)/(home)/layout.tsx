@@ -2,7 +2,6 @@ import React from 'react'
 import { SignedIn, UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import CreateMeetingButton from '@/components/CreateMeetingButton'
 
 const HomeLayout = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -36,7 +35,7 @@ const HomeLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </div>
       </header>
-      <CreateMeetingButton />
+      
       {children}
     </div>
   )
