@@ -51,8 +51,12 @@ const CreateMeetingButton = () => {
 
   return (
     <div>
-      <Button onClick={createMeeting} className="mt-10 ml-10 bg-cyan-600 hover:bg-cyan-700 text-white cursor-pointer">
-        Create Meeting
+      <Button 
+        variant="secondary"
+        onClick={createMeeting} 
+        className="rounded-lg bg-white/10 text-white/80 hover:bg-white/15 cursor-pointer"
+      >
+        Start Debate
       </Button>
     </div>
   )
