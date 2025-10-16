@@ -18,6 +18,8 @@ const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: bool
   }
 
   useEffect(() => {
+  if (!call) return;
+
   if (selectedRole === 'spectator') {
     call.camera.disable();
     call.microphone.disable();
@@ -31,7 +33,9 @@ const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: bool
     call.camera.enable();
     call.microphone.enable();
   }
-}, [isMicCamToggledOn, selectedRole, call?.camera, call?.microphone]);
+
+  console.log('MeetingSetup effect fired');
+}, [isMicCamToggledOn, selectedRole, call]);
 
   return (
     <div className='flex h-screen w-full flex-col items-center justify-center gap-3 text-white'>

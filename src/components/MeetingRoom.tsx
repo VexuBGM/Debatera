@@ -157,10 +157,6 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
                     className="flex-1 max-w-[210px] aspect-video rounded-lg border border-blue-900/60 overflow-hidden relative bg-[#0c1e34]"
                   >
                     <ParticipantView participant={judge} className="w-full h-full object-contain" />
-                    <div className="absolute bottom-1 left-1 right-1 text-[11px] px-2 py-1 bg-black/40 rounded">
-                      <p className="truncate">{judge?.name || judge?.userId || "Judge"}</p>
-                      <p className="text-[10px] text-muted-foreground">Judge</p>
-                    </div>
                   </div>
                 ))
               ) : (

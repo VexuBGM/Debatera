@@ -13,7 +13,6 @@ const CreateMeetingButton = () => {
   const [values, setValues] = useState({
     dateTime: new Date(),
     description: '',
-    link: '',
   })
   const [callDetails, setCallDetails] = useState<Call>()
 

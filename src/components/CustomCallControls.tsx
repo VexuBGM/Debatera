@@ -1,38 +1,36 @@
-"use client"
-
-import React from 'react'
-import { OwnCapability } from '@stream-io/video-client'
-import { Restricted } from '@stream-io/video-react-bindings'
+import { OwnCapability, Restricted } from '@stream-io/video-react-sdk';
 import {
   ReactionsButton,
   ToggleAudioPublishingButton,
   ToggleVideoPublishingButton,
   CancelCallButton,
-} from '@stream-io/video-react-sdk'
+} from '@stream-io/video-react-sdk';
 
-// A drop-in replacement for the SDK's CallControls that does NOT show the
-// SpeakingWhileMutedNotification wrapper. Use this when you want to avoid the
-// "You are muted. Unmute to speak" popup but keep the same control buttons.
-const CustomCallControls = ({ onLeave }: { onLeave?: () => void }) => {
+const GRANT_SEND_AUDIO: OwnCapability[] = [OwnCapability.SEND_AUDIO];
+const GRANT_SEND_VIDEO: OwnCapability[] = [OwnCapability.SEND_VIDEO];
+const GRANT_CREATE_REACTION: OwnCapability[] = [OwnCapability.CREATE_REACTION];
+
+export default function CustomCallControls({ onLeave }: { onLeave?: () => void }) {
   return (
     <div className="str-video__call-controls">
-      <Restricted requiredGrants={[OwnCapability.SEND_AUDIO]}>
-        <ToggleAudioPublishingButton />
+      <Restricted requiredGrants={GRANT_SEND_AUDIO}>
+        <ToggleAudioPublishingButton
+          Menu={() => null}
+          menuPlacement="bottom"
+          onMenuToggle={() => {}}
+        />
       </Restricted>
-
-      <Restricted requiredGrants={[OwnCapability.SEND_VIDEO]}>
-        <ToggleVideoPublishingButton />
+      <Restricted requiredGrants={GRANT_SEND_VIDEO}>
+        <ToggleVideoPublishingButton
+          Menu={() => null}
+          menuPlacement="bottom"
+          onMenuToggle={() => {}}
+        />
       </Restricted>
-
-      <Restricted requiredGrants={[OwnCapability.CREATE_REACTION]}>
+      <Restricted requiredGrants={GRANT_CREATE_REACTION}>
         <ReactionsButton />
       </Restricted>
-
       <CancelCallButton onLeave={onLeave} />
-
-      {/* Todo: Add EndCallForEveryoneButton, remove the option to change mic or camera if you don't have the permission, if you don't have the permission the buttons to have a different color */}
     </div>
-  )
+  );
 }
-
-export default CustomCallControls
