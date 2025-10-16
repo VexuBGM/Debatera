@@ -16,7 +16,7 @@ export const useGetCalls = () => {
       }
 
       try {
-        // Query for all calls
+        // Query for all calls, sorted by start time (newest first)
         const { calls } = await client.queryCalls({
           sort: [{ field: 'starts_at', direction: -1 }],
           limit: 50,

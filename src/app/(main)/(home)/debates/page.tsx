@@ -13,10 +13,13 @@ const DebatesPage = () => {
   if (isLoading) return <Loader />;
 
   // Filter for active/upcoming calls
+  const now = new Date();
   const activeCalls = calls.filter((call) => {
     const state = call.state;
-    // Consider a call active if it's live or scheduled for the future
-    return state.startsAt && new Date(state.startsAt) <= new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (!state.startsAt) return false;
+    const startTime = new Date(state.startsAt);
+    // Show calls that are currently happening or scheduled for the future
+    return startTime >= now || (state.participantCount && state.participantCount > 0);
   });
 
   const formatDate = (date: Date | string | undefined) => {
@@ -59,7 +62,10 @@ const DebatesPage = () => {
               const state = call.state;
               const participants = state.participantCount || 0;
               const startTime = state.startsAt;
-              const isLive = participants > 0;
+              const now = new Date();
+              const callStartTime = startTime ? new Date(startTime) : null;
+              // A call is live if it has started and has participants
+              const isLive = callStartTime ? callStartTime <= now && participants > 0 : false;
 
               return (
                 <div
@@ -82,7 +88,7 @@ const DebatesPage = () => {
                   {/* Debate Info */}
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-white mb-3 line-clamp-2">
-                      Debate Room
+                      {state.custom?.description || 'Debate Room'}
                     </h3>
                     
                     <div className="space-y-2 text-sm text-white/60">
