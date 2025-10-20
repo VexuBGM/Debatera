@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ensureUserInDB } from '@/lib/ensureUser';
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -34,6 +35,8 @@ export default function RootLayout({
   const afterSignInUrl = process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || "/";
   const afterSignUpUrl = process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL || "/";
 
+  // Ensure the authenticated user exists in the DB (keeps this call after env config)
+  await ensureUserInDB();
   return (
     <html lang="en">
       <ClerkProvider
