@@ -32,5 +32,7 @@ export default function CustomCallControls({ onLeave }: { onLeave?: () => void }
       </Restricted>
       <CancelCallButton onLeave={onLeave} />
     </div>
+
+    /* Todo: Add EndCallForEveryoneButton that only people with the role of judge(from stream sdk) can access, remove the option to change mic or camera if you don't have the permission, if you don't have the permission the buttons to have a different color */
   );
 }
