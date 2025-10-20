@@ -1,0 +1,2 @@
+# Ignore generated Prisma client and other generated artifacts
+src/generated/**
