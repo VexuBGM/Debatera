@@ -42,3 +42,61 @@ export async function requireAdmin() {
 
   return { user, error: null };
 }
+
+/**
+ * Check if a user is an organizer or owner of a tournament
+ */
+export async function isTournamentOrganizer(
+  userId: string,
+  tournamentId: string
+): Promise<boolean> {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: {
+      organizers: {
+        where: { userId },
+      },
+    },
+  });
+
+  if (!tournament) {
+    return false;
+  }
+
+  // Creator is always an organizer
+  if (tournament.createdById === userId) {
+    return true;
+  }
+
+  // Check if user is in organizers list
+  return tournament.organizers.length > 0;
+}
+
+/**
+ * Require user to be an organizer or admin for a tournament
+ */
+export async function requireTournamentOrganizer(tournamentId: string) {
+  const { user, error } = await requireAuth();
+  if (error) {
+    return { error, user: null };
+  }
+
+  // Admins bypass organizer check
+  if (user!.appRole === AppRole.ADMIN) {
+    return { user, error: null };
+  }
+
+  const isOrganizer = await isTournamentOrganizer(user!.id, tournamentId);
+  if (!isOrganizer) {
+    return {
+      error: NextResponse.json(
+        { error: 'Forbidden: Tournament organizer access required' },
+        { status: 403 }
+      ),
+      user: null,
+    };
+  }
+
+  return { user, error: null };
+}
+

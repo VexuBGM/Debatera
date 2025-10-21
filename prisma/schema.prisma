@@ -38,6 +38,16 @@ enum DebateSide {
   NEUTRAL
 }
 
+enum OrganizerRole {
+  OWNER
+  ORGANIZER
+}
+
+enum RoundStage {
+  PRELIM
+  ELIM
+}
+
 // Core models
 model User {
   id                    String               @id @default(uuid()) @db.Uuid
@@ -49,10 +59,11 @@ model User {
   updatedAt             DateTime             @default(now()) @updatedAt
 
   // Relations
-  createdTournaments    Tournament[]
-  teamMemberships       TeamMember[]
-  debateParticipations  DebateParticipant[]
-  judgeFeedback         JudgeFeedback[]
+  createdTournaments      Tournament[]
+  organizerTournaments    TournamentOrganizer[]
+  teamMemberships         TeamMember[]
+  debateParticipations    DebateParticipant[]
+  judgeFeedback           JudgeFeedback[]
 
   @@index([clerkId])
 }
@@ -67,12 +78,42 @@ model Tournament {
   updatedAt   DateTime @default(now()) @updatedAt
 
   // Relations
-  createdBy User     @relation(fields: [createdById], references: [id])
-  teams     Team[]
-  debates   Debate[]
+  createdBy  User                    @relation(fields: [createdById], references: [id])
+  organizers TournamentOrganizer[]
+  teams      Team[]
+  rounds     Round[]
+  debates    Debate[]
 
   @@index([createdById])
   @@index([isVerified])
+}
+
+model TournamentOrganizer {
+  tournamentId String        @db.Uuid
+  userId       String        @db.Uuid
+  role         OrganizerRole @default(ORGANIZER)
+  addedAt      DateTime      @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentId, userId])
+  @@index([userId])
+}
+
+model Round {
+  id           String     @id @default(uuid()) @db.Uuid
+  tournamentId String     @db.Uuid
+  number       Int
+  stage        RoundStage @default(PRELIM)
+  isPublished  Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  debates    Debate[]
+
+  @@unique([tournamentId, number])
+  @@index([tournamentId, stage, isPublished])
 }
 
 model Team {
@@ -106,6 +147,7 @@ model TeamMember {
 model Debate {
   id           String        @id @default(uuid()) @db.Uuid
   tournamentId String?       @db.Uuid
+  roundId      String?       @db.Uuid
   propTeamId   String        @db.Uuid
   oppTeamId    String        @db.Uuid
   scheduledAt  DateTime?
@@ -116,12 +158,14 @@ model Debate {
 
   // Relations
   tournament   Tournament?          @relation(fields: [tournamentId], references: [id])
+  round        Round?               @relation(fields: [roundId], references: [id], onDelete: Cascade)
   propTeam     Team                 @relation("PropTeam", fields: [propTeamId], references: [id])
   oppTeam      Team                 @relation("OppTeam", fields: [oppTeamId], references: [id])
   participants DebateParticipant[]
   feedback     JudgeFeedback[]
 
   @@index([tournamentId])
+  @@index([roundId])
   @@index([propTeamId])
   @@index([oppTeamId])
   @@index([status])

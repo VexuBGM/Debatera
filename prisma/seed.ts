@@ -1,4 +1,4 @@
-import { PrismaClient, AppRole, DebateStatus, CallRole, DebateSide } from '@prisma/client';
+import { PrismaClient, AppRole, DebateStatus, CallRole, DebateSide, OrganizerRole, RoundStage } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -226,6 +226,106 @@ async function main() {
   });
 
   console.log('Set final winning side on debate');
+
+  // 9. Create a tournament with rounds
+  console.log('Creating tournament with rounds...');
+
+  const tournamentWithRounds = await prisma.tournament.create({
+    data: {
+      name: 'National Championship 2025',
+      description: 'Multi-round tournament with power pairing',
+      isVerified: true,
+      createdById: adminUser.id,
+    },
+  });
+
+  // Add organizer
+  await prisma.tournamentOrganizer.create({
+    data: {
+      tournamentId: tournamentWithRounds.id,
+      userId: regularUser.id,
+      role: OrganizerRole.ORGANIZER,
+    },
+  });
+
+  // Create multiple teams
+  const teams = [];
+  for (let i = 1; i <= 8; i++) {
+    const team = await prisma.team.create({
+      data: {
+        name: `Team ${i}`,
+        tournamentId: tournamentWithRounds.id,
+      },
+    });
+    teams.push(team);
+  }
+
+  // Create more users for team members
+  const teamMembers = [];
+  for (let i = 1; i <= 8; i++) {
+    const member = await prisma.user.upsert({
+      where: { clerkId: `clerk_member${i}_${1000 + i}` },
+      update: {},
+      create: {
+        clerkId: `clerk_member${i}_${1000 + i}`,
+        username: `member_${i}`,
+        imageUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=member${i}`,
+        appRole: AppRole.USER,
+      },
+    });
+    teamMembers.push(member);
+
+    // Add member to team
+    await prisma.teamMember.create({
+      data: {
+        teamId: teams[i - 1].id,
+        userId: member.id,
+      },
+    });
+  }
+
+  // Create round 1
+  const round1 = await prisma.round.create({
+    data: {
+      tournamentId: tournamentWithRounds.id,
+      number: 1,
+      stage: RoundStage.PRELIM,
+      isPublished: true,
+    },
+  });
+
+  // Create debates for round 1 (random pairings)
+  const round1Debates = [];
+  for (let i = 0; i < 4; i++) {
+    const debate = await prisma.debate.create({
+      data: {
+        tournamentId: tournamentWithRounds.id,
+        roundId: round1.id,
+        propTeamId: teams[i * 2].id,
+        oppTeamId: teams[i * 2 + 1].id,
+        status: DebateStatus.ENDED,
+        winningSide: i % 2 === 0 ? DebateSide.PROP : DebateSide.OPP,
+      },
+    });
+    round1Debates.push(debate);
+
+    // Add judge to debate
+    await prisma.debateParticipant.create({
+      data: {
+        debateId: debate.id,
+        userId: i < 2 ? judge1.id : judge2.id,
+        role: CallRole.JUDGE,
+        side: DebateSide.NEUTRAL,
+      },
+    });
+  }
+
+  console.log('Created tournament with rounds:', {
+    tournament: tournamentWithRounds,
+    teams: teams.length,
+    round1Debates: round1Debates.length,
+  });
+
   console.log('Seed completed successfully!');
 }
 
