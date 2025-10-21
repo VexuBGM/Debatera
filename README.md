@@ -5,7 +5,12 @@ A comprehensive debate hosting and organization platform with integrated feedbac
 ## Features
 
 - **User Authentication**: Powered by Clerk with role-based access control
-- **Tournament Management**: Create and manage debate tournaments (verified by admins)
+- **Tournament System**: 
+  - Multi-organizer tournament management
+  - Automatic round draw generation (Swiss/power pairing)
+  - Cost-based judge allocation with conflict detection
+  - Manual override capabilities for organizers
+  - Real-time standings with Buchholz tie-breaker
 - **Team Organization**: Create teams and manage team memberships
 - **Debate Hosting**: 1v1 team format debates with real-time capabilities
 - **Call-Level Roles**: Per-debate participant roles (Debater, Judge, Spectator)
@@ -90,13 +95,20 @@ npx prisma studio
 
 The platform provides RESTful APIs for all core features. See [API_TESTING.md](./API_TESTING.md) for detailed endpoint documentation and testing examples.
 
+For tournament-specific functionality, see:
+- [Tournament System Documentation](./docs/TOURNAMENT_SYSTEM.md) - Technical details
+- [API Examples](./docs/API_EXAMPLES.md) - Practical usage examples
+
 ### API Overview
 
 - **Tournaments**: Create, list, and verify tournaments
+- **Tournament Operations**: Add organizers, create rounds, generate draws, allocate judges
+- **Rounds**: Generate power-paired draws, allocate judges, publish rounds
 - **Teams**: Create teams and manage memberships
 - **Debates**: Create debates, manage participants, collect feedback
 - **Roles**: Per-debate participant roles (DEBATER, JUDGE, SPECTATOR)
 - **Feedback**: Judge feedback submission and final decision setting
+- **Standings**: Real-time tournament standings with tie-breakers
 
 ## Project Structure
 
@@ -112,14 +124,32 @@ The platform provides RESTful APIs for all core features. See [API_TESTING.md](.
   │   ├── (main)/        # Main application pages
   │   └── api/           # API route handlers
   │       ├── tournaments/
+  │       │   └── [id]/
+  │       │       ├── organizers/  # Add/list organizers
+  │       │       ├── rounds/      # Create/list rounds
+  │       │       └── standings/   # Tournament standings
+  │       ├── rounds/
+  │       │   └── [roundId]/
+  │       │       ├── generate-draw/      # Auto pair teams
+  │       │       ├── allocate-judges/    # Auto allocate judges
+  │       │       ├── draw/              # View/edit draw
+  │       │       └── publish/           # Publish round
   │       ├── teams/
   │       └── debates/
   ├── components/        # React components
+  ├── services/         # Business logic
+  │   ├── pairingService.ts       # Draw generation
+  │   ├── judgeAllocationService.ts  # Judge allocation
+  │   └── standingsService.ts     # Standings computation
   ├── lib/              # Utility functions
   │   ├── prisma.ts     # Prisma client singleton
   │   ├── auth.ts       # Authentication helpers
   │   └── ensureUser.ts # User synchronization
   └── providers/        # React context providers
+
+./docs
+  ├── TOURNAMENT_SYSTEM.md  # Tournament system technical docs
+  └── API_EXAMPLES.md       # API usage examples
 ```
 
 ## User Roles
