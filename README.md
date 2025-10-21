@@ -187,3 +187,10 @@ This project is private and proprietary.
 ## Support
 
 For issues and questions, please open an issue in the GitHub repository.
+
+# dev (clerk webhook)
+winget install Cloudflare.cloudflared 
+cloudflared login
+cloudflared tunnel --url http://localhost:3000
+
+then clerk webhook

@@ -1,20 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ensureUserInDB } from '@/lib/ensureUser';
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Debatera",
@@ -38,14 +28,14 @@ export default async function RootLayout({
   // Ensure the authenticated user exists in the DB (keeps this call after env config)
   await ensureUserInDB();
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <ClerkProvider
         signInUrl={signInUrl}
         signUpUrl={signUpUrl}
         afterSignInUrl={afterSignInUrl}
         afterSignUpUrl={afterSignUpUrl}
       >
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <body className={`antialiased`} suppressHydrationWarning>
           {children}
         </body>
       </ClerkProvider>

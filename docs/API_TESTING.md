@@ -210,3 +210,34 @@ This opens a web interface at http://localhost:5555 where you can:
 - Create/edit/delete records
 - Test relationships
 - Verify data integrity
+
+## Clerk Webhooks
+
+Endpoint: `POST /api/webhooks/clerk`
+
+- Verification: Requests are cryptographically verified using Svix headers. You must configure a Clerk webhook endpoint and use its secret as `CLERK_WEBHOOK_SECRET` in your environment.
+- Auth: This route is public (bypasses session auth) and relies on signature verification.
+
+### Setup
+
+1. In Clerk Dashboard, create a new Webhook endpoint pointing to your public URL + `/api/webhooks/clerk`.
+2. Copy the generated signing secret and set it locally as `CLERK_WEBHOOK_SECRET`.
+
+### Local testing
+
+Since Clerk needs to reach your local server, expose port 3000 with a tunnel and use that public URL in Clerk:
+
+- Cloudflared (alternative):
+  - Install: `winget install Cloudflare.cloudflared` (or download from Cloudflare if winget fails)
+  - Run: `cloudflared tunnel --url http://localhost:3000`
+
+- Localtunnel (quick npm option):
+  - Run: `npx localtunnel --port 3000`
+
+Then, from the Clerk Dashboard, send a test event (e.g., `user.created`). You should see a `200 OK` and server logs like:
+
+```
+Clerk webhook OK: user.created
+```
+
+Note: Manual `curl` without valid Svix headers will fail with `400 Invalid signature`. Use Clerk's test event or a real event from your app.
