@@ -87,7 +87,7 @@ export default function Sidebar() {
                           <span>{item.label}</span>
                         </span>
                         {typeof item.count === 'number' && (
-                          <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-white/10 px-1.5 text-xs font-semibold text-white/80">
+                          <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-white/10 px-1.5 text-xs font-semibold text-white/80">
                             {item.count}
                           </span>
                         )}

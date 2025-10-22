@@ -121,7 +121,7 @@ export default function RoundDetailPage({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
+      <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent"></div>
       </div>
     );
@@ -129,7 +129,7 @@ export default function RoundDetailPage({
 
   if (!round) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
+      <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
         <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
           <CardContent className="py-12 text-center">
             <h3 className="text-lg font-semibold text-white">Round not found</h3>
@@ -153,7 +153,7 @@ export default function RoundDetailPage({
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
+    <div className="min-h-screen bg-linear-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">

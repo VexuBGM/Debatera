@@ -7,7 +7,7 @@ import CreateMeetingButton from '@/components/CreateMeetingButton'
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
+    <div className="min-h-screen bg-linear-to-br from-[#0b1530] via-[#0e1a3f] to-[#0b1530]">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <div className="mb-12 text-center">

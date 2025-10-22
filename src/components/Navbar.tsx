@@ -14,7 +14,7 @@ export default function TopNav() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1530]/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1b34]">
       <div className="mx-auto max-w-[1400px] px-3 md:px-6">
         <div className="flex h-14 items-center gap-3">
           {/* Brand */}
