@@ -15,7 +15,8 @@ import {
   Settings,
   Calendar,
   CheckCircle,
-  Clock
+  Clock,
+  Shield
 } from 'lucide-react';
 import {
   Table,
@@ -25,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { VerificationStatus } from '@/components/tournament/VerificationStatus';
 
 interface Tournament {
   id: string;
@@ -84,7 +86,7 @@ export default function TournamentDetailPage({
   const [rounds, setRounds] = useState<Round[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [activeTab, setActiveTab] = useState<'rounds' | 'teams' | 'standings' | 'settings'>('rounds');
+  const [activeTab, setActiveTab] = useState<'rounds' | 'teams' | 'standings' | 'settings' | 'verification'>('rounds');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -257,6 +259,16 @@ export default function TournamentDetailPage({
             }`}
           >
             <Settings className="mb-1 inline h-4 w-4" /> Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('verification')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'verification'
+                ? 'border-b-2 border-cyan-500 text-cyan-400'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            <Shield className="mb-1 inline h-4 w-4" /> Verification
           </button>
         </div>
 
@@ -485,6 +497,27 @@ export default function TournamentDetailPage({
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {activeTab === 'verification' && tournament && (
+          <VerificationStatus
+            tournamentId={tournament.id}
+            isVerified={tournament.isVerified}
+            isOrganizer={true}  // TODO: Check if user is organizer
+            isAdmin={false}  // TODO: Check if user is admin
+            onRequestVerification={async () => {
+              // TODO: Implement verification request
+              console.log('Requesting verification');
+            }}
+            onApprove={async (note: string) => {
+              // TODO: Implement admin approval
+              console.log('Approving verification:', note);
+            }}
+            onReject={async (note: string) => {
+              // TODO: Implement admin rejection
+              console.log('Rejecting verification:', note);
+            }}
+          />
         )}
       </div>
     </div>
