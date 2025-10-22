@@ -37,6 +37,17 @@ interface Tournament {
   };
 }
 
+interface Team {
+  id: string;
+  name: string;
+  members: {
+    user: {
+      id: string;
+      username: string;
+    };
+  }[];
+}
+
 interface Round {
   id: string;
   number: number;
@@ -72,7 +83,8 @@ export default function TournamentDetailPage({
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
-  const [activeTab, setActiveTab] = useState<'rounds' | 'standings' | 'settings'>('rounds');
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [activeTab, setActiveTab] = useState<'rounds' | 'teams' | 'standings' | 'settings'>('rounds');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -101,6 +113,14 @@ export default function TournamentDetailPage({
       if (standingsRes.ok) {
         const standingsData = await standingsRes.json();
         setStandings(standingsData);
+      }
+
+      // Fetch teams
+      const teamsRes = await fetch('/api/teams');
+      if (teamsRes.ok) {
+        const allTeams = await teamsRes.json();
+        const tournamentTeams = allTeams.filter((t: Team & { tournament: { id: string } | null }) => t.tournament?.id === id);
+        setTeams(tournamentTeams);
       }
     } catch (error) {
       console.error('Failed to fetch tournament data:', error);
@@ -209,6 +229,16 @@ export default function TournamentDetailPage({
             <Calendar className="mb-1 inline h-4 w-4" /> Rounds
           </button>
           <button
+            onClick={() => setActiveTab('teams')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'teams'
+                ? 'border-b-2 border-cyan-500 text-cyan-400'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            <Users className="mb-1 inline h-4 w-4" /> Teams
+          </button>
+          <button
             onClick={() => setActiveTab('standings')}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === 'standings'
@@ -295,6 +325,70 @@ export default function TournamentDetailPage({
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'teams' && (
+          <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white">Registered Teams</CardTitle>
+              <CardDescription className="text-white/60">
+                Teams participating in this tournament
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {teams.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Users className="mb-4 h-12 w-12 text-white/40" />
+                  <h3 className="mb-2 text-lg font-semibold text-white">
+                    No teams registered yet
+                  </h3>
+                  <p className="text-center text-white/60">
+                    Teams will appear here once they register
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {teams.map((team) => (
+                    <Link
+                      key={team.id}
+                      href={`/teams/${team.id}`}
+                      className="group"
+                    >
+                      <Card className="border-white/10 bg-white/5 transition-all hover:border-cyan-500/50 hover:bg-white/10">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-medium text-white group-hover:text-cyan-400">
+                                {team.name}
+                              </h3>
+                              <p className="text-sm text-white/60">
+                                {team.members.length} members
+                              </p>
+                            </div>
+                            <div className="flex -space-x-2">
+                              {team.members.slice(0, 3).map((member) => (
+                                <div
+                                  key={member.user.id}
+                                  className="h-8 w-8 rounded-full border-2 border-[#0b1530] bg-cyan-500/20 flex items-center justify-center text-xs font-medium text-cyan-400"
+                                >
+                                  {member.user.username[0].toUpperCase()}
+                                </div>
+                              ))}
+                              {team.members.length > 3 && (
+                                <div className="h-8 w-8 rounded-full border-2 border-[#0b1530] bg-white/10 flex items-center justify-center text-xs font-medium text-white/60">
+                                  +{team.members.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {activeTab === 'standings' && (
