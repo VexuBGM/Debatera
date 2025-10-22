@@ -31,6 +31,28 @@ export default function TopNav() {
             </span>
           </Link>
 
+          {/* Navigation Links */}
+          <div className="ml-6 hidden items-center gap-1 md:flex">
+            <Button
+              asChild
+              variant="ghost"
+              className={`rounded-lg text-white/80 hover:bg-white/10 hover:text-white ${
+                pathname?.startsWith('/tournaments') ? 'bg-white/10 text-white' : ''
+              }`}
+            >
+              <Link href="/tournaments">Tournaments</Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              className={`rounded-lg text-white/80 hover:bg-white/10 hover:text-white ${
+                pathname?.startsWith('/teams') ? 'bg-white/10 text-white' : ''
+              }`}
+            >
+              <Link href="/teams">Teams</Link>
+            </Button>
+          </div>
+
           {/* Search - Global search across debates, teams, tournaments, people. --> Results grouped into tabs; keyboard nav; quick “Join”/“Open” actions inline. */}
           <div className="ml-2 hidden flex-1 items-center md:flex">
             <div className="relative w-full max-w-xl">

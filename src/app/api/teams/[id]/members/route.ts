@@ -91,3 +91,49 @@ export async function POST(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  context: RouteContext
+) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
+  try {
+    const { id: teamId } = await context.params;
+    const body = await req.json();
+    const { userId } = body;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'userId is required' },
+        { status: 400 }
+      );
+    }
+
+    // Only the user themselves or admin can remove from team
+    if (userId !== user!.id && user!.appRole !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'You can only remove yourself from a team' },
+        { status: 403 }
+      );
+    }
+
+    await prisma.teamMember.delete({
+      where: {
+        teamId_userId: {
+          teamId,
+          userId,
+        },
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error removing team member:', error);
+    return NextResponse.json(
+      { error: 'Failed to remove team member' },
+      { status: 500 }
+    );
+  }
+}
