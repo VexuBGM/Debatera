@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, description } = body;
+    const { name, description, startDate, endDate } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json(
@@ -21,6 +21,10 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         description: description || null,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        status: 'DRAFT',
+        registrationOpen: true,
         createdById: user!.id,
       },
     });

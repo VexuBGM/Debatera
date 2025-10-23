@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { propTeamId, oppTeamId, tournamentId, scheduledAt } = body;
+    const { propTeamId, oppTeamId, tournamentId, roundId, venueId, scheduledAt } = body;
 
     // Validation
     if (!propTeamId || !oppTeamId) {
@@ -64,12 +64,16 @@ export async function POST(req: NextRequest) {
         propTeamId,
         oppTeamId,
         tournamentId: tournamentId || null,
+        roundId: roundId || null,
+        venueId: venueId || null,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       },
       include: {
         propTeam: true,
         oppTeam: true,
         tournament: true,
+        round: true,
+        venue: true,
       },
     });
 

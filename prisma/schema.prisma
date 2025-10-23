@@ -38,6 +38,29 @@ enum DebateSide {
   NEUTRAL
 }
 
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION
+  LIVE
+  COMPLETED
+}
+
+enum RoundStage {
+  PRELIMINARY
+  BREAK
+  FINAL
+}
+
+enum CheckInStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum BallotStatus {
+  DRAFT
+  CONFIRMED
+}
+
 // Core models
 model User {
   id                    String               @id @default(uuid()) @db.Uuid
@@ -53,41 +76,61 @@ model User {
   teamMemberships       TeamMember[]
   debateParticipations  DebateParticipant[]
   judgeFeedback         JudgeFeedback[]
+  adjudicatorProfiles   Adjudicator[]
+  speakerProfiles       Speaker[]
+  teamCheckIns          TeamCheckIn[]
+  adjudicatorCheckIns   AdjudicatorCheckIn[]
 
   @@index([clerkId])
 }
 
 model Tournament {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @db.VarChar(120)
-  description String?
-  isVerified  Boolean  @default(false)
-  createdById String   @db.Uuid
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  id                String            @id @default(uuid()) @db.Uuid
+  name              String            @db.VarChar(120)
+  description       String?
+  isVerified        Boolean           @default(false)
+  status            TournamentStatus  @default(DRAFT)
+  startDate         DateTime?
+  endDate           DateTime?
+  registrationOpen  Boolean           @default(true)
+  createdById       String            @db.Uuid
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @default(now()) @updatedAt
 
   // Relations
-  createdBy User     @relation(fields: [createdById], references: [id])
-  teams     Team[]
-  debates   Debate[]
+  createdBy           User                  @relation(fields: [createdById], references: [id])
+  teams               Team[]
+  debates             Debate[]
+  adjudicators        Adjudicator[]
+  venues              Venue[]
+  rounds              Round[]
+  motions             Motion[]
+  teamCheckIns        TeamCheckIn[]
+  adjudicatorCheckIns AdjudicatorCheckIn[]
 
   @@index([createdById])
   @@index([isVerified])
+  @@index([status])
 }
 
 model Team {
-  id           String    @id @default(uuid()) @db.Uuid
-  name         String    @db.VarChar(120)
-  tournamentId String?   @db.Uuid
-  createdAt    DateTime  @default(now())
+  id              String         @id @default(uuid()) @db.Uuid
+  name            String         @db.VarChar(120)
+  tournamentId    String?        @db.Uuid
+  isRegistered    Boolean        @default(false)
+  speakerNames    String?        // Comma-separated for simple display
+  createdAt       DateTime       @default(now())
 
   // Relations
-  tournament       Tournament?  @relation(fields: [tournamentId], references: [id])
+  tournament       Tournament?   @relation(fields: [tournamentId], references: [id])
   members          TeamMember[]
-  propDebates      Debate[]     @relation("PropTeam")
-  oppDebates       Debate[]     @relation("OppTeam")
+  speakers         Speaker[]
+  propDebates      Debate[]      @relation("PropTeam")
+  oppDebates       Debate[]      @relation("OppTeam")
+  checkIns         TeamCheckIn[]
 
   @@index([tournamentId])
+  @@index([isRegistered])
 }
 
 model TeamMember {
@@ -106,22 +149,30 @@ model TeamMember {
 model Debate {
   id           String        @id @default(uuid()) @db.Uuid
   tournamentId String?       @db.Uuid
+  roundId      String?       @db.Uuid
+  venueId      String?       @db.Uuid
   propTeamId   String        @db.Uuid
   oppTeamId    String        @db.Uuid
   scheduledAt  DateTime?
   status       DebateStatus  @default(SCHEDULED)
   winningSide  DebateSide?
+  streamCallId String?       // For video integration
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @default(now()) @updatedAt
 
   // Relations
   tournament   Tournament?          @relation(fields: [tournamentId], references: [id])
+  round        Round?               @relation(fields: [roundId], references: [id])
+  venue        Venue?               @relation(fields: [venueId], references: [id])
   propTeam     Team                 @relation("PropTeam", fields: [propTeamId], references: [id])
   oppTeam      Team                 @relation("OppTeam", fields: [oppTeamId], references: [id])
   participants DebateParticipant[]
   feedback     JudgeFeedback[]
+  ballots      Ballot[]
 
   @@index([tournamentId])
+  @@index([roundId])
+  @@index([venueId])
   @@index([propTeamId])
   @@index([oppTeamId])
   @@index([status])
@@ -160,4 +211,151 @@ model JudgeFeedback {
   @@unique([debateId, judgeId])
   @@index([debateId])
   @@index([judgeId])
+}
+
+// Tabbycat-specific models
+model Adjudicator {
+  id           String   @id @default(uuid()) @db.Uuid
+  tournamentId String   @db.Uuid
+  userId       String   @db.Uuid
+  rating       Float    @default(0) // 0-10 rating for allocation
+  isRegistered Boolean  @default(true)
+  isIndependent Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  tournament Tournament           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ballots    Ballot[]
+  checkIns   AdjudicatorCheckIn[]
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
+}
+
+model Speaker {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  teamId       String   @db.Uuid
+  name         String   @db.VarChar(100)
+  speakOrder   Int      @default(1) // 1, 2, 3 for team position
+  createdAt    DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+model Venue {
+  id           String   @id @default(uuid()) @db.Uuid
+  tournamentId String   @db.Uuid
+  name         String   @db.VarChar(100)
+  priority     Int      @default(0) // For allocation ordering
+  url          String?  // For online venues
+  createdAt    DateTime @default(now())
+
+  // Relations
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  debates    Debate[]
+
+  @@index([tournamentId])
+}
+
+model Round {
+  id              String      @id @default(uuid()) @db.Uuid
+  tournamentId    String      @db.Uuid
+  name            String      @db.VarChar(50)
+  seq             Int         // Sequential order: 1, 2, 3...
+  stage           RoundStage  @default(PRELIMINARY)
+  isDrawReleased  Boolean     @default(false)
+  isMotionReleased Boolean    @default(false)
+  startsAt        DateTime?
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  debates    Debate[]
+  motions    Motion[]
+
+  @@unique([tournamentId, seq])
+  @@index([tournamentId])
+}
+
+model Motion {
+  id           String   @id @default(uuid()) @db.Uuid
+  tournamentId String   @db.Uuid
+  roundId      String?  @db.Uuid
+  text         String
+  infoSlide    String?  // Additional info for the motion
+  seq          Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  round      Round?     @relation(fields: [roundId], references: [id], onDelete: SetNull)
+
+  @@index([tournamentId])
+  @@index([roundId])
+}
+
+model Ballot {
+  id             String        @id @default(uuid()) @db.Uuid
+  debateId       String        @db.Uuid
+  adjudicatorId  String        @db.Uuid
+  winningSide    DebateSide?
+  propScore      Float?        // Speaker points for prop team
+  oppScore       Float?        // Speaker points for opp team
+  comments       String?
+  status         BallotStatus  @default(DRAFT)
+  submittedAt    DateTime?
+  createdAt      DateTime      @default(now())
+
+  // Relations
+  debate       Debate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  adjudicator  Adjudicator @relation(fields: [adjudicatorId], references: [id], onDelete: Cascade)
+
+  @@unique([debateId, adjudicatorId])
+  @@index([debateId])
+  @@index([adjudicatorId])
+}
+
+model TeamCheckIn {
+  id           String         @id @default(uuid()) @db.Uuid
+  tournamentId String         @db.Uuid
+  teamId       String         @db.Uuid
+  roundSeq     Int            // Which round this check-in is for
+  status       CheckInStatus
+  checkedInBy  String         @db.Uuid
+  checkedInAt  DateTime       @default(now())
+
+  // Relations
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [checkedInBy], references: [id])
+
+  @@unique([tournamentId, teamId, roundSeq])
+  @@index([tournamentId, roundSeq])
+}
+
+model AdjudicatorCheckIn {
+  id            String         @id @default(uuid()) @db.Uuid
+  tournamentId  String         @db.Uuid
+  adjudicatorId String         @db.Uuid
+  roundSeq      Int            // Which round this check-in is for
+  status        CheckInStatus
+  checkedInBy   String         @db.Uuid
+  checkedInAt   DateTime       @default(now())
+
+  // Relations
+  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  adjudicator Adjudicator @relation(fields: [adjudicatorId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [checkedInBy], references: [id])
+
+  @@unique([tournamentId, adjudicatorId, roundSeq])
+  @@index([tournamentId, roundSeq])
 }

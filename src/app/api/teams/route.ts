@@ -31,10 +31,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Check if tournament registration is open
+    if (tournamentId) {
+      const tournament = await prisma.tournament.findUnique({
+        where: { id: tournamentId },
+      });
+      
+      if (!tournament?.registrationOpen) {
+        return NextResponse.json(
+          { error: 'Tournament registration is closed' },
+          { status: 400 }
+        );
+      }
+    }
+
     const team = await prisma.team.create({
       data: {
         name,
         tournamentId: tournamentId || null,
+        isRegistered: !!tournamentId,
       },
     });
 
