@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { 
-  Trophy, Users, MapPin, Calendar, CheckCircle, Settings,
-  UserPlus, FileText, Play, CheckSquare
+  Trophy, Users, Calendar, CheckCircle, Settings,
+  UserPlus, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -28,13 +28,12 @@ type Tournament = {
 
 export default function TournamentDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { user } = useUser();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [adjudicators, setAdjudicators] = useState<any[]>([]);
-  const [rounds, setRounds] = useState<any[]>([]);
+  const [teams, setTeams] = useState<{id: string; name: string; tournamentId?: string; members?: unknown[]}[]>([]);
+  const [adjudicators, setAdjudicators] = useState<{id: string}[]>([]);
+  const [rounds, setRounds] = useState<{id: string; name: string; stage: string; startsAt?: string; isDrawReleased: boolean; isMotionReleased: boolean; debates?: unknown[]}[]>([]);
 
   const isAdmin = tournament && user && (tournament.createdById === user.id);
 
@@ -49,9 +48,9 @@ export default function TournamentDetailPage() {
       fetch(`/api/tournaments/${params.id}/rounds`).then(r => r.json()),
     ])
       .then(([allTournaments, allTeams, adjudicatorsData, roundsData]) => {
-        const t = allTournaments.find((t: any) => t.id === params.id);
+        const t = allTournaments.find((tournament: {id: string}) => tournament.id === params.id);
         setTournament(t);
-        setTeams(allTeams.filter((team: any) => team.tournamentId === params.id));
+        setTeams(allTeams.filter((team: {tournamentId?: string}) => team.tournamentId === params.id));
         setAdjudicators(adjudicatorsData);
         setRounds(roundsData);
         setLoading(false);

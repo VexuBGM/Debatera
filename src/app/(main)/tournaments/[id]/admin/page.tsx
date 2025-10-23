@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
 import { 
   Plus, MapPin, FileText, Users, CheckSquare
 } from 'lucide-react';
@@ -11,10 +10,9 @@ import { Input } from '@/components/ui/input';
 
 export default function TournamentAdminPage() {
   const params = useParams();
-  const { user } = useUser();
-  const [tournament, setTournament] = useState<any>(null);
-  const [venues, setVenues] = useState<any[]>([]);
-  const [rounds, setRounds] = useState<any[]>([]);
+  const [tournament, setTournament] = useState<{id: string; name: string; createdById: string} | null>(null);
+  const [venues, setVenues] = useState<{id: string; name: string; url?: string}[]>([]);
+  const [rounds, setRounds] = useState<{id: string; name: string; seq: number; stage: string}[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -31,7 +29,7 @@ export default function TournamentAdminPage() {
       fetch(`/api/tournaments/${params.id}/rounds`).then(r => r.json()),
     ])
       .then(([allTournaments, venuesData, roundsData]) => {
-        const t = allTournaments.find((t: any) => t.id === params.id);
+        const t = allTournaments.find((tournament: {id: string}) => tournament.id === params.id);
         setTournament(t);
         setVenues(venuesData);
         setRounds(roundsData);

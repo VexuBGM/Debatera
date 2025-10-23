@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trophy, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { Trophy, Calendar, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type Tournament = {
@@ -37,9 +37,9 @@ export default function TournamentsPage() {
       });
   }, []);
 
-  const filteredTournaments = tournaments.filter((t) => {
+  const filteredTournaments = tournaments.filter((tournament) => {
     if (filter === 'all') return true;
-    return t.status === filter.toUpperCase();
+    return tournament.status === filter.toUpperCase();
   });
 
   const getStatusColor = (status: string) => {
@@ -81,10 +81,10 @@ export default function TournamentsPage() {
 
         {/* Filters */}
         <div className="flex gap-2 mt-6">
-          {['all', 'registration', 'live', 'completed'].map((f) => (
+          {(['all', 'registration', 'live', 'completed'] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f as any)}
+              onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 filter === f
                   ? 'bg-white/10 text-white'

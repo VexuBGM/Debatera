@@ -88,7 +88,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const roundId = searchParams.get('roundId');
 
-    const where: any = { tournamentId };
+    const where: { tournamentId: string; roundId?: string } = { tournamentId };
     if (roundId) {
       where.roundId = roundId;
     }

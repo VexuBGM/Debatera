@@ -37,8 +37,8 @@ export default function RegisterTeamPage() {
 
       // Redirect to tournament page
       router.push(`/tournaments/${params.id}`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
     }
   };

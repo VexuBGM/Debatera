@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 
 export default function CheckInPage() {
   const params = useParams();
-  const [rounds, setRounds] = useState<any[]>([]);
+  const [rounds, setRounds] = useState<{id: string; name: string; seq: number}[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [adjudicators, setAdjudicators] = useState<any[]>([]);
-  const [checkIns, setCheckIns] = useState<any>({ teams: [], adjudicators: [] });
+  const [teams, setTeams] = useState<{id: string; name: string; tournamentId?: string}[]>([]);
+  const [adjudicators, setAdjudicators] = useState<{id: string; rating: number; user: {username: string}}[]>([]);
+  const [checkIns, setCheckIns] = useState<{teams: {teamId: string; status: string}[]; adjudicators: {adjudicatorId: string; status: string}[]}>({ teams: [], adjudicators: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function CheckInPage() {
       fetch(`/api/tournaments/${params.id}/adjudicators`).then(r => r.json()),
     ])
       .then(([allTeams, adjudicatorsData]) => {
-        setTeams(allTeams.filter((t: any) => t.tournamentId === params.id));
+        setTeams(allTeams.filter((team: {tournamentId?: string}) => team.tournamentId === params.id));
         setAdjudicators(adjudicatorsData);
       });
   }, [params.id]);
@@ -57,7 +57,7 @@ export default function CheckInPage() {
 
   const handleCheckIn = async (type: 'team' | 'adjudicator', id: string, status: 'AVAILABLE' | 'UNAVAILABLE') => {
     try {
-      const body: any = {
+      const body: {roundSeq: number | null; status: string; teamId?: string; adjudicatorId?: string} = {
         roundSeq: selectedRound,
         status,
       };
@@ -87,7 +87,7 @@ export default function CheckInPage() {
 
   const isCheckedIn = (type: 'team' | 'adjudicator', id: string) => {
     const list = type === 'team' ? checkIns.teams : checkIns.adjudicators;
-    const item = list.find((c: any) => 
+    const item = list.find((c: {teamId?: string; adjudicatorId?: string; status: string}) => 
       type === 'team' ? c.teamId === id : c.adjudicatorId === id
     );
     return item?.status === 'AVAILABLE';
