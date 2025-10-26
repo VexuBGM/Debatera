@@ -38,14 +38,14 @@ export default async function RootLayout({
   // Ensure the authenticated user exists in the DB (keeps this call after env config)
   await ensureUserInDB();
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <ClerkProvider
         signInUrl={signInUrl}
         signUpUrl={signUpUrl}
         afterSignInUrl={afterSignInUrl}
         afterSignUpUrl={afterSignUpUrl}
       >
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <body className={`antialiased`} suppressHydrationWarning>
           {children}
         </body>
       </ClerkProvider>
