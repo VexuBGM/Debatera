@@ -6,6 +6,8 @@ import { ensureUserInDB } from '@/lib/ensureUser';
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
+import { Toaster } from "@/components/ui/sonner";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -47,6 +49,7 @@ export default async function RootLayout({
       >
         <body className={`antialiased`} suppressHydrationWarning>
           {children}
+          <Toaster />
         </body>
       </ClerkProvider>
     </html>

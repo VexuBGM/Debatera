@@ -19,4 +19,18 @@ model User {
   username  String?
   imageUrl  String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tournaments Tournament[]
+}
+
+model Tournament {
+  id          String    @id @default(cuid()) @db.VarChar(128)
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  ownerId     String    @db.VarChar(128) 
+  
+  owner       User      @relation(fields: [ownerId], references: [id])
 }

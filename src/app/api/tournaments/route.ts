@@ -1,0 +1,42 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+
+import { auth } from '@clerk/nextjs/server';
+
+// Prisma requires Node.js runtime, not Edge:
+export const runtime = 'nodejs';
+
+const CreateTournamentSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(120),
+  description: z.string().max(2000).optional().or(z.literal('')),
+});
+
+export async function POST(req: Request) {
+  // Auth: Clerk
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const json = await req.json();
+    const parsed = CreateTournamentSchema.parse(json);
+
+    const tournament = await prisma.tournament.create({
+      data: {
+        name: parsed.name,
+        description: parsed.description || null,
+        ownerId: userId,
+      },
+    });
+
+    return NextResponse.json(tournament, { status: 201 });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return NextResponse.json({ error: err.flatten() }, { status: 400 });
+    }
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

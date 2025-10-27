@@ -1,10 +1,10 @@
 import React from 'react'
-import CreateMeetingButton from '@/components/CreateMeetingButton'
+import CreateTournamentButton from '@/components/CreateTournamentButton'
 
 const HomePage = () => {
   return (
     <div>
-      
+      <CreateTournamentButton />
     </div>
   )
 }
