@@ -40,3 +40,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function GET(req: Request) {
+  try {
+    const tournaments = await prisma.tournament.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json(tournaments, { status: 200 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
