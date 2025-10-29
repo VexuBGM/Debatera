@@ -6,6 +6,9 @@ const isPublicRoute = createRouteMatcher([
   '/clerk-sync-keyless(.*)',
   '/api/webhooks/clerk(.*)',
   '/api/tournaments(.*)',
+  '/api/team-invites(.*)',
+  '/api/teams(.*)',
+  '/api(.*)',
 ])
 
 export default clerkMiddleware(async (auth, req) => {
