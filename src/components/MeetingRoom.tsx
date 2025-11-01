@@ -80,7 +80,7 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
   return (
     <section className="h-screen w-full flex flex-col bg-[#0a1a2b] text-white p-2 overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between bg-[#0d2036] border border-blue-900 rounded-lg px-6 py-1 mb-2 flex-shrink-0">
+      <div className="flex items-center justify-between bg-[#0d2036] border border-blue-900 rounded-lg px-6 py-1 mb-2 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           <div>
@@ -127,7 +127,7 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
         </div>
 
         {/* Center (Active Speaker + Judges below) */}
-        <div className="flex-[2] flex flex-col gap-3 min-w-0 overflow-hidden">
+        <div className="flex-2 flex flex-col gap-3 min-w-0 overflow-hidden">
           {/* Active Speaker (as large as possible without scrolling) */}
           <div className="flex-1 rounded-lg border-2 border-primary overflow-hidden relative bg-[#0A1A2B]">
             {centerParticipant ? (
@@ -145,7 +145,7 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
           </div>
 
           {/* Judges Panel — directly below the active speaker */}
-          <div className="flex-shrink-0 bg-[#0d2036] border border-blue-900 rounded-lg px-4 py-3">
+          <div className="shrink-0 bg-[#0d2036] border border-blue-900 rounded-lg px-4 py-3">
             <h3 className="text-sm font-semibold text-center uppercase tracking-wide text-white mb-2">
               Judges Panel
             </h3>
