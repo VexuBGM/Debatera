@@ -28,7 +28,7 @@ const Meeting = () => {
   );
 
   return (
-    <main className="min-h-screen w-full bg-gradient-to-b from-dark-2 to-dark-1">
+    <main className="min-h-screen w-full bg-linear-to-b from-dark-2 to-dark-1">
       <StreamCall call={call}>
         <StreamTheme>
           {!isSetupComplete ? (

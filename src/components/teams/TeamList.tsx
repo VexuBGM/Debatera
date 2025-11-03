@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button";
 import { InviteDialog } from "@/components/teams/InviteDialog";
 
-type Team = { id: string; name: string; description: string | null };
+type Member = { id: string; email: string | null; username: string | null; imageUrl?: string | null };
+type Team = { id: string; name: string; description: string | null; members?: Member[] };
 
 export function TeamList() {
   const [teams, setTeams] = useState<Team[] | null>(null);
@@ -46,6 +47,26 @@ export function TeamList() {
           </CardHeader>
           <CardContent className="flex-1">
             <p className="text-sm text-muted-foreground">{t.description || "No description"}</p>
+            <div className="mt-3">
+              <h4 className="text-xs font-medium text-muted-foreground mb-2">Members</h4>
+              <ul className="flex flex-wrap gap-2">
+                {(t.members ?? []).map((m) => (
+                  <li key={m.id} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs">
+                    {m.imageUrl ? (
+                      <img src={m.imageUrl} alt={m.username ?? m.email ?? 'member'} className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-700">
+                        {(m.username ?? m.email ?? 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="leading-none">
+                      <div className="text-sm truncate max-w-40">{m.username ?? m.email ?? 'Unknown'}</div>
+                      <div className="text-[11px] text-muted-foreground">{m.email ?? ''}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </CardContent>
           <CardFooter className="flex gap-2">
             <InviteDialog teamId={t.id} />
