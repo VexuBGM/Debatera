@@ -7,7 +7,7 @@ import { isCoach } from '@/lib/tournament-validation';
 export const runtime = 'nodejs';
 
 const AddMemberSchema = z.object({
-  userId: z.string().min(1, 'User ID is required'),
+  email: z.string().min(1, 'Email is required'),
   isCoach: z.boolean().optional().default(false),
 });
 
@@ -26,8 +26,10 @@ export async function POST(
 
   try {
     const { id: institutionId } = await params;
-    const json = await req.json();
-    const parsed = AddMemberSchema.parse(json);
+  const json = await req.json();
+  // Log incoming payload to help debug 400s from validation
+  console.debug(json);
+  const parsed = AddMemberSchema.parse(json);
 
     // Check if institution exists
     const institution = await prisma.institution.findUnique({
@@ -47,18 +49,20 @@ export async function POST(
       );
     }
 
-    // Check if target user exists
+    // Check if target user exists (lookup by email)
     const targetUser = await prisma.user.findUnique({
-      where: { id: parsed.userId },
+      where: { email: parsed.email },
     });
 
     if (!targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check if user is already in an institution
+    const targetUserId = targetUser.id;
+
+    // Check if user is already in an institution (InstitutionMember has unique userId)
     const existingMembership = await prisma.institutionMember.findUnique({
-      where: { userId: parsed.userId },
+      where: { userId: targetUserId },
     });
 
     if (existingMembership) {
@@ -77,7 +81,7 @@ export async function POST(
     // Add user to institution
     const member = await prisma.institutionMember.create({
       data: {
-        userId: parsed.userId,
+        userId: targetUserId,
         institutionId,
         isCoach: parsed.isCoach,
       },
@@ -95,7 +99,8 @@ export async function POST(
 
     return NextResponse.json(member, { status: 201 });
   } catch (err: any) {
-    if (err.name === 'ZodError') {
+    // Return more explicit validation errors for Zod failures
+    if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.flatten() }, { status: 400 });
     }
     console.error(err);

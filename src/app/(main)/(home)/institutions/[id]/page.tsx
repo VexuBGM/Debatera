@@ -68,7 +68,7 @@ export default function InstitutionDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
-  const [newMemberUserId, setNewMemberUserId] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberIsCoach, setNewMemberIsCoach] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,7 +108,7 @@ export default function InstitutionDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: newMemberUserId,
+          email: newMemberEmail,
           isCoach: newMemberIsCoach,
         }),
       });
@@ -121,7 +121,7 @@ export default function InstitutionDetailPage() {
 
       toast.success('Member added successfully');
       setIsAddMemberOpen(false);
-      setNewMemberUserId('');
+      setNewMemberEmail('');
       setNewMemberIsCoach(false);
       fetchInstitution();
     } catch (err: any) {
@@ -280,18 +280,18 @@ export default function InstitutionDetailPage() {
                       <form onSubmit={handleAddMember} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="userId">
-                            User ID <span className="text-red-500">*</span>
+                            Email <span className="text-red-500">*</span>
                           </Label>
                           <Input
                             id="userId"
-                            value={newMemberUserId}
-                            onChange={(e) => setNewMemberUserId(e.target.value)}
-                            placeholder="user_..."
+                            value={newMemberEmail}
+                            onChange={(e) => setNewMemberEmail(e.target.value)}
+                            placeholder="example@gmail.com"
                             required
                             disabled={isAddingMember}
                           />
                           <p className="text-sm text-muted-foreground">
-                            The Clerk user ID of the person to add
+                            The email of the user to add as a member.
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -310,7 +310,7 @@ export default function InstitutionDetailPage() {
                         <div className="flex gap-3">
                           <Button
                             type="submit"
-                            disabled={isAddingMember || !newMemberUserId.trim()}
+                            disabled={isAddingMember || !newMemberEmail.trim()}
                             className="bg-cyan-500 hover:bg-cyan-600"
                           >
                             {isAddingMember ? (
