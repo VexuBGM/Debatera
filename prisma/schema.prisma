@@ -13,6 +13,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum RoleType {
+  DEBATER
+  JUDGE
+}
+
 model User {
   id         String        @id @db.VarChar(128) // Clerk user id
   email      String?       @unique
@@ -20,9 +25,19 @@ model User {
   imageUrl   String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
+  
+  // Existing team relations
   memberships TeamMember[]
   invitesCreated TeamInvite[] @relation("InvitesCreated")
   teamsCreated Team[] @relation("TeamsCreated")
+  
+  // Institution relations
+  institutionMemberships InstitutionMember[]
+  institutionsCreated Institution[] @relation("InstitutionsCreated")
+  
+  // Tournament participation
+  tournamentParticipations TournamentParticipation[]
+  tournamentsFrozen Tournament[] @relation("TournamentsFrozen")
 }
 
 model Team {
@@ -73,5 +88,76 @@ model Tournament {
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  ownerId     String    @db.VarChar(128) 
+  ownerId     String    @db.VarChar(128)
+  rosterFreezeAt DateTime?
+  frozenById  String?   @db.VarChar(128)
+  frozenBy    User?     @relation("TournamentsFrozen", fields: [frozenById], references: [id], onDelete: SetNull)
+  
+  teams       TournamentTeam[]
+  participations TournamentParticipation[]
+}
+
+model Institution {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdById String    @db.VarChar(128)
+  createdBy   User      @relation("InstitutionsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  members     InstitutionMember[]
+  teams       TournamentTeam[]
+  
+  @@index([createdById])
+}
+
+model InstitutionMember {
+  id            String      @id @default(cuid())
+  userId        String      @db.VarChar(128)
+  institutionId String
+  isCoach       Boolean     @default(false)
+  joinedAt      DateTime    @default(now())
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId]) // A user can only be in one institution
+  @@index([institutionId])
+}
+
+model TournamentTeam {
+  id            String      @id @default(cuid())
+  name          String
+  tournamentId  String      @db.VarChar(128)
+  institutionId String
+  teamNumber    Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  participations TournamentParticipation[]
+  
+  @@unique([tournamentId, institutionId, teamNumber])
+  @@index([tournamentId])
+  @@index([institutionId])
+}
+
+model TournamentParticipation {
+  id            String         @id @default(cuid())
+  userId        String         @db.VarChar(128)
+  tournamentId  String         @db.VarChar(128)
+  teamId        String?
+  role          RoleType
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament    Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team          TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  
+  @@unique([userId, tournamentId]) // Single appearance rule
+  @@index([tournamentId])
+  @@index([teamId])
 }
