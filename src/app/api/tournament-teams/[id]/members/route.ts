@@ -91,17 +91,6 @@ export async function POST(
       );
     }
 
-    // If role is DEBATER, check team size limit
-    if (parsed.role === RoleType.DEBATER) {
-      const debaterCount = await getTeamDebaterCount(teamId);
-      if (debaterCount >= 5) {
-        return NextResponse.json(
-          { error: 'Team has reached maximum size (5 debaters)' },
-          { status: 400 }
-        );
-      }
-    }
-
     // Add member to team
     const participation = await prisma.tournamentParticipation.create({
       data: {

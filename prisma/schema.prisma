@@ -26,11 +26,6 @@ model User {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
   
-  // Existing team relations
-  memberships TeamMember[]
-  invitesCreated TeamInvite[] @relation("InvitesCreated")
-  teamsCreated Team[] @relation("TeamsCreated")
-  
   // Institution relations
   institutionMemberships InstitutionMember[]
   institutionsCreated Institution[] @relation("InstitutionsCreated")
@@ -38,48 +33,6 @@ model User {
   // Tournament participation
   tournamentParticipations TournamentParticipation[]
   tournamentsFrozen Tournament[] @relation("TournamentsFrozen")
-}
-
-model Team {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  createdById String        @db.VarChar(128)
-  createdBy   User          @relation("TeamsCreated", fields: [createdById], references: [id], onDelete: Cascade)
-  members     TeamMember[]
-  invites     TeamInvite[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  @@unique([name]) 
-}
-
-model TeamMember {
-  userId   String     @db.VarChar(128)
-  teamId   String
-  joinedAt DateTime   @default(now())
-  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team     Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
-  @@id([userId, teamId])
-  @@index([teamId])
-}
-
-model TeamInvite {
-  id          String    @id @default(cuid())
-  teamId      String
-  createdById String?    @db.VarChar(128)
-  email       String?   
-  token       String    @unique
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  revokedAt   DateTime?
-
-  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  createdBy   User?     @relation("InvitesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-
-  @@index([teamId])
-  @@index([token])
 }
 
 model Tournament {

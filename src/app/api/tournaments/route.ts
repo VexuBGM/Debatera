@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
 const CreateTournamentSchema = z.object({
   name: z.string().min(1, 'Name is required').max(120),
   description: z.string().max(2000).optional().or(z.literal('')),
+  rosterFreezeAt: z.string().datetime().optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,6 +29,8 @@ export async function POST(req: Request) {
         name: parsed.name,
         description: parsed.description || null,
         ownerId: userId,
+        rosterFreezeAt: parsed.rosterFreezeAt ? new Date(parsed.rosterFreezeAt) : null,
+        frozenById: parsed.rosterFreezeAt ? userId : null,
       },
     });
 

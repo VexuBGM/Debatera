@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link';
 
 type Props = {
     id: string;
@@ -20,12 +21,14 @@ const Tournaments = async () => {
       ) : (
         <ul className="space-y-3">
           {tournaments.map(t => (
-            <li key={t.id} className="rounded-lg border p-4">
-              <h2 className="font-medium">{t.name}</h2>
-              <p className="text-sm text-gray-500">
-                {t.description ?? 'No description'}
-              </p>
-            </li>
+            <Link key={t.id} href={`/tournaments/${t.id}`}>
+              <li className="rounded-lg border p-4">
+                <h2 className="font-medium">{t.name}</h2>
+                <p className="text-sm text-gray-500">
+                  {t.description ?? 'No description'}
+                </p>
+              </li>
+            </Link>
           ))}
         </ul>
       )}

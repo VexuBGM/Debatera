@@ -311,8 +311,9 @@ export default function TournamentDetailPage() {
 
       <Tabs defaultValue="teams" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="participants">Participants</TabsTrigger>
+          <TabsTrigger value="teams">Teams</TabsTrigger>
+          <TabsTrigger value="my-institution">My Institution</TabsTrigger>
         </TabsList>
 
         <TabsContent value="teams">
