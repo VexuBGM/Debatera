@@ -1,10 +1,9 @@
 import React from 'react'
-import CreateTournamentButton from '@/components/CreateTournamentButton'
 
 const HomePage = () => {
   return (
     <div>
-      <CreateTournamentButton />
+      <h1>Welcome to Debatera dashboard</h1>
     </div>
   )
 }
