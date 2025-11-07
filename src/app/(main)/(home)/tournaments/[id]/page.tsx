@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Trophy, ArrowLeft, Plus, Loader2, Users, Calendar, Lock, Unlock } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import TournamentMyParticipants from '@/components/tournaments/TournamentMyParticipants';
 
 interface Tournament {
   id: string;
@@ -71,6 +72,20 @@ interface InstitutionOption {
   name: string;
 }
 
+interface InstitutionMember {
+  id: string;
+  userId: string;
+  institutionId: string;
+  isCoach: boolean;
+  joinedAt: string;
+  user: {
+    id: string;
+    username: string | null;
+    email: string | null;
+    imageUrl: string | null;
+  };
+}
+
 export default function TournamentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -84,6 +99,8 @@ export default function TournamentDetailPage() {
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [selectedInstitutionId, setSelectedInstitutionId] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [myInstitution, setMyInstitution] = useState<{ id: string; name: string; isCoach: boolean } | null>(null);
+  const [institutionMembers, setInstitutionMembers] = useState<InstitutionMember[]>([]);
 
   const tournamentId = params.id as string;
 
@@ -113,6 +130,35 @@ export default function TournamentDetailPage() {
       setTeams(teamsData);
       setParticipations(participationsData);
       setInstitutions(institutionsData);
+
+      // Fetch user's institution membership
+      if (userId) {
+        try {
+          const userInstitutionsRes = await fetch('/api/institutions');
+          if (userInstitutionsRes.ok) {
+            const userInstitutions = await userInstitutionsRes.json();
+            // Find the institution where the user is a member
+            for (const inst of userInstitutions) {
+              const membersRes = await fetch(`/api/institutions/${inst.id}/members`);
+              if (membersRes.ok) {
+                const members = await membersRes.json();
+                const userMembership = members.find((m: InstitutionMember) => m.userId === userId);
+                if (userMembership) {
+                  setMyInstitution({
+                    id: inst.id,
+                    name: inst.name,
+                    isCoach: userMembership.isCoach,
+                  });
+                  setInstitutionMembers(members);
+                  break;
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch user institution:', err);
+        }
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -192,6 +238,13 @@ export default function TournamentDetailPage() {
       toast.error(err.message);
     }
   };
+
+  // Filter out members who are already registered in the tournament
+  const availableMembers = institutionMembers.filter((member) => {
+    if (!participations) return true;
+    const allParticipants = [...participations.debaters, ...participations.judges];
+    return !allParticipants.some((p) => p.userId === member.userId);
+  });
 
   if (isLoading) {
     return (
@@ -309,11 +362,11 @@ export default function TournamentDetailPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="teams" className="space-y-6">
+      <Tabs defaultValue="participants" className="space-y-6">
         <TabsList>
           <TabsTrigger value="participants">Participants</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
-          <TabsTrigger value="my-institution">My Institution</TabsTrigger>
+          <TabsTrigger value="my-institution">My Participants</TabsTrigger>
         </TabsList>
 
         <TabsContent value="teams">
@@ -503,6 +556,16 @@ export default function TournamentDetailPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="my-institution">
+          <TournamentMyParticipants
+            tournamentId={tournamentId}
+            myInstitution={myInstitution}
+            institutionMembers={institutionMembers}
+            availableMembers={availableMembers}
+            onRegistrationComplete={fetchTournamentData}
+          />
         </TabsContent>
       </Tabs>
     </div>
