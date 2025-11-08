@@ -31,11 +31,17 @@ interface MyInstitution {
   isCoach: boolean;
 }
 
+interface Participation {
+  id: string;
+  userId: string;
+  role: 'DEBATER' | 'JUDGE';
+}
+
 interface TournamentMyParticipantsProps {
   tournamentId: string;
   myInstitution: MyInstitution | null;
   institutionMembers: InstitutionMember[];
-  availableMembers: InstitutionMember[];
+  participations: { debaters: Participation[]; judges: Participation[]; total: number } | null;
   onRegistrationComplete: () => void;
 }
 
@@ -43,74 +49,144 @@ export default function TournamentMyParticipants({
   tournamentId,
   myInstitution,
   institutionMembers,
-  availableMembers,
+  participations,
   onRegistrationComplete,
 }: TournamentMyParticipantsProps) {
-  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [selectedMembers, setSelectedMembers] = useState<Map<string, boolean>>(new Map());
   const [selectedRole, setSelectedRole] = useState<'DEBATER' | 'JUDGE'>('DEBATER');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Initialize selected members based on current participations
+  useState(() => {
+    if (participations && institutionMembers.length > 0) {
+      const allParticipants = [...participations.debaters, ...participations.judges];
+      const initialSelection = new Map<string, boolean>();
+      
+      institutionMembers.forEach(member => {
+        const isRegistered = allParticipants.some(p => p.userId === member.userId);
+        initialSelection.set(member.userId, isRegistered);
+      });
+      
+      setSelectedMembers(initialSelection);
+    }
+  });
+
+  // Get registered participants for styling
+  const getRegisteredUserIds = () => {
+    if (!participations) return new Set<string>();
+    const allParticipants = [...participations.debaters, ...participations.judges];
+    return new Set(allParticipants.map(p => p.userId));
+  };
+
+  // Get user role from participations
+  const getUserRole = (userId: string): 'DEBATER' | 'JUDGE' | null => {
+    if (!participations) return null;
+    const allParticipants = [...participations.debaters, ...participations.judges];
+    const participation = allParticipants.find(p => p.userId === userId);
+    return participation ? participation.role : null;
+  };
+
+  const registeredUserIds = getRegisteredUserIds();
 
   const handleToggleMember = (userId: string) => {
     setSelectedMembers((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(userId)) {
-        newSet.delete(userId);
-      } else {
-        newSet.add(userId);
-      }
-      return newSet;
+      const newMap = new Map(prev);
+      const currentValue = newMap.get(userId) || false;
+      newMap.set(userId, !currentValue);
+      return newMap;
     });
   };
 
   const handleToggleAll = () => {
-    if (selectedMembers.size === availableMembers.length) {
-      setSelectedMembers(new Set());
-    } else {
-      setSelectedMembers(new Set(availableMembers.map((m) => m.userId)));
-    }
+    const allChecked = institutionMembers.every(m => selectedMembers.get(m.userId) === true);
+    const newMap = new Map<string, boolean>();
+    
+    institutionMembers.forEach(member => {
+      newMap.set(member.userId, !allChecked);
+    });
+    
+    setSelectedMembers(newMap);
   };
 
-  const handleRegisterMembers = async () => {
-    if (selectedMembers.size === 0) {
-      toast.error('Please select at least one member to register');
-      return;
-    }
-
-    setIsRegistering(true);
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
     try {
-      const registrations = Array.from(selectedMembers).map((userId) => ({
-        userId,
-        role: selectedRole,
-        teamId: null, // Team assignment will be handled separately
-      }));
+      // Determine which users to register and which to unregister
+      const toRegister: string[] = [];
+      const toUnregister: string[] = [];
 
-      const response = await fetch(`/api/tournaments/${tournamentId}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registrations }),
+      institutionMembers.forEach(member => {
+        const isCurrentlySelected = selectedMembers.get(member.userId) || false;
+        const wasRegistered = registeredUserIds.has(member.userId);
+
+        if (isCurrentlySelected && !wasRegistered) {
+          toRegister.push(member.userId);
+        } else if (!isCurrentlySelected && wasRegistered) {
+          toUnregister.push(member.userId);
+        }
       });
 
-      const data = await response.json();
+      let successCount = 0;
+      let errorCount = 0;
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to register members');
+      // Handle registrations
+      if (toRegister.length > 0) {
+        const registrations = toRegister.map((userId) => ({
+          userId,
+          role: selectedRole,
+          teamId: null,
+        }));
+
+        const registerResponse = await fetch(`/api/tournaments/${tournamentId}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ registrations }),
+        });
+
+        const registerData = await registerResponse.json();
+
+        if (registerResponse.ok) {
+          successCount += registerData.success || 0;
+          errorCount += registerData.failed || 0;
+        } else {
+          throw new Error(registerData.error || 'Failed to register members');
+        }
       }
 
-      if (data.success > 0) {
-        toast.success(`Successfully registered ${data.success} member${data.success > 1 ? 's' : ''}`);
+      // Handle unregistrations
+      if (toUnregister.length > 0) {
+        const unregisterResponse = await fetch(`/api/tournaments/${tournamentId}/participations`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds: toUnregister }),
+        });
+
+        const unregisterData = await unregisterResponse.json();
+
+        if (unregisterResponse.ok) {
+          successCount += unregisterData.success || 0;
+        } else {
+          throw new Error(unregisterData.error || 'Failed to unregister members');
+        }
       }
 
-      if (data.failed > 0 && data.errors) {
-        toast.error(`Failed to register ${data.failed} member${data.failed > 1 ? 's' : ''}`);
-        console.error('Registration errors:', data.errors);
+      if (successCount > 0) {
+        toast.success(`Successfully updated ${successCount} member${successCount > 1 ? 's' : ''}`);
       }
 
-      setSelectedMembers(new Set());
+      if (errorCount > 0) {
+        toast.error(`Failed to update ${errorCount} member${errorCount > 1 ? 's' : ''}`);
+      }
+
+      if (successCount === 0 && errorCount === 0) {
+        toast.info('No changes to save');
+      }
+
       onRegistrationComplete();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setIsRegistering(false);
+      setIsSaving(false);
     }
   };
 
@@ -148,12 +224,12 @@ export default function TournamentMyParticipants({
               Only coaches can register members to tournaments
             </p>
           </div>
-        ) : availableMembers.length === 0 ? (
+        ) : institutionMembers.length === 0 ? (
           <div className="text-center py-12">
             <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">All Members Registered</h3>
+            <h3 className="text-lg font-semibold mb-2">No Members</h3>
             <p className="text-muted-foreground">
-              All members from your institution are already registered
+              Your institution has no members to register
             </p>
           </div>
         ) : (
@@ -181,18 +257,18 @@ export default function TournamentMyParticipants({
               </div>
 
               <Button
-                onClick={handleRegisterMembers}
-                disabled={isRegistering || selectedMembers.size === 0}
+                onClick={handleSaveChanges}
+                disabled={isSaving}
                 className="bg-cyan-500 hover:bg-cyan-600"
               >
-                {isRegistering ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Registering...
+                    Saving...
                   </>
                 ) : (
                   <>
-                    Register Selected ({selectedMembers.size})
+                    Save Changes
                   </>
                 )}
               </Button>
@@ -205,7 +281,7 @@ export default function TournamentMyParticipants({
                     <TableHead className="w-12">
                       <input
                         type="checkbox"
-                        checked={selectedMembers.size === availableMembers.length && availableMembers.length > 0}
+                        checked={institutionMembers.every(m => selectedMembers.get(m.userId) === true)}
                         onChange={handleToggleAll}
                         className="cursor-pointer"
                       />
@@ -213,32 +289,67 @@ export default function TournamentMyParticipants({
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role in Institution</TableHead>
+                    <TableHead>Tournament Role</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {availableMembers.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={selectedMembers.has(member.userId)}
-                          onChange={() => handleToggleMember(member.userId)}
-                          className="cursor-pointer"
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {member.user.username || 'N/A'}
-                      </TableCell>
-                      <TableCell>{member.user.email}</TableCell>
-                      <TableCell>
-                        {member.isCoach ? (
-                          <Badge variant="default">Coach</Badge>
-                        ) : (
-                          <Badge variant="secondary">Member</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {institutionMembers.map((member) => {
+                    const isChecked = selectedMembers.get(member.userId) || false;
+                    const isRegistered = registeredUserIds.has(member.userId);
+                    const tournamentRole = getUserRole(member.userId);
+                    
+                    return (
+                      <TableRow 
+                        key={member.id}
+                        className={isRegistered ? 'bg-cyan-50 dark:bg-cyan-950/20' : ''}
+                      >
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleMember(member.userId)}
+                            className={`cursor-pointer ${
+                              isRegistered 
+                                ? 'accent-slate-600 dark:accent-slate-400 scale-110' 
+                                : 'accent-cyan-500'
+                            }`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {member.user.username || 'N/A'}
+                        </TableCell>
+                        <TableCell>{member.user.email}</TableCell>
+                        <TableCell>
+                          {member.isCoach ? (
+                            <Badge variant="default">Coach</Badge>
+                          ) : (
+                            <Badge variant="secondary">Member</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {tournamentRole ? (
+                            <Badge variant={tournamentRole === 'DEBATER' ? 'default' : 'secondary'}>
+                              {tournamentRole}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isRegistered ? (
+                            <Badge variant="default" className="bg-cyan-500">
+                              Registered
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">
+                              Not Registered
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

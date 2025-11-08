@@ -199,13 +199,6 @@ export default function TournamentDetailPage() {
     }
   };
 
-  // Filter out members who are already registered in the tournament
-  const availableMembers = institutionMembers.filter((member) => {
-    if (!participations) return true;
-    const allParticipants = [...participations.debaters, ...participations.judges];
-    return !allParticipants.some((p) => p.userId === member.userId);
-  });
-
   if (isLoading) {
     return (
       <div className="container py-8">
@@ -487,7 +480,7 @@ export default function TournamentDetailPage() {
             tournamentId={tournamentId}
             myInstitution={myInstitution}
             institutionMembers={institutionMembers}
-            availableMembers={availableMembers}
+            participations={participations}
             onRegistrationComplete={fetchTournamentData}
           />
         </TabsContent>

@@ -66,3 +66,104 @@ export async function GET(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/tournaments/[id]/participations
+ * Unregister users from a tournament (coaches only)
+ */
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { userId: currentUserId } = await auth();
+  if (!currentUserId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { id: tournamentId } = await params;
+    const { userIds } = await req.json();
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return NextResponse.json({ error: 'userIds must be a non-empty array' }, { status: 400 });
+    }
+
+    // Check if tournament exists
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+
+    if (!tournament) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+    }
+
+    // Check roster freeze
+    const now = new Date();
+    const canModify = !tournament.rosterFreezeAt || new Date(tournament.rosterFreezeAt) > now;
+    
+    if (!canModify) {
+      return NextResponse.json(
+        { error: 'Tournament roster is frozen' },
+        { status: 423 }
+      );
+    }
+
+    // Get current user's institution
+    const userMembership = await prisma.institutionMember.findFirst({
+      where: { userId: currentUserId },
+      select: { institutionId: true, isCoach: true },
+    });
+
+    if (!userMembership) {
+      return NextResponse.json(
+        { error: 'You must be a member of an institution' },
+        { status: 400 }
+      );
+    }
+
+    if (!userMembership.isCoach) {
+      return NextResponse.json(
+        { error: 'Only coaches can unregister users' },
+        { status: 403 }
+      );
+    }
+
+    // Verify all users belong to the coach's institution
+    const usersToUnregister = await prisma.institutionMember.findMany({
+      where: {
+        userId: { in: userIds },
+        institutionId: userMembership.institutionId,
+      },
+      select: { userId: true },
+    });
+
+    const validUserIds = usersToUnregister.map(u => u.userId);
+    const invalidUserIds = userIds.filter(id => !validUserIds.includes(id));
+
+    if (invalidUserIds.length > 0) {
+      return NextResponse.json(
+        { error: 'Some users do not belong to your institution' },
+        { status: 403 }
+      );
+    }
+
+    // Delete participations
+    const result = await prisma.tournamentParticipation.deleteMany({
+      where: {
+        tournamentId,
+        userId: { in: validUserIds },
+      },
+    });
+
+    return NextResponse.json(
+      {
+        success: result.count,
+        message: `Successfully unregistered ${result.count} user(s)`,
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
