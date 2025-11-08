@@ -7,7 +7,7 @@ import { isTournamentAdmin } from '@/lib/tournament-validation';
 export const runtime = 'nodejs';
 
 const FreezeRosterSchema = z.object({
-  rosterFreezeAt: z.string().datetime(),
+  rosterFreezeAt: z.coerce.date(),
 });
 
 /**
@@ -67,8 +67,36 @@ export async function POST(
     return NextResponse.json(updated, { status: 200 });
   } catch (err: any) {
     if (err.name === 'ZodError') {
-      return NextResponse.json({ error: err.flatten() }, { status: 400 });
+      return NextResponse.json({ error: "Zod validation error" }, { status: 400 });
     }
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+/**
+ * GET /api/tournaments/[id]/freeze
+ * Get the tournament's freeze status
+ */
+
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: tournamentId } = await params;
+
+    // Check if tournament exists
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+
+    if (!tournament) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ frozenAt: tournament.rosterFreezeAt }, { status: 200 });
+  } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

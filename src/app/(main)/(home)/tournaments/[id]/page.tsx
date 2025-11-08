@@ -1,19 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams} from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, ArrowLeft, Users, Lock, Unlock } from 'lucide-react';
+import { Trophy, ArrowLeft, Users, Lock, Unlock, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import TournamentMyParticipants from '@/components/tournaments/TournamentMyParticipants';
 import TournamentParticipants from '@/components/tournaments/TournamentAllParticipants';
 import TournamentTeams from '@/components/tournaments/TournamentTeams';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface Tournament {
   id: string;
@@ -85,16 +89,17 @@ interface InstitutionMember {
 
 export default function TournamentDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { userId } = useAuth();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [teams, setTeams] = useState<TournamentTeam[]>([]);
   const [participations, setParticipations] = useState<{ debaters: Participation[]; judges: Participation[]; total: number } | null>(null);
   const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [myInstitution, setMyInstitution] = useState<{ id: string; name: string; isCoach: boolean } | null>(null);
   const [institutionMembers, setInstitutionMembers] = useState<InstitutionMember[]>([]);
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [time, settime] = useState("10:30");
 
   const tournamentId = params.id as string;
 
@@ -160,8 +165,19 @@ export default function TournamentDetailPage() {
     }
   };
 
-  const handleFreezeRoster = async () => {
-    const freezeDate = prompt('Enter freeze date (YYYY-MM-DDTHH:MM:SS.SSSZ):');
+  const handleChangeFreezeRoster = async () => {
+    const [hStr, mStr] = time.split(":");
+    const hours = Number(hStr ?? 0);
+    const minutes = Number(mStr ?? 0);
+    
+    if (!date) {
+      toast.error("Please select a date for freezing the roster");
+      return;
+    }
+
+    const freezeDate = new Date(date);
+    freezeDate.setHours(hours, minutes, 0, 0);
+
     if (!freezeDate) return;
 
     try {
@@ -177,24 +193,6 @@ export default function TournamentDetailPage() {
       }
 
       toast.success('Roster frozen successfully');
-      fetchTournamentData();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  };
-
-  const handleOverrideFreeze = async () => {
-    try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/override`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to override freeze');
-      }
-
-      toast.success('Roster freeze removed');
       fetchTournamentData();
     } catch (err: any) {
       toast.error(err.message);
@@ -258,15 +256,123 @@ export default function TournamentDetailPage() {
           {isAdmin && (
             <div className="flex gap-2">
               {!tournament.isRosterFrozen ? (
-                <Button onClick={handleFreezeRoster} variant="outline">
-                  <Lock className="mr-2 h-4 w-4" />
-                  Freeze Roster
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="text-black">
+                      <Lock className="mr-2 h-4 w-4" />
+                      Freeze Roster
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <div className="flex gap-4">
+                      <div className="flex flex-col gap-3">
+                        <Label htmlFor="date-picker" className="px-1">
+                          Date
+                        </Label>
+                        <Popover open={open} onOpenChange={setOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              id="date-picker"
+                              className="w-32 justify-between font-normal"
+                            >
+                              {date ? date.toLocaleDateString() : "Select date"}
+                              <ChevronDownIcon />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={date}
+                              captionLayout="dropdown"
+                              onSelect={(date) => {
+                                setDate(date)
+                                setOpen(false)
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <Label htmlFor="time-picker" className="px-1">
+                          Time
+                        </Label>
+                        <Input
+                          type="time"
+                          id="time-picker"
+                          onChange={(e) => settime(e.target.value)}
+                          defaultValue="10:30"
+                          className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      className="mt-4 w-full bg-cyan-500 hover:bg-cyan-600"
+                      onClick={handleChangeFreezeRoster}
+                    >
+                      Freeze Roster
+                    </Button>
+                  </PopoverContent>
+                </Popover>
               ) : (
-                <Button onClick={handleOverrideFreeze} variant="outline">
-                  <Unlock className="mr-2 h-4 w-4" />
-                  Unfreeze
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="text-black">
+                      <Lock className="mr-2 h-4 w-4" />
+                      Unfreeze Roster
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <div className="flex gap-4">
+                      <div className="flex flex-col gap-3">
+                        <Label htmlFor="date-picker" className="px-1">
+                          Date
+                        </Label>
+                        <Popover open={open} onOpenChange={setOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              id="date-picker"
+                              className="w-32 justify-between font-normal"
+                            >
+                              {date ? date.toLocaleDateString() : "Select date"}
+                              <ChevronDownIcon />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={date}
+                              captionLayout="dropdown"
+                              onSelect={(date) => {
+                                setDate(date)
+                                setOpen(false)
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <Label htmlFor="time-picker" className="px-1">
+                          Time
+                        </Label>
+                        <Input
+                          type="time"
+                          id="time-picker"
+                          onChange={(e) => settime(e.target.value)}
+                          defaultValue="10:30"
+                          className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      className="mt-4 w-full bg-cyan-500 hover:bg-cyan-600"
+                      onClick={handleChangeFreezeRoster}
+                    >
+                      Unfreeze Roster
+                    </Button>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           )}
@@ -310,14 +416,46 @@ export default function TournamentDetailPage() {
           </CardHeader>
           <CardContent>
             {tournament.isRosterFrozen ? (
-              <div className="flex items-center gap-2 text-red-500">
-                <Lock className="h-5 w-5" />
-                <span className="text-lg font-bold">Frozen</span>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-red-500">
+                  <Lock className="h-5 w-5" />
+                  <span className="text-lg font-bold">Frozen</span>
+                </div>
+
+                {tournament.rosterFreezeAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Frozen at{" "}
+                    {new Date(tournament.rosterFreezeAt).toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </p>
+                )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-green-500">
-                <Unlock className="h-5 w-5" />
-                <span className="text-lg font-bold">Open</span>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-green-500">
+                  <Unlock className="h-5 w-5" />
+                  <span className="text-lg font-bold">Open</span>
+                </div>
+
+                {tournament.rosterFreezeAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Will freeze at{" "}
+                    {new Date(tournament.rosterFreezeAt).toLocaleString(undefined, {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
