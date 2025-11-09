@@ -8,6 +8,7 @@ import {
   isUserInInstitution,
   isUserInTournament,
   canModifyRoster,
+  isInstitutionRegisteredForTournament,
 } from '@/lib/tournament-validation';
 import { RoleType } from '@prisma/client';
 
@@ -68,6 +69,19 @@ export async function POST(
     if (!isUserCoach) {
       return NextResponse.json(
         { error: 'Only coaches can register users' },
+        { status: 403 }
+      );
+    }
+
+    // Check if institution is registered for the tournament
+    const institutionRegistered = await isInstitutionRegisteredForTournament(
+      institutionId,
+      tournamentId
+    );
+
+    if (!institutionRegistered) {
+      return NextResponse.json(
+        { error: 'Your institution must be registered for this tournament first' },
         { status: 403 }
       );
     }

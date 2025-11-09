@@ -120,6 +120,24 @@ export async function getUserInstitutionId(userId: string): Promise<string | nul
 }
 
 /**
+ * Check if an institution is registered for a tournament
+ */
+export async function isInstitutionRegisteredForTournament(
+  institutionId: string,
+  tournamentId: string
+): Promise<boolean> {
+  const registration = await prisma.tournamentInstitutionRegistration.findUnique({
+    where: {
+      tournamentId_institutionId: {
+        tournamentId,
+        institutionId,
+      },
+    },
+  });
+  return !!registration;
+}
+
+/**
  * Validate that modifications can be made (roster not frozen or user is admin)
  */
 export async function canModifyRoster(

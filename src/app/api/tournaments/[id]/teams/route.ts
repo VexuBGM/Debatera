@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
-import { isCoach, getUserInstitutionId, canModifyRoster } from '@/lib/tournament-validation';
+import { isCoach, getUserInstitutionId, canModifyRoster, isInstitutionRegisteredForTournament } from '@/lib/tournament-validation';
 
 export const runtime = 'nodejs';
 
@@ -48,6 +48,19 @@ export async function POST(
     if (!isUserCoach) {
       return NextResponse.json(
         { error: 'Only coaches can create teams for their institution' },
+        { status: 403 }
+      );
+    }
+
+    // Check if institution is registered for the tournament
+    const institutionRegistered = await isInstitutionRegisteredForTournament(
+      parsed.institutionId,
+      tournamentId
+    );
+
+    if (!institutionRegistered) {
+      return NextResponse.json(
+        { error: 'Institution must be registered for this tournament first' },
         { status: 403 }
       );
     }

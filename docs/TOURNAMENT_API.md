@@ -8,6 +8,7 @@ This document provides comprehensive documentation for the debate tournament sys
 - [Core Concepts](#core-concepts)
 - [API Endpoints](#api-endpoints)
   - [Institution Management](#institution-management)
+  - [Tournament Registration Flow](#tournament-registration-flow)
   - [Tournament Team Management](#tournament-team-management)
   - [Tournament Management](#tournament-management)
 - [Error Codes](#error-codes)
@@ -19,11 +20,18 @@ The Tournament System allows institutions (schools/organizations) to register us
 
 ## Core Concepts
 
+### Registration Flow
+The tournament registration follows a specific order:
+1. **Institution Registration**: A coach must first register their institution for the tournament
+2. **User Registration**: After the institution is registered, coaches can register users (debaters/judges) from their institution
+3. **Team Formation**: Coaches create teams and assign debaters to them
+
 ### Institutions
 - Any user can create an institution
 - Institution creators are automatically assigned as **coaches**
 - Users can only belong to **one institution** at a time
 - Coaches manage users within their institution
+- **Institutions must register for a tournament** before they can participate
 
 ### Teams
 - Each institution can register **multiple teams** in a single tournament
@@ -37,7 +45,11 @@ The Tournament System allows institutions (schools/organizations) to register us
 
 ### Roster Freeze
 - Tournaments have an optional `rosterFreezeAt` timestamp
-- After this time, no team creation, role changes, or user additions are allowed
+- After this time:
+  - **Institution registration/unregistration**: Blocked
+  - **Team creation**: Blocked
+  - **Role changes**: Blocked
+  - **User additions**: Blocked
 - Only tournament **admins** can override the freeze
 
 ## API Endpoints
@@ -208,12 +220,186 @@ GET /api/institutions/{institutionId}/members
 
 ---
 
+### Tournament Registration Flow
+
+#### Register Institution for Tournament
+```http
+POST /api/tournaments/{tournamentId}/register-institution
+```
+
+Registers the coach's institution for a tournament. This is **required** before creating teams or registering users.
+
+**Authorization:** Coaches only
+
+**Response:** `201 Created`
+```json
+{
+  "id": "clx...",
+  "tournamentId": "clx...",
+  "institutionId": "clx...",
+  "registeredAt": "2025-11-09T10:23:47.000Z",
+  "registeredById": "user_...",
+  "institution": {
+    "id": "clx...",
+    "name": "Harvard University",
+    "description": "Harvard Debate Society"
+  },
+  "tournament": {
+    "id": "clx...",
+    "name": "National Championship 2025"
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - You must be a member of an institution to register
+- `403 Forbidden` - Only coaches can register institutions for tournaments
+- `404 Not Found` - Tournament not found
+- `409 Conflict` - Institution is already registered for this tournament
+- `423 Locked` - Tournament roster is frozen
+
+---
+
+#### Unregister Institution from Tournament
+```http
+DELETE /api/tournaments/{tournamentId}/register-institution
+```
+
+Unregisters the coach's institution from a tournament. **Automatically cascades deletion** of all related data.
+
+**Authorization:** Coaches only
+
+**What gets deleted:**
+1. All teams created by the institution
+2. All user participations (debaters and judges) from institution members
+3. The institution registration record
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Institution successfully unregistered from tournament",
+  "deleted": {
+    "teams": 2,
+    "participations": 8
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - You must be a member of an institution
+- `403 Forbidden` - Only coaches can unregister institutions from tournaments
+- `404 Not Found` - Tournament not found or institution not registered
+- `423 Locked` - Tournament roster is frozen
+
+---
+
+#### Get Registered Institutions
+```http
+GET /api/tournaments/{tournamentId}/institutions
+```
+
+Lists all institutions registered for a tournament.
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": "clx...",
+    "tournamentId": "clx...",
+    "institutionId": "clx...",
+    "registeredAt": "2025-11-09T10:23:47.000Z",
+    "registeredById": "user_...",
+    "institution": {
+      "id": "clx...",
+      "name": "Harvard University",
+      "description": "Harvard Debate Society",
+      "_count": {
+        "members": 12,
+        "teams": 2
+      }
+    }
+  }
+]
+```
+
+**Error Responses:**
+- `404 Not Found` - Tournament not found
+
+---
+
+#### Register Users for Tournament
+```http
+POST /api/tournaments/{tournamentId}/register
+```
+
+Registers multiple users from the coach's institution for a tournament. **Institution must be registered first.**
+
+**Authorization:** Coaches only
+
+**Request Body:**
+```json
+{
+  "registrations": [
+    {
+      "userId": "user_...",
+      "role": "DEBATER",
+      "teamId": "clx..."
+    },
+    {
+      "userId": "user_...",
+      "role": "JUDGE",
+      "teamId": null
+    }
+  ]
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "success": 2,
+  "failed": 0,
+  "participations": [
+    {
+      "id": "clx...",
+      "userId": "user_...",
+      "tournamentId": "clx...",
+      "teamId": "clx...",
+      "role": "DEBATER",
+      "createdAt": "2025-11-09T10:23:47.000Z",
+      "user": {
+        "id": "user_...",
+        "username": "jane_smith",
+        "email": "jane@example.com"
+      },
+      "team": {
+        "id": "clx...",
+        "name": "Harvard University 1"
+      }
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - You must be a member of an institution
+- `403 Forbidden` - Only coaches can register users
+- `403 Forbidden` - Your institution must be registered for this tournament first
+- `404 Not Found` - Tournament not found
+- `423 Locked` - Tournament roster is frozen
+
+---
+
 ### Tournament Team Management
 
 #### Create Tournament Team
 ```http
 POST /api/tournaments/{tournamentId}/teams
 ```
+
+Creates a new team for the coach's institution within a tournament. **Institution must be registered first.**
+
+**Authorization:** Coaches only
 
 **Request Body:**
 ```json
@@ -245,6 +431,7 @@ POST /api/tournaments/{tournamentId}/teams
 
 **Error Responses:**
 - `403 Forbidden` - Only coaches can create teams for their institution
+- `403 Forbidden` - Institution must be registered for this tournament first
 - `404 Not Found` - Tournament or institution not found
 - `423 Locked` - Tournament roster is frozen
 
@@ -630,30 +817,47 @@ POST /api/tournaments/{tournamentId}/override
 }
 ```
 
+### TournamentInstitutionRegistration
+```typescript
+{
+  id: string
+  tournamentId: string
+  institutionId: string
+  registeredAt: Date
+  registeredById: string
+}
+```
+
 ---
 
 ## Business Rules Summary
 
-1. **Institution Membership**
+1. **Tournament Registration Flow**
+   - Institutions must register for a tournament before participating
+   - Only coaches can register their institution
+   - Coaches can only register users after institution registration
+   - Teams can only be created after institution registration
+
+2. **Institution Membership**
    - A user can only belong to one institution at a time
    - Institution creators are automatically coaches
    - Only coaches can add members or create teams
 
-2. **Team Composition**
+3. **Team Composition**
    - Teams must have 3-5 debaters (enforced when adding/removing members)
    - Team names follow format: `<InstitutionName> <teamNumber>`
    - An institution can have multiple teams in a tournament
 
-3. **Single Appearance Rule**
+4. **Single Appearance Rule**
    - A user cannot participate in the same tournament more than once
    - Enforced via unique constraint on `(userId, tournamentId)`
 
-4. **Roster Freeze**
+5. **Roster Freeze**
    - After `rosterFreezeAt` timestamp, modifications are blocked
    - Only tournament admins (owners) can make changes after freeze
    - Admins can override the freeze using the override endpoint
 
-5. **Permissions**
+6. **Permissions**
    - Coaches can manage their institution's members and teams
    - Tournament admins can freeze/unfreeze rosters
    - Regular members cannot make administrative changes

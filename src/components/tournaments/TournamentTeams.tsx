@@ -147,6 +147,8 @@ export default function TournamentTeams({
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(true);
+  const [registeredInstitutionIds, setRegisteredInstitutionIds] = useState<Set<string>>(new Set());
 
   // State for team assignments
   const [teamAssignments, setTeamAssignments] = useState<Map<string, Debater[]>>(new Map());
@@ -167,7 +169,24 @@ export default function TournamentTeams({
   // Fetch all debaters and their current team assignments
   useEffect(() => {
     fetchDebaters();
+    fetchRegisteredInstitutions();
   }, [tournamentId, teams]);
+
+  const fetchRegisteredInstitutions = async () => {
+    setIsCheckingRegistration(true);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/institutions`);
+      if (response.ok) {
+        const data = await response.json();
+        const ids = new Set<string>(data.map((reg: any) => reg.institutionId as string));
+        setRegisteredInstitutionIds(ids);
+      }
+    } catch (err) {
+      console.error('Failed to fetch registered institutions:', err);
+    } finally {
+      setIsCheckingRegistration(false);
+    }
+  };
 
   const fetchDebaters = async () => {
     try {
@@ -500,6 +519,17 @@ export default function TournamentTeams({
       onDragEnd={handleDragEnd}
     >
       <div className="space-y-4">
+        {/* Info Alert when no institutions registered */}
+        {!isCheckingRegistration && registeredInstitutionIds.size === 0 && (
+          <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-900 dark:text-amber-100">
+              <strong>No institutions registered yet.</strong> Institutions must register for the tournament before teams can be created.
+              Go to the "Registration" tab to register your institution first.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -543,15 +573,22 @@ export default function TournamentTeams({
                             <SelectValue placeholder="Select institution" />
                           </SelectTrigger>
                           <SelectContent>
-                            {institutions.map((inst) => (
-                              <SelectItem key={inst.id} value={inst.id}>
-                                {inst.name}
-                              </SelectItem>
-                            ))}
+                            {institutions
+                              .filter(inst => registeredInstitutionIds.has(inst.id))
+                              .map((inst) => (
+                                <SelectItem key={inst.id} value={inst.id}>
+                                  {inst.name}
+                                </SelectItem>
+                              ))}
+                            {institutions.filter(inst => registeredInstitutionIds.has(inst.id)).length === 0 && (
+                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                No registered institutions
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                         <p className="text-sm text-muted-foreground">
-                          You must be a coach of the institution
+                          Only registered institutions are shown. Institution must be registered first.
                         </p>
                       </div>
                       <div className="flex gap-3">

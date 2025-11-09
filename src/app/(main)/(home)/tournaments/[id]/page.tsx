@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import TournamentMyParticipants from '@/components/tournaments/TournamentMyParticipants';
 import TournamentParticipants from '@/components/tournaments/TournamentAllParticipants';
 import TournamentTeams from '@/components/tournaments/TournamentTeams';
+import TournamentInstitutionRegistration from '@/components/tournaments/TournamentInstitutionRegistration';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -455,12 +456,32 @@ export default function TournamentDetailPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="participants" className="space-y-6">
+      <Tabs defaultValue="registration" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="participants">Participants</TabsTrigger>
-          <TabsTrigger value="teams">Teams</TabsTrigger>
+          <TabsTrigger value="registration">Registration</TabsTrigger>
           <TabsTrigger value="my-institution">My Participants</TabsTrigger>
+          <TabsTrigger value="teams">Teams</TabsTrigger>
+          <TabsTrigger value="participants">All Participants</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="registration">
+          <TournamentInstitutionRegistration
+            tournamentId={tournamentId}
+            myInstitution={myInstitution}
+            onRegistrationChange={fetchTournamentData}
+            isRosterFrozen={tournament.isRosterFrozen}
+          />
+        </TabsContent>
+
+        <TabsContent value="my-institution">
+          <TournamentMyParticipants
+            tournamentId={tournamentId}
+            myInstitution={myInstitution}
+            institutionMembers={institutionMembers}
+            participations={participations}
+            onRegistrationComplete={fetchTournamentData}
+          />
+        </TabsContent>
 
         <TabsContent value="teams">
           <TournamentTeams
@@ -473,16 +494,6 @@ export default function TournamentDetailPage() {
 
         <TabsContent value="participants">
           <TournamentParticipants participations={participations} />
-        </TabsContent>
-
-        <TabsContent value="my-institution">
-          <TournamentMyParticipants
-            tournamentId={tournamentId}
-            myInstitution={myInstitution}
-            institutionMembers={institutionMembers}
-            participations={participations}
-            onRegistrationComplete={fetchTournamentData}
-          />
         </TabsContent>
       </Tabs>
     </div>

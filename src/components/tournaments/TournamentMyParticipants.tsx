@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Users, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface InstitutionMember {
   id: string;
@@ -55,6 +56,8 @@ export default function TournamentMyParticipants({
   const [selectedMembers, setSelectedMembers] = useState<Map<string, boolean>>(new Map());
   const [selectedRole, setSelectedRole] = useState<'DEBATER' | 'JUDGE'>('DEBATER');
   const [isSaving, setIsSaving] = useState(false);
+  const [isInstitutionRegistered, setIsInstitutionRegistered] = useState(false);
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(true);
 
   // Initialize selected members based on current participations
   useState(() => {
@@ -69,6 +72,31 @@ export default function TournamentMyParticipants({
       
       setSelectedMembers(initialSelection);
     }
+  });
+
+  // Check if institution is registered
+  useState(() => {
+    const checkInstitutionRegistration = async () => {
+      if (!myInstitution) {
+        setIsCheckingRegistration(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/tournaments/${tournamentId}/institutions`);
+        if (response.ok) {
+          const data = await response.json();
+          const isRegistered = data.some((reg: any) => reg.institutionId === myInstitution.id);
+          setIsInstitutionRegistered(isRegistered);
+        }
+      } catch (err) {
+        console.error('Failed to check institution registration:', err);
+      } finally {
+        setIsCheckingRegistration(false);
+      }
+    };
+
+    checkInstitutionRegistration();
   });
 
   // Get registered participants for styling
@@ -224,6 +252,17 @@ export default function TournamentMyParticipants({
               Only coaches can register members to tournaments
             </p>
           </div>
+        ) : isCheckingRegistration ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : !isInstitutionRegistered ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your institution must be registered for this tournament first. Go to the "Registration" tab to register your institution.
+            </AlertDescription>
+          </Alert>
         ) : institutionMembers.length === 0 ? (
           <div className="text-center py-12">
             <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

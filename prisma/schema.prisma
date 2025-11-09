@@ -48,6 +48,7 @@ model Tournament {
   
   teams       TournamentTeam[]
   participations TournamentParticipation[]
+  registeredInstitutions TournamentInstitutionRegistration[]
 }
 
 model Institution {
@@ -61,6 +62,7 @@ model Institution {
   
   members     InstitutionMember[]
   teams       TournamentTeam[]
+  tournamentRegistrations TournamentInstitutionRegistration[]
   
   @@index([createdById])
 }
@@ -113,4 +115,19 @@ model TournamentParticipation {
   @@unique([userId, tournamentId]) // Single appearance rule
   @@index([tournamentId])
   @@index([teamId])
+}
+
+model TournamentInstitutionRegistration {
+  id            String      @id @default(cuid())
+  tournamentId  String      @db.VarChar(128)
+  institutionId String
+  registeredAt  DateTime    @default(now())
+  registeredById String     @db.VarChar(128)
+  
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  
+  @@unique([tournamentId, institutionId])
+  @@index([tournamentId])
+  @@index([institutionId])
 }
