@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Trophy, Plus, Loader2, Users, Save, GripVertical, Lock, AlertCircle } from 'lucide-react';
+import { Trophy, Plus, Loader2, Users, Save, GripVertical, AlertCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   DndContext,
@@ -149,6 +149,7 @@ export default function TournamentTeams({
   const [searchTerm, setSearchTerm] = useState('');
   const [isCheckingRegistration, setIsCheckingRegistration] = useState(true);
   const [registeredInstitutionIds, setRegisteredInstitutionIds] = useState<Set<string>>(new Set());
+  const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
 
   // State for team assignments
   const [teamAssignments, setTeamAssignments] = useState<Map<string, Debater[]>>(new Map());
@@ -475,6 +476,33 @@ export default function TournamentTeams({
     }
   };
 
+  const handleDeleteTeam = async (teamId: string, teamName: string) => {
+    if (!confirm(`Are you sure you want to delete ${teamName}? All debaters will be moved to the unassigned pool.`)) {
+      return;
+    }
+
+    setDeletingTeamId(teamId);
+
+    try {
+      const response = await fetch(`/api/tournament-teams/${teamId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete team');
+      }
+
+      toast.success('Team deleted successfully');
+      onTeamCreated(); // Refresh data
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeletingTeamId(null);
+    }
+  };
+
   const getTeamValidationStatus = (teamId: string) => {
     const debaters = teamAssignments.get(teamId) || [];
     const count = debaters.length;
@@ -718,9 +746,25 @@ export default function TournamentTeams({
                             <CardDescription>{team.institution.name}</CardDescription>
                           </div>
                         </div>
-                        <Badge variant={validation.variant}>
-                          {validation.message}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={validation.variant}>
+                            {validation.message}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteTeam(team.id, team.name)}
+                            disabled={deletingTeamId === team.id}
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title="Delete team"
+                          >
+                            {deletingTeamId === team.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
