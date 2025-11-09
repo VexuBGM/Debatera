@@ -96,16 +96,17 @@ function DebaterCard({ debater, isDragging = false }: DebaterCardProps) {
       ref={setNodeRef}
       style={style}
       {...attributes}
+      {...listeners}
       className={`
-        flex items-center gap-2 p-2 bg-card border rounded-lg cursor-move hover:bg-accent transition-colors
+        flex items-center gap-2 p-2 bg-card border rounded-lg cursor-grab active:cursor-grabbing hover:bg-accent transition-colors
         ${isDragging ? 'shadow-lg ring-2 ring-cyan-500' : ''}
       `}
     >
-      <div {...listeners} className="cursor-grab active:cursor-grabbing">
+      <div>
         <GripVertical className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm truncate">
+        <p className="font-medium text-sm truncate text-foreground">
           {debater.username || debater.email || 'Unknown'}
         </p>
         <p className="text-xs text-muted-foreground truncate">{debater.institutionName}</p>
