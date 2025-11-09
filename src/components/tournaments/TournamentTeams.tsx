@@ -1,16 +1,47 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Trophy, Plus, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Trophy, Plus, Loader2, Users, Save, GripVertical, Lock, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverEvent,
+  useDroppable,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface Debater {
+  participationId: string;
+  userId: string;
+  username: string | null;
+  email: string | null;
+  imageUrl: string | null;
+  institutionName: string;
+  teamId: string | null;
+}
 
 interface TournamentTeam {
   id: string;
@@ -39,6 +70,70 @@ interface TournamentTeamsProps {
   onTeamCreated: () => void;
 }
 
+interface DebaterCardProps {
+  debater: Debater;
+  isDragging?: boolean;
+}
+
+function DebaterCard({ debater, isDragging = false }: DebaterCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({ id: debater.participationId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isSortableDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className={`
+        flex items-center gap-2 p-2 bg-card border rounded-lg cursor-move hover:bg-accent transition-colors
+        ${isDragging ? 'shadow-lg ring-2 ring-cyan-500' : ''}
+      `}
+    >
+      <div {...listeners} className="cursor-grab active:cursor-grabbing">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">
+          {debater.username || debater.email || 'Unknown'}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">{debater.institutionName}</p>
+      </div>
+    </div>
+  );
+}
+
+interface DroppableContainerProps {
+  id: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function DroppableContainer({ id, children, className }: DroppableContainerProps) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      id={id}
+      className={`${className} ${isOver ? 'ring-2 ring-cyan-500 ring-offset-2' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function TournamentTeams({
   tournamentId,
   teams,
@@ -49,6 +144,70 @@ export default function TournamentTeams({
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [selectedInstitutionId, setSelectedInstitutionId] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // State for team assignments
+  const [teamAssignments, setTeamAssignments] = useState<Map<string, Debater[]>>(new Map());
+  const [unassignedDebaters, setUnassignedDebaters] = useState<Debater[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Fetch all debaters and their current team assignments
+  useEffect(() => {
+    fetchDebaters();
+  }, [tournamentId, teams]);
+
+  const fetchDebaters = async () => {
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/participations`);
+      if (!response.ok) throw new Error('Failed to fetch participations');
+
+      const data = await response.json();
+      const debaters: Debater[] = data.debaters.map((p: any) => ({
+        participationId: p.id,
+        userId: p.user.id,
+        username: p.user.username,
+        email: p.user.email,
+        imageUrl: p.user.imageUrl,
+        institutionName: p.team?.institution?.name || 'No institution',
+        teamId: p.team?.id || null,
+      }));
+
+      // Initialize team assignments
+      const assignments = new Map<string, Debater[]>();
+      teams.forEach((team) => {
+        assignments.set(team.id, []);
+      });
+
+      const unassigned: Debater[] = [];
+
+      debaters.forEach((debater) => {
+        if (debater.teamId && assignments.has(debater.teamId)) {
+          assignments.get(debater.teamId)!.push(debater);
+        } else {
+          unassigned.push(debater);
+        }
+      });
+
+      setTeamAssignments(assignments);
+      setUnassignedDebaters(unassigned);
+      setHasChanges(false);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,130 +241,492 @@ export default function TournamentTeams({
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Find which container the active item is in
+    const activeContainer = findContainer(activeId);
+    // Check if dropping on a container directly or on an item
+    const overContainer = overId === 'pool' || overId.startsWith('team-') 
+      ? overId 
+      : findContainer(overId);
+
+    if (!activeContainer || !overContainer || activeContainer === overContainer) {
+      return;
+    }
+
+    setHasChanges(true);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    setActiveId(null);
+    
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeContainer = findContainer(activeId);
+    // Check if dropping on a container directly or on an item
+    const overContainer = overId === 'pool' || overId.startsWith('team-') 
+      ? overId 
+      : findContainer(overId);
+
+    if (!activeContainer || !overContainer) return;
+
+    if (activeContainer === overContainer) {
+      // Reordering within same container
+      if (activeContainer === 'pool') {
+        setUnassignedDebaters((prev) => {
+          const oldIndex = prev.findIndex((d) => d.participationId === activeId);
+          const newIndex = prev.findIndex((d) => d.participationId === overId);
+          if (oldIndex === -1 || newIndex === -1) return prev;
+          return arrayMove(prev, oldIndex, newIndex);
+        });
+      } else {
+        setTeamAssignments((prev) => {
+          const newAssignments = new Map(prev);
+          const teamId = activeContainer.replace('team-', '');
+          const teamDebaters = newAssignments.get(teamId) || [];
+          const oldIndex = teamDebaters.findIndex((d) => d.participationId === activeId);
+          const newIndex = teamDebaters.findIndex((d) => d.participationId === overId);
+          if (oldIndex === -1 || newIndex === -1) return prev;
+          newAssignments.set(teamId, arrayMove(teamDebaters, oldIndex, newIndex));
+          return newAssignments;
+        });
+      }
+    } else {
+      // Moving between different containers
+      // Find the debater to move
+      let debater: Debater | undefined;
+
+      if (activeContainer === 'pool') {
+        debater = unassignedDebaters.find((d) => d.participationId === activeId);
+      } else {
+        const sourceTeamId = activeContainer.replace('team-', '');
+        const teamDebaters = teamAssignments.get(sourceTeamId) || [];
+        debater = teamDebaters.find((d) => d.participationId === activeId);
+      }
+
+      if (!debater) return;
+
+      // Handle pool to team or team to team
+      if (activeContainer === 'pool' && overContainer !== 'pool') {
+        const targetTeamId = overContainer.replace('team-', '');
+        const targetTeamDebaters = teamAssignments.get(targetTeamId) || [];
+        
+        if (targetTeamDebaters.length >= 5) {
+          toast.error('Teams can have a maximum of 5 debaters');
+          return;
+        }
+
+        setUnassignedDebaters((prev) => prev.filter((d) => d.participationId !== activeId));
+        setTeamAssignments((prev) => {
+          const newAssignments = new Map(prev);
+          const currentTeamDebaters = newAssignments.get(targetTeamId) || [];
+          newAssignments.set(targetTeamId, [...currentTeamDebaters, debater!]);
+          return newAssignments;
+        });
+        setHasChanges(true);
+      }
+      // Handle team to pool
+      else if (activeContainer !== 'pool' && overContainer === 'pool') {
+        const sourceTeamId = activeContainer.replace('team-', '');
+        
+        setTeamAssignments((prev) => {
+          const newAssignments = new Map(prev);
+          const teamDebaters = newAssignments.get(sourceTeamId) || [];
+          newAssignments.set(
+            sourceTeamId,
+            teamDebaters.filter((d) => d.participationId !== activeId)
+          );
+          return newAssignments;
+        });
+        setUnassignedDebaters((prev) => [...prev, debater!]);
+        setHasChanges(true);
+      }
+      // Handle team to team
+      else if (activeContainer !== 'pool' && overContainer !== 'pool') {
+        const sourceTeamId = activeContainer.replace('team-', '');
+        const targetTeamId = overContainer.replace('team-', '');
+        const targetTeamDebaters = teamAssignments.get(targetTeamId) || [];
+        
+        if (targetTeamDebaters.length >= 5) {
+          toast.error('Teams can have a maximum of 5 debaters');
+          return;
+        }
+
+        setTeamAssignments((prev) => {
+          const newAssignments = new Map(prev);
+          
+          // Remove from source
+          const sourceDebaters = newAssignments.get(sourceTeamId) || [];
+          newAssignments.set(
+            sourceTeamId,
+            sourceDebaters.filter((d) => d.participationId !== activeId)
+          );
+          
+          // Add to target
+          const targetDebaters = newAssignments.get(targetTeamId) || [];
+          newAssignments.set(targetTeamId, [...targetDebaters, debater!]);
+          
+          return newAssignments;
+        });
+        setHasChanges(true);
+      }
+    }
+  };
+
+  const findContainer = (id: string): string | undefined => {
+    if (unassignedDebaters.some((d) => d.participationId === id)) {
+      return 'pool';
+    }
+
+    for (const [teamId, debaters] of teamAssignments.entries()) {
+      if (debaters.some((d) => d.participationId === id)) {
+        return `team-${teamId}`;
+      }
+    }
+
+    return undefined;
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+
+    try {
+      // Build assignments array
+      const assignments: { participationId: string; teamId: string | null }[] = [];
+
+      // Unassigned debaters
+      unassignedDebaters.forEach((debater) => {
+        assignments.push({
+          participationId: debater.participationId,
+          teamId: null,
+        });
+      });
+
+      // Assigned debaters
+      teamAssignments.forEach((debaters, teamId) => {
+        debaters.forEach((debater) => {
+          assignments.push({
+            participationId: debater.participationId,
+            teamId: teamId,
+          });
+        });
+      });
+
+      const response = await fetch(`/api/tournaments/${tournamentId}/team-assignments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save team assignments');
+      }
+
+      if (data.warning) {
+        toast.warning(data.warning, {
+          description: data.invalidTeams?.join(', '),
+          duration: 5000,
+        });
+      } else {
+        toast.success('Team assignments saved successfully');
+      }
+
+      setHasChanges(false);
+      onTeamCreated(); // Refresh data
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getTeamValidationStatus = (teamId: string) => {
+    const debaters = teamAssignments.get(teamId) || [];
+    const count = debaters.length;
+
+    if (count === 0) return { valid: true, message: 'Empty', variant: 'secondary' as const };
+    if (count < 2) return { valid: false, message: 'Need 2-5', variant: 'destructive' as const };
+    if (count > 5) return { valid: false, message: 'Max 5', variant: 'destructive' as const };
+    return { valid: true, message: `${count}/5`, variant: 'default' as const };
+  };
+
+  const filteredUnassignedDebaters = useMemo(() => {
+    if (!searchTerm) return unassignedDebaters;
+    const lower = searchTerm.toLowerCase();
+    return unassignedDebaters.filter(
+      (d) =>
+        d.username?.toLowerCase().includes(lower) ||
+        d.email?.toLowerCase().includes(lower) ||
+        d.institutionName.toLowerCase().includes(lower)
+    );
+  }, [unassignedDebaters, searchTerm]);
+
+  const activeDragItem = useMemo(() => {
+    if (!activeId) return null;
+    
+    const fromPool = unassignedDebaters.find((d) => d.participationId === activeId);
+    if (fromPool) return fromPool;
+
+    for (const debaters of teamAssignments.values()) {
+      const found = debaters.find((d) => d.participationId === activeId);
+      if (found) return found;
+    }
+
+    return null;
+  }, [activeId, unassignedDebaters, teamAssignments]);
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Tournament Teams</CardTitle>
-            <CardDescription>
-              Teams registered for this tournament
-            </CardDescription>
-          </div>
-          <Dialog open={isCreateTeamOpen} onOpenChange={setIsCreateTeamOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-cyan-500 hover:bg-cyan-600">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Team
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Team</DialogTitle>
-                <DialogDescription>
-                  Create a new team for your institution in this tournament
-                </DialogDescription>
-              </DialogHeader>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <form onSubmit={handleCreateTeam} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="institution">
-                    Institution <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={selectedInstitutionId}
-                    onValueChange={setSelectedInstitutionId}
-                    disabled={isCreatingTeam}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select institution" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {institutions.map((inst) => (
-                        <SelectItem key={inst.id} value={inst.id}>
-                          {inst.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground">
-                    You must be a coach of the institution
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    type="submit"
-                    disabled={isCreatingTeam || !selectedInstitutionId}
-                    className="bg-cyan-500 hover:bg-cyan-600"
-                  >
-                    {isCreatingTeam ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      'Create Team'
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Team Assignment</CardTitle>
+                <CardDescription>
+                  Drag debaters from the pool to teams. Teams must have 2-5 debaters.
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Dialog open={isCreateTeamOpen} onOpenChange={setIsCreateTeamOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Team
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create Team</DialogTitle>
+                      <DialogDescription>
+                        Create a new team for your institution in this tournament
+                      </DialogDescription>
+                    </DialogHeader>
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
                     )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsCreateTeamOpen(false);
-                      setError(null);
-                    }}
-                    disabled={isCreatingTeam}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {teams.length === 0 ? (
-          <div className="text-center py-12">
-            <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
-            <p className="text-muted-foreground">
-              Create the first team to get started
-            </p>
+                    <form onSubmit={handleCreateTeam} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="institution">
+                          Institution <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={selectedInstitutionId}
+                          onValueChange={setSelectedInstitutionId}
+                          disabled={isCreatingTeam}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select institution" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {institutions.map((inst) => (
+                              <SelectItem key={inst.id} value={inst.id}>
+                                {inst.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-muted-foreground">
+                          You must be a coach of the institution
+                        </p>
+                      </div>
+                      <div className="flex gap-3">
+                        <Button
+                          type="submit"
+                          disabled={isCreatingTeam || !selectedInstitutionId}
+                          className="bg-cyan-500 hover:bg-cyan-600"
+                        >
+                          {isCreatingTeam ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Creating...
+                            </>
+                          ) : (
+                            'Create Team'
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsCreateTeamOpen(false);
+                            setError(null);
+                          }}
+                          disabled={isCreatingTeam}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <Button
+                  onClick={handleSave}
+                  disabled={!hasChanges || isSaving}
+                  className="bg-cyan-500 hover:bg-cyan-600"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Debater Pool */}
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Debater Pool
+                <Badge variant="secondary">{unassignedDebaters.length}</Badge>
+              </CardTitle>
+              <CardDescription>Unassigned debaters</CardDescription>
+              <Input
+                placeholder="Search debaters..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mt-2"
+              />
+            </CardHeader>
+            <CardContent>
+              <SortableContext
+                items={filteredUnassignedDebaters.map((d) => d.participationId)}
+                strategy={verticalListSortingStrategy}
+              >
+                <DroppableContainer
+                  id="pool"
+                  className="space-y-2 min-h-[400px] p-2 border-2 border-dashed rounded-lg transition-colors"
+                >
+                  {filteredUnassignedDebaters.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
+                      <Users className="h-12 w-12 mb-2 opacity-50" />
+                      <p className="text-sm">
+                        {searchTerm
+                          ? 'No debaters found'
+                          : 'All debaters assigned'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredUnassignedDebaters.map((debater) => (
+                      <DebaterCard key={debater.participationId} debater={debater} />
+                    ))
+                  )}
+                </DroppableContainer>
+              </SortableContext>
+            </CardContent>
+          </Card>
+
+          {/* Teams */}
+          <div className="lg:col-span-2 space-y-4">
+            {teams.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center py-12">
+                    <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
+                    <p className="text-muted-foreground">
+                      Create the first team to get started
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              teams.map((team) => {
+                const validation = getTeamValidationStatus(team.id);
+                const teamDebaters = teamAssignments.get(team.id) || [];
+
+                return (
+                  <Card key={team.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Trophy className="h-5 w-5 text-cyan-500" />
+                          <div>
+                            <CardTitle className="text-lg">{team.name}</CardTitle>
+                            <CardDescription>{team.institution.name}</CardDescription>
+                          </div>
+                        </div>
+                        <Badge variant={validation.variant}>
+                          {validation.message}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <SortableContext
+                        items={teamDebaters.map((d) => d.participationId)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <DroppableContainer
+                          id={`team-${team.id}`}
+                          className={`space-y-2 min-h-[200px] p-3 border-2 border-dashed rounded-lg transition-colors ${
+                            !validation.valid ? 'border-destructive bg-destructive/5' : 'border-border'
+                          }`}
+                        >
+                          {teamDebaters.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
+                              <Users className="h-8 w-8 mb-2 opacity-50" />
+                              <p className="text-sm">Drop debaters here</p>
+                            </div>
+                          ) : (
+                            teamDebaters.map((debater) => (
+                              <DebaterCard key={debater.participationId} debater={debater} />
+                            ))
+                          )}
+                        </DroppableContainer>
+                      </SortableContext>
+                      {!validation.valid && teamDebaters.length > 0 && (
+                        <div className="flex items-center gap-2 mt-3 text-sm text-destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Teams must have 2-5 debaters</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Team Name</TableHead>
-                <TableHead>Institution</TableHead>
-                <TableHead>Members</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {teams.map((team) => (
-                <TableRow key={team.id}>
-                  <TableCell className="font-medium">{team.name}</TableCell>
-                  <TableCell>{team.institution.name}</TableCell>
-                  <TableCell>{team._count.participations}</TableCell>
-                  <TableCell>
-                    <Link href={`/tournament-teams/${team.id}`}>
-                      <Button variant="ghost" size="sm">
-                        View
-                      </Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+
+      <DragOverlay>
+        {activeDragItem ? <DebaterCard debater={activeDragItem} isDragging /> : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
