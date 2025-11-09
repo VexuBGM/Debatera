@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +67,7 @@ interface TournamentTeamsProps {
   teams: TournamentTeam[];
   institutions: InstitutionOption[];
   onTeamCreated: () => void;
+  myInstitution: { id: string; name: string; isCoach: boolean } | null;
 }
 
 interface DebaterCardProps {
@@ -139,10 +139,10 @@ export default function TournamentTeams({
   teams,
   institutions,
   onTeamCreated,
+  myInstitution,
 }: TournamentTeamsProps) {
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
-  const [selectedInstitutionId, setSelectedInstitutionId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -155,6 +155,11 @@ export default function TournamentTeams({
   const [teamAssignments, setTeamAssignments] = useState<Map<string, Debater[]>>(new Map());
   const [unassignedDebaters, setUnassignedDebaters] = useState<Debater[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Filter teams to only show user's institution teams
+  const myInstitutionTeams = teams.filter(team => 
+    myInstitution ? team.institutionId === myInstitution.id : false
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -169,9 +174,11 @@ export default function TournamentTeams({
 
   // Fetch all debaters and their current team assignments
   useEffect(() => {
-    fetchDebaters();
+    if (myInstitution) {
+      fetchDebaters();
+    }
     fetchRegisteredInstitutions();
-  }, [tournamentId, teams]);
+  }, [tournamentId, teams, myInstitution?.id]);
 
   const fetchRegisteredInstitutions = async () => {
     setIsCheckingRegistration(true);
@@ -181,33 +188,50 @@ export default function TournamentTeams({
         const data = await response.json();
         const ids = new Set<string>(data.map((reg: any) => reg.institutionId as string));
         setRegisteredInstitutionIds(ids);
+      } else {
+        console.error('Failed to fetch registered institutions:', response.status);
+        setRegisteredInstitutionIds(new Set());
       }
     } catch (err) {
       console.error('Failed to fetch registered institutions:', err);
+      setRegisteredInstitutionIds(new Set());
     } finally {
       setIsCheckingRegistration(false);
     }
   };
 
   const fetchDebaters = async () => {
+    if (!myInstitution) {
+      setUnassignedDebaters([]);
+      setTeamAssignments(new Map());
+      return;
+    }
+
     try {
       const response = await fetch(`/api/tournaments/${tournamentId}/participations`);
       if (!response.ok) throw new Error('Failed to fetch participations');
 
       const data = await response.json();
-      const debaters: Debater[] = data.debaters.map((p: any) => ({
+      const allDebaters: Debater[] = data.debaters.map((p: any) => ({
         participationId: p.id,
         userId: p.user.id,
         username: p.user.username,
         email: p.user.email,
         imageUrl: p.user.imageUrl,
-        institutionName: p.team?.institution?.name || 'No institution',
+        institutionName: p.institution?.name || p.team?.institution?.name || 'No institution',
         teamId: p.team?.id || null,
       }));
 
-      // Initialize team assignments
+      // Filter debaters to only show those from user's institution
+      const debaters = allDebaters.filter(d => {
+        // Find the original participation data to check institutionId
+        const participation = data.debaters.find((p: any) => p.id === d.participationId);
+        return participation?.institutionId === myInstitution.id;
+      });
+
+      // Initialize team assignments for user's institution teams only
       const assignments = new Map<string, Debater[]>();
-      teams.forEach((team) => {
+      myInstitutionTeams.forEach((team) => {
         assignments.set(team.id, []);
       });
 
@@ -231,6 +255,12 @@ export default function TournamentTeams({
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!myInstitution) {
+      toast.error('You must be a member of an institution to create teams');
+      return;
+    }
+
     setIsCreatingTeam(true);
     setError(null);
 
@@ -239,7 +269,7 @@ export default function TournamentTeams({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          institutionId: selectedInstitutionId,
+          institutionId: myInstitution.id,
         }),
       });
 
@@ -251,7 +281,6 @@ export default function TournamentTeams({
 
       toast.success('Team created successfully');
       setIsCreateTeamOpen(false);
-      setSelectedInstitutionId('');
       onTeamCreated();
     } catch (err: any) {
       setError(err.message);
@@ -547,13 +576,23 @@ export default function TournamentTeams({
       onDragEnd={handleDragEnd}
     >
       <div className="space-y-4">
-        {/* Info Alert when no institutions registered */}
-        {!isCheckingRegistration && registeredInstitutionIds.size === 0 && (
+        {/* Info Alert when user's institution is not registered */}
+        {!isCheckingRegistration && myInstitution && !registeredInstitutionIds.has(myInstitution.id) && (
           <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
             <AlertCircle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-900 dark:text-amber-100">
-              <strong>No institutions registered yet.</strong> Institutions must register for the tournament before teams can be created.
+              <strong>Your institution is not registered yet.</strong> {myInstitution.name} must register for the tournament before teams can be created.
               Go to the "Registration" tab to register your institution first.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Info Alert when user has no institution */}
+        {!myInstitution && (
+          <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-900 dark:text-amber-100">
+              <strong>No institution membership found.</strong> You must be a member of an institution to create and manage teams.
             </AlertDescription>
           </Alert>
         )}
@@ -564,7 +603,10 @@ export default function TournamentTeams({
               <div>
                 <CardTitle>Team Assignment</CardTitle>
                 <CardDescription>
-                  Drag debaters from the pool to teams. Teams must have 2-5 debaters.
+                  {myInstitution 
+                    ? `Manage teams for ${myInstitution.name}. Drag debaters from the pool to teams. Teams must have 2-5 debaters.`
+                    : 'Join an institution to manage teams and debaters.'
+                  }
                 </CardDescription>
               </div>
               <div className="flex gap-2">
@@ -579,7 +621,7 @@ export default function TournamentTeams({
                     <DialogHeader>
                       <DialogTitle>Create Team</DialogTitle>
                       <DialogDescription>
-                        Create a new team for your institution in this tournament
+                        Create a new team for {myInstitution?.name || 'your institution'} in this tournament
                       </DialogDescription>
                     </DialogHeader>
                     {error && (
@@ -587,42 +629,36 @@ export default function TournamentTeams({
                         <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
+                    {!myInstitution && (
+                      <Alert variant="destructive">
+                        <AlertDescription>
+                          You must be a member of an institution to create teams.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {myInstitution && !registeredInstitutionIds.has(myInstitution.id) && (
+                      <Alert variant="destructive">
+                        <AlertDescription>
+                          Your institution must be registered for this tournament first. Go to the "Registration" tab to register.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <form onSubmit={handleCreateTeam} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="institution">
-                          Institution <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={selectedInstitutionId}
-                          onValueChange={setSelectedInstitutionId}
-                          disabled={isCreatingTeam}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select institution" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {institutions
-                              .filter(inst => registeredInstitutionIds.has(inst.id))
-                              .map((inst) => (
-                                <SelectItem key={inst.id} value={inst.id}>
-                                  {inst.name}
-                                </SelectItem>
-                              ))}
-                            {institutions.filter(inst => registeredInstitutionIds.has(inst.id)).length === 0 && (
-                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                No registered institutions
-                              </div>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-sm text-muted-foreground">
-                          Only registered institutions are shown. Institution must be registered first.
-                        </p>
-                      </div>
+                      {myInstitution && (
+                        <div className="space-y-2">
+                          <Label>Institution</Label>
+                          <div className="p-3 bg-muted rounded-md">
+                            <p className="font-medium">{myInstitution.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Your institution
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex gap-3">
                         <Button
                           type="submit"
-                          disabled={isCreatingTeam || !selectedInstitutionId}
+                          disabled={isCreatingTeam || !myInstitution || !registeredInstitutionIds.has(myInstitution?.id || '')}
                           className="bg-cyan-500 hover:bg-cyan-600"
                         >
                           {isCreatingTeam ? (
@@ -680,7 +716,12 @@ export default function TournamentTeams({
                 Debater Pool
                 <Badge variant="secondary">{unassignedDebaters.length}</Badge>
               </CardTitle>
-              <CardDescription>Unassigned debaters</CardDescription>
+              <CardDescription>
+                {myInstitution 
+                  ? `Unassigned debaters from ${myInstitution.name}`
+                  : 'Unassigned debaters'
+                }
+              </CardDescription>
               <Input
                 placeholder="Search debaters..."
                 value={searchTerm}
@@ -718,20 +759,32 @@ export default function TournamentTeams({
 
           {/* Teams */}
           <div className="lg:col-span-2 space-y-4">
-            {teams.length === 0 ? (
+            {!myInstitution ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center py-12">
+                    <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No institution found</h3>
+                    <p className="text-muted-foreground">
+                      You must be a member of an institution to manage teams
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : myInstitutionTeams.length === 0 ? (
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center py-12">
                     <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
                     <p className="text-muted-foreground">
-                      Create the first team to get started
+                      Create the first team for {myInstitution.name}
                     </p>
                   </div>
                 </CardContent>
               </Card>
             ) : (
-              teams.map((team) => {
+              myInstitutionTeams.map((team) => {
                 const validation = getTeamValidationStatus(team.id);
                 const teamDebaters = teamAssignments.get(team.id) || [];
 

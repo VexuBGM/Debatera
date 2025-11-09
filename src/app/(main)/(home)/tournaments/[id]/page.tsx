@@ -489,6 +489,7 @@ export default function TournamentDetailPage() {
             teams={teams}
             institutions={institutions}
             onTeamCreated={fetchTournamentData}
+            myInstitution={myInstitution}
           />
         </TabsContent>
 

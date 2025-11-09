@@ -163,6 +163,7 @@ export async function POST(
             userId: registration.userId,
             tournamentId,
             teamId: registration.teamId,
+            institutionId: institutionId,
             role: registration.role,
           },
           include: {

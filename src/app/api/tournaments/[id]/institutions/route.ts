@@ -12,11 +12,6 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: currentUserId } = await auth();
-  if (!currentUserId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
     const { id: tournamentId } = await params;
 

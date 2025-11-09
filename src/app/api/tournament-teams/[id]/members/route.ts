@@ -97,6 +97,7 @@ export async function POST(
         userId: parsed.userId,
         tournamentId: team.tournamentId,
         teamId: teamId,
+        institutionId: team.institutionId,
         role: parsed.role,
       },
       include: {

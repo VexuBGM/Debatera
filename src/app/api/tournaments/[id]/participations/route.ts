@@ -46,6 +46,12 @@ export async function GET(
             },
           },
         },
+        institution: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
       orderBy: [
         { role: 'asc' },
