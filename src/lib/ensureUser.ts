@@ -5,21 +5,26 @@ export async function ensureUserInDB() {
   const { userId } = await auth();
   if (!userId) return;
 
-  const existing = await prisma.user.findUnique({ where: { clerkId: userId } });
+  const existing = await prisma.user.findUnique({ where: { id: userId } });
   if (existing) return;
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
+  const email =
+    user.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress ??
+    user.emailAddresses[0]?.emailAddress ?? null;
 
   await prisma.user.upsert({
-    where: { clerkId: user.id },
+    where: { id: user.id },
     update: {
-      username: user.username ?? user.id,
+      email: email ?? undefined,
+      username: user.username ?? undefined,
       imageUrl: user.imageUrl ?? undefined,
     },
     create: {
-      clerkId: user.id,
-      username: user.username ?? user.id,
+      id: user.id,
+      email: email ?? undefined,
+      username: user.username ?? undefined,
       imageUrl: user.imageUrl ?? undefined,
     },
   });

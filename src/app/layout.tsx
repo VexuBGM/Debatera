@@ -7,16 +7,6 @@ import "@stream-io/video-react-sdk/dist/css/styles.css";
 
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "Debatera",
   description: "The one place for debates",
