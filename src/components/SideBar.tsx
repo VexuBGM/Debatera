@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home, MessagesSquare, Users, CalendarDays, Inbox,
   MessageCircle, Compass, Trophy, PlusCircle, ClipboardList,
-  Send, ShieldCheck, BarChart2, ShieldAlert, Building2
+  Send, ShieldCheck, BarChart2, ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,8 +22,7 @@ const sections: Section[] = [
   {
     title: 'Overview',
     items: [
-      { label: 'Home', href: '/', icon: Home }, 
-      { label: 'Institutions', href: '/institutions', icon: Building2 }, // Institutions (schools/organizations) that manage teams and members
+      { label: 'Home', href: '/dashboard', icon: Home }, 
       { label: 'Debates', href: '/debates', icon: MessagesSquare, count: 7 }, // List (& calendar) of debates you can see (by role/visibility). // Filters: today, upcoming, past; my team; practice vs tournament; status (live/starting/scheduled). // Row actions: Join (if live/starting), View details (speakers, judges, rules), Copy invite.
       { label: 'Teams', href: '/teams', icon: Users }, // Your teams + directory. // Team page: roster, coach, rating/Elo (future), past & upcoming debates, private team notes and files. // Actions (team lead/admin): invite members, set lineup, manage roles.
       { label: 'Schedule', href: '/schedule', icon: CalendarDays }, // Personal calendar (aggregates tournaments, debates, judge slots). // Week/Month switch; export to Google/ICS; availability toggles.
@@ -88,7 +87,7 @@ export default function Sidebar() {
                           <span>{item.label}</span>
                         </span>
                         {typeof item.count === 'number' && (
-                          <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-white/10 px-1.5 text-xs font-semibold text-white/80">
+                          <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-white/10 px-1.5 text-xs font-semibold text-white/80">
                             {item.count}
                           </span>
                         )}
