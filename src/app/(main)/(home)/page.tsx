@@ -1,10 +1,9 @@
 import React from 'react'
-import CreateMeetingButton from '@/components/CreateMeetingButton'
 
 const HomePage = () => {
   return (
     <div>
-      
+      <h1>Welcome to Debatera dashboard</h1>
     </div>
   )
 }

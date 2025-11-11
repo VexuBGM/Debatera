@@ -1,200 +1,339 @@
-# Implementation Summary: Debatera Database Layer
+# Tournament System Implementation Summary
 
-This document summarizes the implementation of the Debatera database layer with Prisma and PostgreSQL.
+## ✅ Completed Implementation
 
-## ✅ Completed Tasks
+This document summarizes the complete implementation of the debate tournament system MVP.
 
-### 1. Prisma Schema Implementation
+## Database Schema
 
-**File**: `prisma/schema.prisma`
+### New Models Added
 
-Implemented complete database schema with:
-- **Enums**: `AppRole`, `DebateStatus`, `CallRole`, `DebateSide`
-- **Models**: 
-  - `User` - Platform users with Clerk integration
-  - `Tournament` - Debate tournaments with verification
-  - `Team` - Teams of debaters
-  - `TeamMember` - Many-to-many team membership
-  - `Debate` - 1v1 team debates
-  - `DebateParticipant` - Call-level roles per debate
-  - `JudgeFeedback` - Judge feedback and voting
+1. **RoleType** (Enum)
+   - `DEBATER`
+   - `JUDGE`
 
-### 2. Database Migration
+2. **Institution**
+   - Represents schools or organizations
+   - Has a unique name
+   - Tracks creator (becomes first coach)
+   - Related to members and teams
 
-**File**: `prisma/migrations/20251020191823_init_db/migration.sql`
+3. **InstitutionMember**
+   - Links users to institutions
+   - Enforces one-institution-per-user rule via unique constraint on `userId`
+   - Tracks coach status with `isCoach` boolean
+   - Stores join date
 
-Created comprehensive migration SQL including:
-- All enum types
-- All table definitions
-- Foreign key constraints
-- Indexes for performance
-- Unique constraints for data integrity
+4. **TournamentTeam**
+   - Teams within tournaments
+   - Auto-generated names: `<InstitutionName> <teamNumber>`
+   - Unique constraint: `(tournamentId, institutionId, teamNumber)`
+   - Links to institution and tournament
 
-### 3. Seed Script
+5. **TournamentParticipation**
+   - Tracks user participation in tournaments
+   - Enforces single appearance rule via unique constraint: `(userId, tournamentId)`
+   - Links user to tournament and optional team
+   - Stores role (DEBATER or JUDGE)
 
-**File**: `prisma/seed.ts`
+6. **Tournament** (Updated)
+   - Added `rosterFreezeAt` timestamp
+   - Added `frozenById` to track who froze the roster
+   - Related to teams and participations
 
-Implemented seed script that creates:
-- 6 users (1 admin, 5 regular users)
-- 2 tournaments (1 verified, 1 unverified)
-- 2 teams with members
-- 1 debate with:
-  - 2 debaters (prop and opp)
-  - 2 judges
-  - 1 spectator
-  - Judge feedback
-  - Final decision set
+## API Endpoints Implemented
 
-### 4. API Route Handlers
+### Institution Management (4 endpoints)
 
-Implemented 9 API endpoints:
+✅ **POST /api/institutions**
+- Create new institution
+- Creator becomes coach automatically
+- Validates user not already in another institution
 
-#### Tournaments
-- `POST /api/tournaments` - Create tournament (authenticated)
-- `GET /api/tournaments` - List all tournaments
-- `POST /api/tournaments/:id/verify` - Verify tournament (admin only)
+✅ **GET /api/institutions**
+- List all institutions with member/team counts
 
-#### Teams
-- `POST /api/teams` - Create team (authenticated)
-- `GET /api/teams` - List all teams with members
-- `POST /api/teams/:id/members` - Add team member (authenticated)
+✅ **GET /api/institutions/[id]**
+- Get detailed institution info
+- Includes members, teams, and counts
 
-#### Debates
-- `POST /api/debates` - Create debate (authenticated)
-- `GET /api/debates` - List all debates
-- `GET /api/debates/:id` - Get debate details with participants and feedback
-- `POST /api/debates/:id/participants` - Upsert participant role (authenticated)
-- `POST /api/debates/:id/feedback` - Submit judge feedback (judge only)
-- `POST /api/debates/:id/decide` - Set final winning side (judge or admin)
+✅ **POST /api/institutions/[id]/members**
+- Add member to institution (coach only)
+- Validates one-institution rule
+- Optional coach assignment
 
-### 5. Authorization System
+✅ **GET /api/institutions/[id]/members**
+- List all institution members
+- Sorted by coach status and join date
 
-**File**: `src/lib/auth.ts`
+### Tournament Team Management (5 endpoints)
 
-Implemented authorization helpers:
-- `getCurrentUser()` - Get current authenticated user
-- `requireAuth()` - Require authentication
-- `requireAdmin()` - Require admin role
+✅ **POST /api/tournaments/[id]/teams**
+- Create team for institution in tournament
+- Auto-generates team name and number
+- Checks roster freeze and coach permissions
 
-### 6. Updated User Synchronization
+✅ **GET /api/tournaments/[id]/teams**
+- List all teams in tournament
+- Optional filter by institution
+- Includes participation counts
 
-**File**: `src/lib/ensureUser.ts`
+✅ **POST /api/tournament-teams/[id]/members**
+- Add member to team
+- Validates: institution membership, single appearance, team size (3-5 debaters)
+- Checks roster freeze
 
-Updated to work with new schema:
-- Changed from Clerk ID as primary key to UUID primary key
-- Added `clerkId` as unique field for Clerk integration
-- Updated user creation/update logic
+✅ **GET /api/tournament-teams/[id]/members**
+- List team members with roles
+- Sorted by role and join date
 
-### 7. Documentation
+✅ **POST /api/tournament-teams/[id]/roles**
+- Change user's role in team
+- Validates team size constraints (min 3, max 5 debaters)
+- Checks roster freeze
 
-Created comprehensive documentation:
+### Tournament Management (4 endpoints)
 
-- **DATABASE.md** - Complete database setup guide
-  - Environment setup
-  - Migration instructions
-  - Seeding guide
-  - Schema overview
-  - API endpoints
-  - Authorization rules
-  - Troubleshooting
+✅ **GET /api/tournaments/[id]**
+- Get tournament details
+- Includes freeze status and counts
+- Shows if roster is currently frozen
 
-- **API_TESTING.md** - API testing guide
-  - Example curl commands
-  - Testing workflow
-  - Validation examples
-  - Using Prisma Studio
+✅ **POST /api/tournaments/[id]/freeze**
+- Freeze tournament roster (admin only)
+- Set specific freeze timestamp
+- Tracks who performed the freeze
 
-- **README.md** - Project overview
-  - Features
-  - Tech stack
-  - Getting started guide
-  - Project structure
-  - User roles
-  - Development commands
+✅ **GET /api/tournaments/[id]/participations**
+- List all participants
+- Optional role filter
+- Groups by debaters and judges
 
-### 8. Validation Script
+✅ **POST /api/tournaments/[id]/override**
+- Remove roster freeze (admin only)
+- Allows changes after freeze
 
-**File**: `validate-db-layer.sh`
+## Validation & Business Logic
 
-Created automated validation script that checks:
-- Prisma schema validity
-- Migration files existence
-- All API route files
-- Auth helper
-- Documentation files
-- .env.example configuration
-- Prisma client generation
-- TypeScript compilation
+### Validation Helper Functions (`tournament-validation.ts`)
 
-### 9. Environment Configuration
+✅ **isCoach()** - Check if user is a coach of an institution
+✅ **isTournamentAdmin()** - Check if user is tournament owner
+✅ **isRosterFrozen()** - Check if tournament roster is frozen
+✅ **hasMinimumTeamSize()** - Validate team has at least 3 debaters
+✅ **hasMaximumTeamSize()** - Validate team doesn't exceed 5 debaters
+✅ **getTeamDebaterCount()** - Count debaters in a team
+✅ **isUserInTournament()** - Check single appearance rule
+✅ **isUserInInstitution()** - Verify user membership
+✅ **getUserInstitutionId()** - Get user's institution
+✅ **canModifyRoster()** - Check if modifications are allowed (freeze + permissions)
 
-**File**: `.env.example`
+### Business Rules Enforced
 
-Updated with proper database URL template:
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/debatera?schema=public"
+1. ✅ **One Institution Per User**
+   - Unique constraint on `InstitutionMember.userId`
+   - Validated in API before adding to institution
+   - Returns 409 Conflict if violated
+
+2. ✅ **Single Appearance Rule**
+   - Unique constraint on `(userId, tournamentId)`
+   - User cannot join multiple teams in same tournament
+   - Returns 409 Conflict if violated
+
+3. ✅ **Team Size Limits**
+   - Minimum 3 debaters per team
+   - Maximum 5 debaters per team
+   - Validated when adding members or changing roles
+   - Returns 400 Bad Request if violated
+
+4. ✅ **Coach Permissions**
+   - Only coaches can add members to institution
+   - Only coaches can create teams
+   - Only coaches can add members to teams
+   - Only coaches can change roles
+   - Returns 403 Forbidden if violated
+
+5. ✅ **Roster Freeze**
+   - Modifications blocked after `rosterFreezeAt` timestamp
+   - Only tournament admins can make changes after freeze
+   - Admins can override freeze
+   - Returns 423 Locked if violated
+
+6. ✅ **Auto-generated Team Names**
+   - Format: `<InstitutionName> <teamNumber>`
+   - Team numbers increment automatically per institution
+   - Example: "Harvard 1", "Harvard 2", "Harvard 3"
+
+## Error Handling
+
+All endpoints implement proper error handling:
+
+- ✅ **400 Bad Request** - Invalid input or business rule violation
+- ✅ **401 Unauthorized** - Missing authentication
+- ✅ **403 Forbidden** - Insufficient permissions
+- ✅ **404 Not Found** - Resource doesn't exist
+- ✅ **409 Conflict** - Duplicate or conflicting data
+- ✅ **423 Locked** - Resource is locked (roster frozen)
+- ✅ **500 Internal Server Error** - Unexpected errors
+
+## Database Migrations
+
+✅ Migration applied: `20251105144243_add_institutions_and_tournament_teams`
+
+Includes:
+- RoleType enum
+- Institution table
+- InstitutionMember table with unique userId constraint
+- TournamentTeam table with composite unique constraint
+- TournamentParticipation table with unique (userId, tournamentId)
+- Tournament table updates for freeze functionality
+
+## File Structure
+
+```
+src/
+├── lib/
+│   └── tournament-validation.ts         # Validation helper functions
+└── app/
+    └── api/
+        ├── institutions/
+        │   ├── route.ts                 # POST, GET institutions
+        │   └── [id]/
+        │       ├── route.ts             # GET institution details
+        │       └── members/
+        │           └── route.ts         # POST, GET members
+        ├── tournaments/
+        │   └── [id]/
+        │       ├── route.ts             # GET tournament
+        │       ├── teams/
+        │       │   └── route.ts         # POST, GET teams
+        │       ├── freeze/
+        │       │   └── route.ts         # POST freeze roster
+        │       ├── participations/
+        │       │   └── route.ts         # GET participations
+        │       └── override/
+        │           └── route.ts         # POST override freeze
+        └── tournament-teams/
+            └── [id]/
+                ├── members/
+                │   └── route.ts         # POST, GET members
+                └── roles/
+                    └── route.ts         # POST change role
+
+prisma/
+└── schema.prisma                        # Updated with new models
 ```
 
-### 10. Package Configuration
+## Documentation
 
-**File**: `package.json`
+✅ **TOURNAMENT_API.md** - Complete API documentation with examples
+✅ **TOURNAMENT_EXAMPLES.md** - Usage examples and test scenarios
+✅ **This file** - Implementation summary
 
-Added Prisma seed configuration:
-```json
-"prisma": {
-  "seed": "tsx prisma/seed.ts"
-}
-```
+## Testing Recommendations
 
-## 📊 Statistics
+### Manual Testing Checklist
 
-- **Models**: 7
-- **Enums**: 4
-- **API Routes**: 9
-- **Relations**: 12
-- **Indexes**: 14
-- **Unique Constraints**: 6
-- **Lines of Code**: ~1,650+ (API routes, schema, seed, docs)
+1. **Institution Management**
+   - [ ] Create institution
+   - [ ] Verify creator is coach
+   - [ ] Add members as coach
+   - [ ] Try to add member as non-coach (should fail)
+   - [ ] Try to create second institution with same user (should fail)
 
-## 🔒 Security & Validation
+2. **Team Creation**
+   - [ ] Create multiple teams for same institution
+   - [ ] Verify team names increment (Harvard 1, Harvard 2, etc.)
+   - [ ] Try to create team as non-coach (should fail)
 
-Implemented validation rules:
-- Tournament verification admin-only
-- Prop and Opp teams must differ
-- Unique debate participant per user
-- Speaking order only for debaters
-- Judge feedback requires judge role
-- Final decision requires judge or admin role
-- Side validation (PROP/OPP for debaters, NEUTRAL for judges/spectators)
+3. **Team Composition**
+   - [ ] Add 3 debaters to team (minimum)
+   - [ ] Try to add 6th debater (should fail)
+   - [ ] Add judges (no limit)
+   - [ ] Try to add user who's already in another team (should fail)
 
-## 🎯 Acceptance Criteria Met
+4. **Role Changes**
+   - [ ] Change debater to judge
+   - [ ] Try to change role when it would violate team size (should fail)
+   - [ ] Change judge to debater
 
-- ✅ Prisma models & enums implemented exactly as specified
-- ✅ Migrations created and ready to apply
-- ✅ Seed script creates complete sample data
-- ✅ API routes implemented with auth and authorization guards
-- ✅ Admin-only tournament verification
-- ✅ Debate participant upsert with validation
-- ✅ Judge feedback restricted to judges
-- ✅ Final decision sets winningSide
-- ✅ Comprehensive documentation with env, migrate, seed, and endpoints
+5. **Roster Freeze**
+   - [ ] Set freeze date in future
+   - [ ] Verify changes still allowed
+   - [ ] Wait for freeze time or set to past
+   - [ ] Try to make changes (should fail with 423)
+   - [ ] Make changes as admin (should work)
+   - [ ] Override freeze as admin
 
-## 🚀 Next Steps
+6. **Permissions**
+   - [ ] Try all operations as non-coach (should fail)
+   - [ ] Try admin operations as non-admin (should fail)
 
-To use this implementation:
+### Integration Testing
 
-1. Set up PostgreSQL database
-2. Configure `DATABASE_URL` in `.env`
-3. Run migrations: `npx prisma migrate dev`
-4. Seed database: `npx prisma db seed`
-5. Start dev server: `npm run dev`
-6. Test API endpoints using examples in `API_TESTING.md`
+Consider testing with tools like:
+- Postman or Insomnia for API testing
+- Jest or Vitest for automated tests
+- Playwright for E2E testing
 
-## 📝 Notes
+## Future Enhancements (Not Implemented)
 
-- No test infrastructure existed in the repository, so unit/integration tests were not added per the minimal changes guideline
-- All existing lint warnings/errors in pre-existing files were left untouched
-- TypeScript compilation passes with no errors
-- All new code follows Next.js 15 and React 19 patterns
-- Authorization uses Clerk for authentication
-- Database uses UUID for primary keys with PostgreSQL's `gen_random_uuid()`
+Potential features for future versions:
+
+1. **Remove Members**
+   - DELETE endpoint for removing team members
+   - Validate team size after removal
+
+2. **Transfer Institutions**
+   - Endpoint to move user between institutions
+   - Admin approval workflow
+
+3. **Team Templates**
+   - Save team configurations
+   - Quick team creation from templates
+
+4. **Invitation System**
+   - Email invitations to join institutions
+   - Token-based acceptance (similar to existing team invites)
+
+5. **Audit Log**
+   - Track all changes to teams and rosters
+   - Show who made what changes and when
+
+6. **Bulk Operations**
+   - Add multiple members at once
+   - Create multiple teams at once
+
+7. **Advanced Freeze Controls**
+   - Partial freezes (e.g., only debaters, not judges)
+   - Temporary unfreezes with time limits
+
+8. **Notifications**
+   - Email notifications for roster changes
+   - Alerts before freeze deadlines
+
+## Notes
+
+- All endpoints use Next.js 15 App Router with async params
+- Authentication handled via Clerk
+- Database operations use Prisma ORM
+- Input validation via Zod schemas
+- TypeScript for type safety
+- Error handling follows REST conventions
+
+## Success Criteria Met ✅
+
+All original requirements have been successfully implemented:
+
+1. ✅ Institution management with coach roles
+2. ✅ One institution per user constraint
+3. ✅ Team creation with auto-naming
+4. ✅ Team size limits (3-5 debaters)
+5. ✅ Single appearance rule enforcement
+6. ✅ Role management (debater/judge)
+7. ✅ Roster freeze functionality
+8. ✅ Admin override capabilities
+9. ✅ Comprehensive API endpoints
+10. ✅ Proper error handling
+11. ✅ Permission checks
+12. ✅ Complete documentation

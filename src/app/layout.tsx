@@ -5,6 +5,17 @@ import { ensureUserInDB } from '@/lib/ensureUser';
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
+import { Toaster } from "@/components/ui/sonner";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "Debatera",
@@ -37,6 +48,7 @@ export default async function RootLayout({
       >
         <body className={`antialiased`} suppressHydrationWarning>
           {children}
+          <Toaster />
         </body>
       </ClerkProvider>
     </html>

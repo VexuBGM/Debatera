@@ -1,63 +1,57 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
 
-export async function POST(req: NextRequest) {
-  const { user, error } = await requireAuth();
-  if (error) return error;
+import { auth } from '@clerk/nextjs/server';
+
+// Prisma requires Node.js runtime, not Edge:
+export const runtime = 'nodejs';
+
+const CreateTournamentSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(120),
+  description: z.string().max(2000).optional().or(z.literal('')),
+  rosterFreezeAt: z.string().datetime().optional(),
+});
+
+export async function POST(req: Request) {
+  // Auth: Clerk
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
-    const body = await req.json();
-    const { name, description } = body;
-
-    if (!name || typeof name !== 'string') {
-      return NextResponse.json(
-        { error: 'Tournament name is required' },
-        { status: 400 }
-      );
-    }
+    const json = await req.json();
+    const parsed = CreateTournamentSchema.parse(json);
 
     const tournament = await prisma.tournament.create({
       data: {
-        name,
-        description: description || null,
-        createdById: user!.id,
+        name: parsed.name,
+        description: parsed.description || null,
+        ownerId: userId,
+        rosterFreezeAt: parsed.rosterFreezeAt ? new Date(parsed.rosterFreezeAt) : null,
+        frozenById: parsed.rosterFreezeAt ? userId : null,
       },
     });
 
     return NextResponse.json(tournament, { status: 201 });
-  } catch (error) {
-    console.error('Error creating tournament:', error);
-    return NextResponse.json(
-      { error: 'Failed to create tournament' },
-      { status: 500 }
-    );
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return NextResponse.json({ error: err.flatten() }, { status: 400 });
+    }
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const tournaments = await prisma.tournament.findMany({
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            username: true,
-            imageUrl: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
-
-    return NextResponse.json(tournaments);
-  } catch (error) {
-    console.error('Error fetching tournaments:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch tournaments' },
-      { status: 500 }
-    );
+    return NextResponse.json(tournaments, { status: 200 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
