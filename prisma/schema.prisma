@@ -13,125 +13,151 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum RoleType {
-  DEBATER
-  JUDGE
+// Enums
+enum AppRole {
+  USER
+  ADMIN
 }
 
+enum DebateStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELED
+}
+
+enum CallRole {
+  DEBATER
+  JUDGE
+  SPECTATOR
+}
+
+enum DebateSide {
+  PROP
+  OPP
+  NEUTRAL
+}
+
+// Core models
 model User {
-  id        String   @id @db.VarChar(128) // Clerk user id
-  email     String?  @unique
-  username  String?
-  imageUrl  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String               @id @default(uuid()) @db.Uuid
+  clerkId               String               @unique @db.VarChar(128)
+  username              String               @db.VarChar(64)
+  imageUrl              String?
+  appRole               AppRole              @default(USER)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @default(now()) @updatedAt
 
-  // Institution relations
-  institutionMemberships InstitutionMember[]
-  institutionsCreated    Institution[]       @relation("InstitutionsCreated")
+  // Relations
+  createdTournaments    Tournament[]
+  teamMemberships       TeamMember[]
+  debateParticipations  DebateParticipant[]
+  judgeFeedback         JudgeFeedback[]
 
-  // Tournament participation
-  tournamentParticipations TournamentParticipation[]
-  tournamentsFrozen        Tournament[]              @relation("TournamentsFrozen")
+  @@index([clerkId])
 }
 
 model Tournament {
-  id             String    @id @default(dbgenerated("'tourn_' || gen_random_uuid()::text")) @db.VarChar(128)
-  name           String
-  description    String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  ownerId        String    @db.VarChar(128)
-  rosterFreezeAt DateTime?
-  frozenById     String?   @db.VarChar(128)
-  frozenBy       User?     @relation("TournamentsFrozen", fields: [frozenById], references: [id], onDelete: SetNull)
-
-  teams                  TournamentTeam[]
-  participations         TournamentParticipation[]
-  registeredInstitutions TournamentInstitutionRegistration[]
-}
-
-model Institution {
-  id          String   @id @default(dbgenerated("'inst_' || gen_random_uuid()::text")) @db.VarChar(128)
-  name        String   @unique
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(120)
   description String?
-  createdById String   @db.VarChar(128)
-  createdBy   User     @relation("InstitutionsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  isVerified  Boolean  @default(false)
+  createdById String   @db.Uuid
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime @default(now()) @updatedAt
 
-  members                 InstitutionMember[]
-  teams                   TournamentTeam[]
-  tournamentRegistrations TournamentInstitutionRegistration[]
-  participations          TournamentParticipation[]
+  // Relations
+  createdBy User     @relation(fields: [createdById], references: [id])
+  teams     Team[]
+  debates   Debate[]
 
   @@index([createdById])
+  @@index([isVerified])
 }
 
-model InstitutionMember {
-  id            String   @id @default(dbgenerated("'imem_' || gen_random_uuid()::text")) @db.VarChar(128)
-  userId        String   @db.VarChar(128)
-  institutionId String   @db.VarChar(128)
-  isCoach       Boolean  @default(false)
-  joinedAt      DateTime @default(now())
+model Team {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @db.VarChar(120)
+  tournamentId String?   @db.Uuid
+  createdAt    DateTime  @default(now())
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  // Relations
+  tournament       Tournament?  @relation(fields: [tournamentId], references: [id])
+  members          TeamMember[]
+  propDebates      Debate[]     @relation("PropTeam")
+  oppDebates       Debate[]     @relation("OppTeam")
 
-  @@unique([userId]) // A user can only be in one institution
-  @@index([institutionId])
-}
-
-model TournamentTeam {
-  id            String   @id @default(dbgenerated("'team_' || gen_random_uuid()::text")) @db.VarChar(128)
-  name          String
-  tournamentId  String   @db.VarChar(128)
-  institutionId String   @db.VarChar(128)
-  teamNumber    Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  tournament     Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  institution    Institution               @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  participations TournamentParticipation[]
-
-  @@unique([tournamentId, institutionId, teamNumber])
   @@index([tournamentId])
-  @@index([institutionId])
 }
 
-model TournamentParticipation {
-  id            String   @id @default(dbgenerated("'part_' || gen_random_uuid()::text")) @db.VarChar(128)
-  userId        String   @db.VarChar(128)
-  tournamentId  String   @db.VarChar(128)
-  teamId        String?  @db.VarChar(128)
-  institutionId String?  @db.VarChar(128)
-  role          RoleType
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model TeamMember {
+  teamId   String   @db.Uuid
+  userId   String   @db.Uuid
+  joinedAt DateTime @default(now())
 
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tournament  Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  team        TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  institution Institution?    @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  // Relations
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, tournamentId]) // Single appearance rule
-  @@index([tournamentId])
-  @@index([teamId])
-  @@index([institutionId])
+  @@id([teamId, userId])
+  @@index([userId])
 }
 
-model TournamentInstitutionRegistration {
-  id             String   @id @default(dbgenerated("'reg_' || gen_random_uuid()::text")) @db.VarChar(128)
-  tournamentId   String   @db.VarChar(128)
-  institutionId  String   @db.VarChar(128)
-  registeredAt   DateTime @default(now())
-  registeredById String   @db.VarChar(128)
+model Debate {
+  id           String        @id @default(uuid()) @db.Uuid
+  tournamentId String?       @db.Uuid
+  propTeamId   String        @db.Uuid
+  oppTeamId    String        @db.Uuid
+  scheduledAt  DateTime?
+  status       DebateStatus  @default(SCHEDULED)
+  winningSide  DebateSide?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
 
-  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  // Relations
+  tournament   Tournament?          @relation(fields: [tournamentId], references: [id])
+  propTeam     Team                 @relation("PropTeam", fields: [propTeamId], references: [id])
+  oppTeam      Team                 @relation("OppTeam", fields: [oppTeamId], references: [id])
+  participants DebateParticipant[]
+  feedback     JudgeFeedback[]
 
-  @@unique([tournamentId, institutionId])
   @@index([tournamentId])
-  @@index([institutionId])
+  @@index([propTeamId])
+  @@index([oppTeamId])
+  @@index([status])
+}
+
+model DebateParticipant {
+  id         String      @id @default(uuid()) @db.Uuid
+  debateId   String      @db.Uuid
+  userId     String      @db.Uuid
+  role       CallRole
+  side       DebateSide  @default(NEUTRAL)
+  speakOrder Int?
+  createdAt  DateTime    @default(now())
+
+  // Relations
+  debate Debate @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([debateId, userId])
+  @@index([debateId, role])
+  @@index([userId])
+}
+
+model JudgeFeedback {
+  id         String      @id @default(uuid()) @db.Uuid
+  debateId   String      @db.Uuid
+  judgeId    String      @db.Uuid
+  notes      String?
+  winnerSide DebateSide?
+  createdAt  DateTime    @default(now())
+
+  // Relations
+  debate Debate @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  judge  User   @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+
+  @@unique([debateId, judgeId])
+  @@index([debateId])
+  @@index([judgeId])
 }
