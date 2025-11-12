@@ -18,7 +18,11 @@ interface Participation {
     institution: {
       id: string;
       name: string;
-    };
+    } | null;
+  } | null;
+  institution?: {
+    id: string;
+    name: string;
   } | null;
 }
 
@@ -54,7 +58,7 @@ export default function TournamentParticipants({ participations }: TournamentPar
                   <TableRow key={p.id}>
                     <TableCell>{p.user.username || p.user.email}</TableCell>
                     <TableCell>{p.team?.name || 'N/A'}</TableCell>
-                    <TableCell>{p.team?.institution.name || 'N/A'}</TableCell>
+                    <TableCell>{p.team?.institution?.name || 'N/A'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -82,7 +86,7 @@ export default function TournamentParticipants({ participations }: TournamentPar
                 {participations.judges.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>{p.user.username || p.user.email}</TableCell>
-                    <TableCell>{p.team?.institution.name || 'N/A'}</TableCell>
+                    <TableCell>{p.institution?.name || 'N/A'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
