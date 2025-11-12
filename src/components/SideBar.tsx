@@ -58,6 +58,12 @@ const sections: Section[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  
+  const flatItems = sections.flatMap((s) => s.items);
+  const activeHref = flatItems
+    .map((i) => i.href)
+    .sort((a, b) => b.length - a.length)
+    .find((h) => pathname === h || pathname?.startsWith(h + '/')) || null;
 
   return (
     <aside className="hidden lg:block lg:w-[260px] bg-[#050E22]">
@@ -70,7 +76,7 @@ export default function Sidebar() {
               </p>
               <ul className="space-y-1">
                 {section.items.map((item) => {
-                  const active = pathname === item.href || pathname?.startsWith(item.href + '/');
+                  const active = item.href === activeHref;
                   const Icon = item.icon;
                   return (
                     <li key={item.href}>
