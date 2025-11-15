@@ -68,6 +68,10 @@ interface Participation {
       name: string;
     };
   } | null;
+  institution: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface InstitutionOption {
@@ -489,6 +493,7 @@ export default function TournamentDetailPage() {
           <TournamentRounds 
             tournamentId={tournamentId}
             teams={teams}
+            judges={participations?.judges || []}
             isAdmin={isAdmin}
           />
         </TabsContent>

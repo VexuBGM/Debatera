@@ -52,6 +52,17 @@ export async function GET(
                 },
               },
             },
+            judges: {
+              include: {
+                participation: {
+                  include: {
+                    user: true,
+                    institution: true,
+                  },
+                },
+              },
+              orderBy: { isChair: 'desc' },
+            },
           },
         },
       },

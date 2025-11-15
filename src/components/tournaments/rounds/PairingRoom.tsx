@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useDroppable } from '@dnd-kit/core'
-import { Trash2, AlertTriangle, Users, Lock, Unlock, ArrowLeftRight } from 'lucide-react'
+import { Trash2, AlertTriangle, Users, ArrowLeftRight, Gavel, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface TournamentTeam {
@@ -25,10 +25,28 @@ interface TournamentTeam {
   }>;
 }
 
+interface Judge {
+  id: string; // RoundPairingJudge id
+  isChair: boolean;
+  participation: {
+    id: string;
+    user: {
+      id: string;
+      username: string | null;
+      email: string | null;
+    };
+    institution: {
+      id: string;
+      name: string;
+    } | null;
+  };
+}
+
 interface RoomPairing {
   id: string;
   propTeam: TournamentTeam | null;
   oppTeam: TournamentTeam | null;
+  judges: Judge[];
   scheduledAt: string | null;
 }
 
@@ -38,6 +56,8 @@ interface PairingRoomProps {
   onRemoveTeam: (side: 'prop' | 'opp') => void;
   onSwapSides: () => void;
   onDeletePairing: () => void;
+  onRemoveJudge: (judgeId: string) => void;
+  onToggleChair: (judgeId: string, isChair: boolean) => void;
   allPairings: RoomPairing[];
   roundNumber?: number;
 }
@@ -119,12 +139,106 @@ function DropZone({ id, side, team, onRemove, warning }: DropZoneProps) {
   );
 }
 
+function JudgesDropZone({ 
+  pairingId, 
+  judges, 
+  onRemoveJudge, 
+  onToggleChair 
+}: { 
+  pairingId: string; 
+  judges: Judge[]; 
+  onRemoveJudge: (judgeId: string) => void;
+  onToggleChair: (judgeId: string, isChair: boolean) => void;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `${pairingId}-judges`,
+    data: { type: 'judges' },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "min-h-20 rounded-lg border-2 border-dashed transition-all p-3 z-0",
+        isOver && "border-purple-500 bg-purple-50 dark:bg-purple-950/20 ring-2 ring-purple-300",
+        judges.length === 0 && "bg-muted/30",
+        judges.length > 0 && "border-solid bg-card"
+      )}
+    >
+      {judges.length > 0 ? (
+        <div className="space-y-2">
+          {judges.map((judge) => (
+            <div
+              key={judge.id}
+              className="flex items-start justify-between gap-2 p-2 rounded bg-muted/50"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Gavel className="h-3 w-3 text-purple-500 shrink-0" />
+                  <span className="font-medium text-sm truncate">
+                    {judge.participation.user.username || judge.participation.user.email}
+                  </span>
+                  {judge.isChair && (
+                    <Badge variant="default" className="bg-purple-500 text-xs gap-1">
+                      <Star className="h-3 w-3" />
+                      Chair
+                    </Badge>
+                  )}
+                </div>
+                {judge.participation.institution && (
+                  <div className="text-xs text-muted-foreground truncate ml-5">
+                    {judge.participation.institution.name}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => onToggleChair(judge.id, !judge.isChair)}
+                  title={judge.isChair ? 'Remove as chair' : 'Set as chair'}
+                >
+                  <Star className={cn(
+                    "h-3 w-3",
+                    judge.isChair && "fill-purple-500 text-purple-500"
+                  )} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => onRemoveJudge(judge.id)}
+                >
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full text-center py-4">
+          <Gavel className="h-8 w-8 text-muted-foreground mb-2 opacity-50" />
+          <div className="text-sm text-muted-foreground mb-1">
+            Drop judges here
+          </div>
+          <div className="text-xs text-muted-foreground">
+            or drag from judge pool
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PairingRoom({
   pairing,
   roomNumber,
   onRemoveTeam,
   onSwapSides,
   onDeletePairing,
+  onRemoveJudge,
+  onToggleChair,
   allPairings,
   roundNumber,
 }: PairingRoomProps) {
@@ -227,14 +341,23 @@ export function PairingRoom({
           />
         </div>
 
-        {/* Judges section - placeholder for future */}
+        {/* Judges section */}
         <div>
-          <div className="text-xs font-medium text-muted-foreground mb-2 uppercase">
+          <div className="text-xs font-medium text-muted-foreground mb-2 uppercase flex items-center gap-2">
+            <Gavel className="h-3.5 w-3.5" />
             Judges
+            {pairing.judges.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {pairing.judges.length}
+              </Badge>
+            )}
           </div>
-          <div className="min-h-[60px] rounded-lg border-2 border-dashed bg-muted/30 p-3 flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">Coming soon</span>
-          </div>
+          <JudgesDropZone
+            pairingId={pairing.id}
+            judges={pairing.judges}
+            onRemoveJudge={onRemoveJudge}
+            onToggleChair={onToggleChair}
+          />
         </div>
       </CardContent>
     </Card>

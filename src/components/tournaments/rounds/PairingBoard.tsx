@@ -5,8 +5,9 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, u
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, RefreshCw, Loader2, CheckCircle2, AlertTriangle, Users } from 'lucide-react'
+import { Plus, RefreshCw, Loader2, CheckCircle2, AlertTriangle, Users, Gavel } from 'lucide-react'
 import { UnpairedTeamsPool } from './UnpairedTeamsPool'
+import { UnpairedJudgesPool } from './UnpairedJudgesPool'
 import { PairingRoom } from './PairingRoom'
 import { toast } from 'sonner'
 
@@ -27,10 +28,41 @@ interface TournamentTeam {
   }>;
 }
 
+interface Judge {
+  id: string; // RoundPairingJudge id
+  isChair: boolean;
+  participation: {
+    id: string;
+    user: {
+      id: string;
+      username: string | null;
+      email: string | null;
+    };
+    institution: {
+      id: string;
+      name: string;
+    } | null;
+  };
+}
+
+interface JudgeParticipation {
+  id: string; // participation ID
+  user: {
+    id: string;
+    username: string | null;
+    email: string | null;
+  };
+  institution: {
+    id: string;
+    name: string;
+  } | null;
+}
+
 interface RoundPairing {
   id: string;
   propTeam: TournamentTeam | null;
   oppTeam: TournamentTeam | null;
+  judges: Judge[];
   scheduledAt: string | null;
 }
 
@@ -40,6 +72,7 @@ interface PairingBoardProps {
   roundName: string;
   pairings: RoundPairing[];
   teams: TournamentTeam[];
+  judges: JudgeParticipation[];
   tournamentId: string;
   onRefresh: () => void;
   isGenerating: boolean;
@@ -51,11 +84,13 @@ export function PairingBoard({
   roundName,
   pairings,
   teams,
+  judges,
   tournamentId,
   onRefresh,
   isGenerating,
 }: PairingBoardProps) {
   const [activeTeam, setActiveTeam] = useState<TournamentTeam | null>(null);
+  const [activeJudge, setActiveJudge] = useState<JudgeParticipation | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -75,6 +110,17 @@ export function PairingBoard({
     return ids;
   }, [pairings]);
 
+  // Calculate assigned judge IDs
+  const assignedJudgeIds = useMemo(() => {
+    const ids = new Set<string>();
+    pairings.forEach(pairing => {
+      pairing.judges.forEach(judge => {
+        ids.add(judge.participation.id);
+      });
+    });
+    return ids;
+  }, [pairings]);
+
   // Calculate statistics
   const stats = useMemo(() => {
     const complete = pairings.filter(p => p.propTeam && p.oppTeam).length;
@@ -83,9 +129,10 @@ export function PairingBoard({
       p.propTeam.institution.id === p.oppTeam.institution.id
     ).length;
     const unpairedCount = teams.length - pairedTeamIds.size;
+    const unassignedJudges = judges.length - assignedJudgeIds.size;
 
-    return { complete, warnings, unpairedCount, total: pairings.length };
-  }, [pairings, teams.length, pairedTeamIds]);
+    return { complete, warnings, unpairedCount, unassignedJudges, total: pairings.length };
+  }, [pairings, teams.length, judges.length, pairedTeamIds, assignedJudgeIds]);
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
@@ -93,6 +140,10 @@ export function PairingBoard({
     
     if (draggedData?.type === 'team') {
       setActiveTeam(draggedData.team);
+      setActiveJudge(null);
+    } else if (draggedData?.type === 'judge') {
+      setActiveJudge(draggedData.judge);
+      setActiveTeam(null);
     }
   }
 
@@ -100,63 +151,112 @@ export function PairingBoard({
     const { active, over } = event;
     
     setActiveTeam(null);
+    setActiveJudge(null);
+
     if (!over) return;
 
     const draggedData = active.data.current;
     const dropData = over.data.current;
 
-    // Extract team from dragged element
-    if (!draggedData?.type || draggedData.type !== 'team') return;
+    // Handle team drag
+    if (draggedData?.type === 'team') {
+      const team: TournamentTeam = draggedData.team;
 
-    const team: TournamentTeam = draggedData.team;
+      // Check if dropped on a valid team drop zone
+      if (!dropData?.side) return;
 
-    // Check if dropped on a valid drop zone
-    if (!dropData?.side) return;
+      const targetSide = dropData.side as 'prop' | 'opp';
+      const overIdString = String(over.id);
 
-    const targetSide = dropData.side as 'prop' | 'opp';
-    const overIdString = String(over.id);
+      // Extract pairing ID from the over.id (format: "pairingId-prop" or "pairingId-opp")
+      const targetPairingId = overIdString.replace('-prop', '').replace('-opp', '');
 
-    // Extract pairing ID from the over.id (format: "pairingId-prop" or "pairingId-opp")
-    const targetPairingId = overIdString.replace('-prop', '').replace('-opp', '');
+      // Find the target pairing
+      const targetPairing = pairings.find(p => p.id === targetPairingId);
+      if (!targetPairing) return;
 
-    // Find the target pairing
-    const targetPairing = pairings.find(p => p.id === targetPairingId);
-    if (!targetPairing) return;
+      // Prepare updated teams
+      const updates: { propTeamId: string | null; oppTeamId: string | null } = {
+        propTeamId: targetPairing.propTeam?.id || null,
+        oppTeamId: targetPairing.oppTeam?.id || null,
+      };
 
-    // Prepare updated teams
-    const updates: { propTeamId: string | null; oppTeamId: string | null } = {
-      propTeamId: targetPairing.propTeam?.id || null,
-      oppTeamId: targetPairing.oppTeam?.id || null,
-    };
-
-    // Set the new team on the target side
-    if (targetSide === 'prop') {
-      updates.propTeamId = team.id;
-    } else {
-      updates.oppTeamId = team.id;
-    }
-
-    // Update the pairing via API
-    try {
-      const url = `/api/tournaments/${tournamentId}/rounds/${roundId}/pairings/${targetPairingId}`;
-
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('API error:', error);
-        throw new Error('Failed to update pairing');
+      // Set the new team on the target side
+      if (targetSide === 'prop') {
+        updates.propTeamId = team.id;
+      } else {
+        updates.oppTeamId = team.id;
       }
 
-      onRefresh();
-      toast.success('Team assigned successfully');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to assign team');
+      // Update the pairing via API
+      try {
+        const url = `/api/tournaments/${tournamentId}/rounds/${roundId}/pairings/${targetPairingId}`;
+
+        const response = await fetch(url, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('API error:', error);
+          throw new Error('Failed to update pairing');
+        }
+
+        onRefresh();
+        toast.success('Team assigned successfully');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to assign team');
+      }
+    }
+    // Handle judge drag
+    else if (draggedData?.type === 'judge') {
+      const judge: JudgeParticipation = draggedData.judge;
+
+      // Check if dropped on judges zone
+      if (dropData?.type !== 'judges') return;
+
+      const overIdString = String(over.id);
+      // Extract pairing ID from the over.id (format: "pairingId-judges")
+      const targetPairingId = overIdString.replace('-judges', '');
+
+      // Find the target pairing
+      const targetPairing = pairings.find(p => p.id === targetPairingId);
+      if (!targetPairing) return;
+
+      // Check if judge already assigned to this pairing
+      if (targetPairing.judges.some(j => j.participation.id === judge.id)) {
+        toast.error('Judge already assigned to this room');
+        return;
+      }
+
+      // Add judge to pairing via API
+      try {
+        const url = `/api/tournaments/${tournamentId}/rounds/${roundId}/pairings/${targetPairingId}/judges`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            participationId: judge.id,
+            isChair: false,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('API error:', error);
+          throw new Error('Failed to assign judge');
+        }
+
+        onRefresh();
+        toast.success('Judge assigned successfully');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to assign judge');
+      }
     }
   }
 
@@ -237,6 +337,46 @@ export function PairingBoard({
     }
   }
 
+  async function handleRemoveJudge(pairingId: string, judgeId: string) {
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/rounds/${roundId}/pairings/${pairingId}/judges/${judgeId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to remove judge');
+
+      onRefresh();
+      toast.success('Judge removed');
+    } catch (error) {
+      toast.error('Failed to remove judge');
+      console.error(error);
+    }
+  }
+
+  async function handleToggleChair(pairingId: string, judgeId: string, isChair: boolean) {
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/rounds/${roundId}/pairings/${pairingId}/judges/${judgeId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isChair }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to update judge');
+
+      onRefresh();
+      toast.success(isChair ? 'Judge set as chair' : 'Chair status removed');
+    } catch (error) {
+      toast.error('Failed to update judge');
+      console.error(error);
+    }
+  }
+
   async function handleAddRoom() {
     try {
       const response = await fetch(
@@ -279,6 +419,39 @@ export function PairingBoard({
     }
   }
 
+  async function handleAutoAssignJudges() {
+    if (pairings.length === 0) {
+      toast.error('Create pairings first before assigning judges');
+      return;
+    }
+
+    if (judges.length === 0) {
+      toast.error('No judges registered for this tournament');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/rounds/${roundId}/auto-assign-judges`,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to auto-assign judges');
+      }
+
+      const result = await response.json();
+      onRefresh();
+      toast.success(`${result.judgesUsed} judges assigned to ${result.pairingsCount} rooms`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to auto-assign judges');
+      console.error(error);
+    }
+  }
+
   return (
     <DndContext 
       sensors={sensors} 
@@ -307,6 +480,12 @@ export function PairingBoard({
                   {stats.unpairedCount} Unpaired
                 </Badge>
               )}
+              {stats.unassignedJudges > 0 && (
+                <Badge variant="outline" className="gap-1 bg-purple-50 text-purple-700 border-purple-300">
+                  <Gavel className="h-3 w-3" />
+                  {stats.unassignedJudges} Unassigned Judges
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -321,7 +500,16 @@ export function PairingBoard({
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              Auto-Pair All
+              Auto-Pair Teams
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleAutoAssignJudges}
+              disabled={pairings.length === 0 || judges.length === 0}
+              className="bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-700"
+            >
+              <Gavel className="mr-2 h-4 w-4" />
+              Auto-Assign Judges
             </Button>
             <Button variant="outline" onClick={handleAddRoom}>
               <Plus className="mr-2 h-4 w-4" />
@@ -332,6 +520,9 @@ export function PairingBoard({
 
         {/* Unpaired teams pool */}
         <UnpairedTeamsPool teams={teams} pairedTeamIds={pairedTeamIds} />
+
+  {/* Unpaired judges pool */}
+  <UnpairedJudgesPool judges={judges} assignedJudgeIds={assignedJudgeIds} />
 
         {/* Rooms/Pairings */}
         <div className="space-y-3">
@@ -369,6 +560,8 @@ export function PairingBoard({
                   onRemoveTeam={(side) => handleRemoveTeam(pairing.id, side)}
                   onSwapSides={() => handleSwapSides(pairing.id)}
                   onDeletePairing={() => handleDeletePairing(pairing.id)}
+                  onRemoveJudge={(judgeId) => handleRemoveJudge(pairing.id, judgeId)}
+                  onToggleChair={(judgeId, isChair) => handleToggleChair(pairing.id, judgeId, isChair)}
                 />
               ))}
             </div>
@@ -398,6 +591,22 @@ export function PairingBoard({
               <Badge variant="outline" className="shrink-0">
                 #{activeTeam.teamNumber}
               </Badge>
+            </div>
+          </div>
+        ) : activeJudge ? (
+          <div className="rounded-lg border bg-card p-3 shadow-lg opacity-90 cursor-grabbing">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate flex items-center gap-1">
+                  <Gavel className="h-3 w-3 text-purple-500" />
+                  {activeJudge.user.username || activeJudge.user.email}
+                </div>
+                {activeJudge.institution && (
+                  <div className="text-xs text-muted-foreground truncate">
+                    {activeJudge.institution.name}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : null}

@@ -29,10 +29,41 @@ interface TournamentTeam {
   }>;
 }
 
+interface Judge {
+  id: string; // RoundPairingJudge id
+  isChair: boolean;
+  participation: {
+    id: string;
+    user: {
+      id: string;
+      username: string | null;
+      email: string | null;
+    };
+    institution: {
+      id: string;
+      name: string;
+    } | null;
+  };
+}
+
+interface JudgeParticipation {
+  id: string; // participation ID
+  user: {
+    id: string;
+    username: string | null;
+    email: string | null;
+  };
+  institution: {
+    id: string;
+    name: string;
+  } | null;
+}
+
 interface RoundPairing {
   id: string;
   propTeam: TournamentTeam | null;
   oppTeam: TournamentTeam | null;
+  judges: Judge[];
   scheduledAt: string | null;
 }
 
@@ -46,6 +77,7 @@ interface Round {
 interface TournamentRoundsProps {
   tournamentId: string;
   teams: TournamentTeam[];
+  judges: JudgeParticipation[];
   isAdmin?: boolean;
 }
 
@@ -114,7 +146,20 @@ function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
               )}
             </TableCell>
             <TableCell>
-              <span className="text-muted-foreground italic text-sm">Coming soon</span>
+              {pairing.judges.length > 0 ? (
+                <div className="space-y-1">
+                  {pairing.judges.map((judge) => (
+                    <div key={judge.id} className="text-sm">
+                      {judge.participation.user.username || judge.participation.user.email}
+                      {judge.isChair && (
+                        <Badge variant="default" className="ml-2 bg-purple-500 text-xs">Chair</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-muted-foreground italic text-sm">TBD</span>
+              )}
             </TableCell>
           </TableRow>
         ))}
@@ -123,7 +168,7 @@ function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
   );
 }
 
-const TournamentRounds = ({ tournamentId, teams, isAdmin = false }: TournamentRoundsProps) => {
+const TournamentRounds = ({ tournamentId, teams, judges, isAdmin = false }: TournamentRoundsProps) => {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRound, setSelectedRound] = useState<string | null>(null);
@@ -333,6 +378,7 @@ const TournamentRounds = ({ tournamentId, teams, isAdmin = false }: TournamentRo
                     roundName={round.name}
                     pairings={round.roundPairings}
                     teams={teams}
+                    judges={judges}
                     tournamentId={tournamentId}
                     onRefresh={fetchRounds}
                     isGenerating={isGeneratingPairings}

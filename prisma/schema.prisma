@@ -117,6 +117,7 @@ model TournamentParticipation {
   tournament  Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   team        TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
   institution Institution?    @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  judgeAssignments RoundPairingJudge[]
 
   @@unique([userId, tournamentId]) // Single appearance rule
   @@index([tournamentId])
@@ -165,8 +166,24 @@ model RoundPairing {
   round            Round           @relation(fields: [roundId], references: [id], onDelete: Cascade)
   propTeam TournamentTeam? @relation("propTeam", fields: [propTeamId], references: [id], onDelete: Cascade)
   oppTeam    TournamentTeam? @relation("oppTeam", fields: [oppTeamId], references: [id], onDelete: Cascade)
+  judges RoundPairingJudge[]
 
   @@index([roundId])
   @@index([propTeamId])
   @@index([oppTeamId])
+}
+
+model RoundPairingJudge {
+  id              String   @id @default(dbgenerated("'rpj_' || gen_random_uuid()::text")) @db.VarChar(128)
+  pairingId       String   @db.VarChar(128)
+  participationId String   @db.VarChar(128)
+  isChair         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  pairing       RoundPairing            @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  participation TournamentParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  @@unique([pairingId, participationId])
+  @@index([pairingId])
+  @@index([participationId])
 }
