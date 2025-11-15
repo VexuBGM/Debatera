@@ -110,11 +110,13 @@ export default function TournamentDetailPage() {
 
   const fetchTournamentData = async () => {
     try {
-      const [tournamentRes, teamsRes, participationsRes, institutionsRes] = await Promise.all([
+      // Fetch all data in parallel - much faster than sequential requests
+      const [tournamentRes, teamsRes, participationsRes, institutionsRes, myInstitutionRes] = await Promise.all([
         fetch(`/api/tournaments/${tournamentId}`),
         fetch(`/api/tournaments/${tournamentId}/teams`),
         fetch(`/api/tournaments/${tournamentId}/participations`),
         fetch('/api/institutions'),
+        userId ? fetch('/api/institutions/me') : Promise.resolve(null),
       ]);
 
       if (!tournamentRes.ok) throw new Error('Failed to fetch tournament');
@@ -131,32 +133,16 @@ export default function TournamentDetailPage() {
       setParticipations(participationsData);
       setInstitutions(institutionsData);
 
-      // Fetch user's institution membership
-      if (userId) {
-        try {
-          const userInstitutionsRes = await fetch('/api/institutions');
-          if (userInstitutionsRes.ok) {
-            const userInstitutions = await userInstitutionsRes.json();
-            // Find the institution where the user is a member
-            for (const inst of userInstitutions) {
-              const membersRes = await fetch(`/api/institutions/${inst.id}/members`);
-              if (membersRes.ok) {
-                const members = await membersRes.json();
-                const userMembership = members.find((m: InstitutionMember) => m.userId === userId);
-                if (userMembership) {
-                  setMyInstitution({
-                    id: inst.id,
-                    name: inst.name,
-                    isCoach: userMembership.isCoach,
-                  });
-                  setInstitutionMembers(members);
-                  break;
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error('Failed to fetch user institution:', err);
+      // Set user's institution membership (now fetched in one call)
+      if (myInstitutionRes && myInstitutionRes.ok) {
+        const myInstitutionData = await myInstitutionRes.json();
+        if (myInstitutionData) {
+          setMyInstitution({
+            id: myInstitutionData.id,
+            name: myInstitutionData.name,
+            isCoach: myInstitutionData.isCoach,
+          });
+          setInstitutionMembers(myInstitutionData.members || []);
         }
       }
     } catch (error: any) {
