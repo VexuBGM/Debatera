@@ -2,7 +2,7 @@ import { PrismaClient, RoleType } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-const TOURNAMENT_ID = 'tourn_d62387e4-110e-44f7-bcc4-dfa245a4acca'
+const TOURNAMENT_ID = 'tourn_473d6bd4-cf26-49fe-a83b-3db8450b7866'
 
 async function main() {
   console.log('Starting seed...')

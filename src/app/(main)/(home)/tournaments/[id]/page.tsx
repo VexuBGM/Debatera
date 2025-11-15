@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import TournamentRounds from '@/components/tournaments/TournamentRounds';
 
 interface Tournament {
   id: string;
@@ -448,6 +449,7 @@ export default function TournamentDetailPage() {
           <TabsTrigger value="my-institution">My Participants</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="participants">All Participants</TabsTrigger>
+          <TabsTrigger value="rounds">Rounds</TabsTrigger>
         </TabsList>
 
         <TabsContent value="registration">
@@ -481,6 +483,14 @@ export default function TournamentDetailPage() {
 
         <TabsContent value="participants">
           <TournamentParticipants participations={participations} />
+        </TabsContent>
+
+        <TabsContent value="rounds">
+          <TournamentRounds 
+            tournamentId={tournamentId}
+            teams={teams}
+            isAdmin={isAdmin}
+          />
         </TabsContent>
       </Tabs>
     </div>

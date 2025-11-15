@@ -49,6 +49,7 @@ model Tournament {
   teams                  TournamentTeam[]
   participations         TournamentParticipation[]
   registeredInstitutions TournamentInstitutionRegistration[]
+  rounds                 Round[]
 }
 
 model Institution {
@@ -94,6 +95,8 @@ model TournamentTeam {
   tournament     Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   institution    Institution               @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   participations TournamentParticipation[]
+  propTeam RoundPairing[] @relation("propTeam")
+  oppTeam    RoundPairing[] @relation("oppTeam")
 
   @@unique([tournamentId, institutionId, teamNumber])
   @@index([tournamentId])
@@ -134,4 +137,36 @@ model TournamentInstitutionRegistration {
   @@unique([tournamentId, institutionId])
   @@index([tournamentId])
   @@index([institutionId])
+}
+
+model Round {
+  id          String   @id @default(dbgenerated("'rnd_' || gen_random_uuid()::text")) @db.VarChar(128)
+  tournamentId String   @db.VarChar(128)
+  number      Int
+  name       String? // e.g., "Preliminary 1", "Quarterfinal", "Finals"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  roundPairings    RoundPairing[]
+
+  @@index([tournamentId])
+}
+
+model RoundPairing {
+  id          String   @id @default(dbgenerated("'rpair_' || gen_random_uuid()::text")) @db.VarChar(128)
+  roundId     String   @db.VarChar(128)
+  propTeamId String? @db.VarChar(128)
+  oppTeamId    String? @db.VarChar(128)
+  scheduledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  round            Round           @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  propTeam TournamentTeam? @relation("propTeam", fields: [propTeamId], references: [id], onDelete: Cascade)
+  oppTeam    TournamentTeam? @relation("oppTeam", fields: [oppTeamId], references: [id], onDelete: Cascade)
+
+  @@index([roundId])
+  @@index([propTeamId])
+  @@index([oppTeamId])
 }
