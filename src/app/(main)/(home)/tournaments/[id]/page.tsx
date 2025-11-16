@@ -20,6 +20,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import TournamentRounds from '@/components/tournaments/TournamentRounds';
+import TournamentYourNextRound from '@/components/tournaments/TournamentYourNextRound';
 
 interface Tournament {
   id: string;
@@ -452,6 +453,7 @@ export default function TournamentDetailPage() {
           <TabsTrigger value="registration">Registration</TabsTrigger>
           <TabsTrigger value="my-institution">My Participants</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
+          <TabsTrigger value="your-next-round">Your Next Round</TabsTrigger>
           <TabsTrigger value="participants">All Participants</TabsTrigger>
           <TabsTrigger value="rounds">Rounds</TabsTrigger>
         </TabsList>
@@ -463,6 +465,10 @@ export default function TournamentDetailPage() {
             onRegistrationChange={fetchTournamentData}
             isRosterFrozen={tournament.isRosterFrozen}
           />
+        </TabsContent>
+
+        <TabsContent value="your-next-round">
+          <TournamentYourNextRound tournamentId={tournamentId} />
         </TabsContent>
 
         <TabsContent value="my-institution">
