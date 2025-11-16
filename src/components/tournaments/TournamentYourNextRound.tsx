@@ -40,6 +40,9 @@ interface Round {
   id: string;
   number: number;
   name: string;
+  motion: string | null;
+  infoSlide: string | null;
+  status?: 'PLANNING' | 'PUBLISHED' | 'BALLOTING' | 'FINAL' | 'CANCELLED';
 }
 
 interface Pairing {
@@ -55,6 +58,7 @@ interface NextRoundDebater {
   yourTeam: Team;
   opponentTeam: Team | null;
   judges: Judge[];
+  isAdmin?: boolean;
 }
 
 interface NextRoundJudge {
@@ -65,6 +69,7 @@ interface NextRoundJudge {
   propTeam: Team | null;
   oppTeam: Team | null;
   judges: Judge[];
+  isAdmin?: boolean;
 }
 
 interface NoAssignment {
@@ -192,6 +197,23 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
     );
   }
 
+  // Hide round details for non-admin users while the round is in PLANNING
+  if (data && 'round' in data && data.round?.status === 'PLANNING' && !(data as any).isAdmin) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Next Round</CardTitle>
+          <CardDescription>Round information is currently unavailable</CardDescription>
+        </CardHeader>
+        <CardContent className="py-12 text-center">
+          <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Round Being Planned</h3>
+          <p className="text-muted-foreground">This round is currently in planning mode and is only visible to tournament administrators. If you think this is a mistake, contact your tournament admin.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Display for DEBATER
   if (data.role === 'DEBATER') {
     const roomLink = `/debate/${data.pairing.id}`;
@@ -226,6 +248,19 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
                     </Badge>
                   </h3>
                 </div>
+                {/* Motion Display */}
+                {data.round.motion && (
+                  <div className="mt-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded border border-cyan-300 dark:border-cyan-700">
+                    <p className="text-sm font-semibold text-cyan-700 dark:text-cyan-300 mb-1">Motion:</p>
+                    <p className="text-base font-medium">{data.round.motion}</p>
+                    {data.round.infoSlide && (
+                      <div className="mt-2 pt-2 border-t border-cyan-200 dark:border-cyan-800">
+                        <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Context:</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{data.round.infoSlide}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="text-sm text-muted-foreground">
                   {data.pairing.scheduledAt && (
                     <div className="flex items-center gap-2 mt-2">
@@ -378,6 +413,19 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
                     You&apos;re judging this debate
                   </h3>
                 </div>
+                {/* Motion Display */}
+                {data.round.motion && (
+                  <div className="mt-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded border border-purple-300 dark:border-purple-700">
+                    <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-1">Motion:</p>
+                    <p className="text-base font-medium">{data.round.motion}</p>
+                    {data.round.infoSlide && (
+                      <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">
+                        <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mb-1">Context:</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{data.round.infoSlide}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="text-sm text-muted-foreground">
                   {data.pairing.scheduledAt && (
                     <div className="flex items-center gap-2 mt-2">

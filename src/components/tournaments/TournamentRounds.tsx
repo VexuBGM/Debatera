@@ -71,6 +71,9 @@ interface Round {
   id: string;
   number: number;
   name: string;
+  motion: string | null;
+  infoSlide: string | null;
+  status: 'PLANNING' | 'PUBLISHED' | 'BALLOTING' | 'FINAL' | 'CANCELLED';
   roundPairings: RoundPairing[];
 }
 
@@ -175,6 +178,9 @@ const TournamentRounds = ({ tournamentId, teams, judges, isAdmin = false }: Tour
   const [isGeneratingPairings, setIsGeneratingPairings] = useState(false);
   const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
   const [editingRoundName, setEditingRoundName] = useState('');
+  const [editingMotion, setEditingMotion] = useState<string | null>(null);
+  const [editingInfoSlide, setEditingInfoSlide] = useState<string | null>(null);
+  const [editingStatusRoundId, setEditingStatusRoundId] = useState<string | null>(null);
   const { userId } = useAuth();
 
   useEffect(() => {
@@ -241,6 +247,32 @@ const TournamentRounds = ({ tournamentId, teams, judges, isAdmin = false }: Tour
       toast.success('Round name updated successfully');
     } catch (error) {
       toast.error('Failed to update round name');
+      console.error(error);
+    }
+  }
+
+  async function updateRoundDetails(roundId: string, updates: { motion?: string; infoSlide?: string; status?: string }) {
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/rounds/${roundId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updates),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to update round');
+
+      await fetchRounds();
+      setEditingMotion(null);
+      setEditingInfoSlide(null);
+      setEditingStatusRoundId(null);
+      toast.success('Round updated successfully');
+    } catch (error) {
+      toast.error('Failed to update round');
       console.error(error);
     }
   }
@@ -371,6 +403,160 @@ const TournamentRounds = ({ tournamentId, teams, judges, isAdmin = false }: Tour
             </TabsList>
             {rounds.map((round) => (
               <TabsContent key={round.id} value={round.id} className="space-y-4">
+                {/* Restrict planning rounds to admins */}
+                {(!isAdmin && round.status === 'PLANNING') ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Round Unavailable</CardTitle>
+                      <CardDescription>This round is currently in planning and is visible to tournament admins only.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="py-8 text-center">
+                      <p className="text-muted-foreground">Pairings and details are not available while the round is in planning.</p>
+                    </CardContent>
+                  </Card>
+                ) : (<>
+                {/* Round Details Section */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">Round Details</CardTitle>
+                      <div className="flex items-center gap-2">
+                        {/* Status Badge */}
+                        {isAdmin && editingStatusRoundId === round.id ? (
+                          <select
+                            value={round.status}
+                            onChange={(e) => {
+                              updateRoundDetails(round.id, { status: e.target.value });
+                            }}
+                            onBlur={() => setEditingStatusRoundId(null)}
+                            className="px-2 py-1 text-xs border rounded"
+                            autoFocus
+                          >
+                            <option value="PLANNING">Planning</option>
+                            <option value="PUBLISHED">Published</option>
+                            <option value="BALLOTING">Balloting</option>
+                            <option value="FINAL">Final</option>
+                            <option value="CANCELLED">Cancelled</option>
+                          </select>
+                        ) : (
+                          <Badge
+                            variant={
+                              round.status === 'PUBLISHED' ? 'default' :
+                              round.status === 'BALLOTING' ? 'secondary' :
+                              round.status === 'FINAL' ? 'default' :
+                              round.status === 'CANCELLED' ? 'destructive' :
+                              'outline'
+                            }
+                            className={
+                              round.status === 'PUBLISHED' ? 'bg-green-500' :
+                              round.status === 'BALLOTING' ? 'bg-yellow-500' :
+                              round.status === 'FINAL' ? 'bg-blue-500' :
+                              ''
+                            }
+                            onClick={() => isAdmin && setEditingStatusRoundId(round.id)}
+                          >
+                            {round.status === 'PLANNING' && 'Planning'}
+                            {round.status === 'PUBLISHED' && 'Published'}
+                            {round.status === 'BALLOTING' && 'Balloting'}
+                            {round.status === 'FINAL' && 'Final'}
+                            {round.status === 'CANCELLED' && 'Cancelled'}
+                            {isAdmin && <Edit2 className="h-3 w-3 ml-1" />}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Motion Section */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-semibold">Motion:</label>
+                        {isAdmin && editingMotion !== round.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingMotion(round.id)}
+                          >
+                            <Edit2 className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                      </div>
+                      {isAdmin && editingMotion === round.id ? (
+                        <div className="flex gap-2">
+                          <Input
+                            defaultValue={round.motion || ''}
+                            placeholder="Enter the motion for this round..."
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const target = e.target as HTMLInputElement;
+                                updateRoundDetails(round.id, { motion: target.value });
+                              } else if (e.key === 'Escape') {
+                                setEditingMotion(null);
+                              }
+                            }}
+                            onBlur={(e) => {
+                              if (e.target.value !== round.motion) {
+                                updateRoundDetails(round.id, { motion: e.target.value });
+                              } else {
+                                setEditingMotion(null);
+                              }
+                            }}
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground italic">
+                          {round.motion || 'No motion set yet'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Info Slide Section */}
+                    <div className="space-y-2 mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-semibold">Info Slide (Motion Context):</label>
+                        {isAdmin && editingInfoSlide !== round.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingInfoSlide(round.id)}
+                          >
+                            <Edit2 className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                      </div>
+                      {isAdmin && editingInfoSlide === round.id ? (
+                        <div className="flex gap-2">
+                          <textarea
+                            defaultValue={round.infoSlide || ''}
+                            placeholder="Add context or background information for the motion..."
+                            className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setEditingInfoSlide(null);
+                              }
+                            }}
+                            onBlur={(e) => {
+                              if (e.target.value !== round.infoSlide) {
+                                updateRoundDetails(round.id, { infoSlide: e.target.value });
+                              } else {
+                                setEditingInfoSlide(null);
+                              }
+                            }}
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground italic text-sm">
+                          {round.infoSlide || 'No info slide set yet'}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {isAdmin ? (
                   <PairingBoard
                     roundId={round.id}
@@ -386,6 +572,7 @@ const TournamentRounds = ({ tournamentId, teams, judges, isAdmin = false }: Tour
                 ) : (
                   <ReadOnlyPairingsTable pairings={round.roundPairings} />
                 )}
+                </>) }
               </TabsContent>
             ))}
           </Tabs>

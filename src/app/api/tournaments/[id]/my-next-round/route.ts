@@ -127,6 +127,9 @@ export async function GET(
                 id: round.id,
                 number: round.number,
                 name: round.name,
+                motion: round.motion,
+                infoSlide: round.infoSlide,
+                status: round.status,
               },
               pairing: {
                 id: pairing.id,
@@ -142,6 +145,7 @@ export async function GET(
                 user: j.participation.user,
                 institution: j.participation.institution,
               })),
+              isAdmin: tournament.ownerId === userId,
             });
           }
         }
@@ -158,6 +162,9 @@ export async function GET(
                 id: round.id,
                 number: round.number,
                 name: round.name,
+                motion: round.motion,
+                infoSlide: round.infoSlide,
+                status: round.status,
               },
               pairing: {
                 id: pairing.id,
@@ -173,6 +180,7 @@ export async function GET(
                 user: j.participation.user,
                 institution: j.participation.institution,
               })),
+              isAdmin: tournament.ownerId === userId,
             });
           }
         }

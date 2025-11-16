@@ -451,9 +451,13 @@ export default function TournamentDetailPage() {
       <Tabs defaultValue="registration" className="space-y-6">
         <TabsList>
           <TabsTrigger value="registration">Registration</TabsTrigger>
-          <TabsTrigger value="my-institution">My Participants</TabsTrigger>
-          <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="your-next-round">Your Next Round</TabsTrigger>
+          {myInstitution?.isCoach && (
+            <>
+              <TabsTrigger value="my-institution">My Participants</TabsTrigger>
+              <TabsTrigger value="teams">Teams</TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="participants">All Participants</TabsTrigger>
           <TabsTrigger value="rounds">Rounds</TabsTrigger>
         </TabsList>
@@ -471,25 +475,29 @@ export default function TournamentDetailPage() {
           <TournamentYourNextRound tournamentId={tournamentId} />
         </TabsContent>
 
-        <TabsContent value="my-institution">
-          <TournamentMyParticipants
-            tournamentId={tournamentId}
-            myInstitution={myInstitution}
-            institutionMembers={institutionMembers}
-            participations={participations}
-            onRegistrationComplete={fetchTournamentData}
-          />
-        </TabsContent>
+        {myInstitution?.isCoach && (
+          <>
+            <TabsContent value="my-institution">
+              <TournamentMyParticipants
+                tournamentId={tournamentId}
+                myInstitution={myInstitution}
+                institutionMembers={institutionMembers}
+                participations={participations}
+                onRegistrationComplete={fetchTournamentData}
+              />
+            </TabsContent>
 
-        <TabsContent value="teams">
-          <TournamentTeams
-            tournamentId={tournamentId}
-            teams={teams}
-            institutions={institutions}
-            onTeamCreated={fetchTournamentData}
-            myInstitution={myInstitution}
-          />
-        </TabsContent>
+            <TabsContent value="teams">
+              <TournamentTeams
+                tournamentId={tournamentId}
+                teams={teams}
+                institutions={institutions}
+                onTeamCreated={fetchTournamentData}
+                myInstitution={myInstitution}
+              />
+            </TabsContent>
+          </>
+        )}
 
         <TabsContent value="participants">
           <TournamentParticipants participations={participations} />

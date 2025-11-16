@@ -18,6 +18,14 @@ enum RoleType {
   JUDGE
 }
 
+enum RoundStatus {
+  PLANNING    // draft
+  PUBLISHED   // pairings out, debate happening or about to happen
+  BALLOTING   // debate done, waiting for judges to enter ballots
+  FINAL       // results locked
+  CANCELLED   // round cancelled
+}
+
 model User {
   id        String   @id @db.VarChar(128) // Clerk user id
   email     String?  @unique
@@ -141,12 +149,15 @@ model TournamentInstitutionRegistration {
 }
 
 model Round {
-  id          String   @id @default(dbgenerated("'rnd_' || gen_random_uuid()::text")) @db.VarChar(128)
-  tournamentId String   @db.VarChar(128)
+  id          String      @id @default(dbgenerated("'rnd_' || gen_random_uuid()::text")) @db.VarChar(128)
+  tournamentId String     @db.VarChar(128)
   number      Int
-  name       String? // e.g., "Preliminary 1", "Quarterfinal", "Finals"
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  name        String?     // e.g., "Preliminary 1", "Quarterfinal", "Finals"
+  motion      String?     // The debate motion/topic
+  infoSlide   String?     // Description/context for the motion
+  status      RoundStatus @default(PLANNING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   roundPairings    RoundPairing[]
