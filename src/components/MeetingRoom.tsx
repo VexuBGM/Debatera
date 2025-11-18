@@ -131,9 +131,20 @@ const MeetingRoom = ({
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           <div>
             <p className="font-semibold text-sm">Debate Room</p>
-            {userParticipant && (
+            {userParticipant && debateInfo && (
               <p className="text-xs text-cyan-400">
-                Your Role: {ROLE_LABELS[userParticipant.role] || userParticipant.role}
+                Your Role: {(() => {
+                  // Get all roles for current user
+                  const allParticipants = [
+                    ...debateInfo.propTeam.participants,
+                    ...debateInfo.oppTeam.participants,
+                    ...debateInfo.judges,
+                  ];
+                  const userRoles = allParticipants
+                    .filter(p => p.userId === userParticipant.userId)
+                    .map(p => ROLE_LABELS[p.role] || p.role);
+                  return userRoles.join(' + ');
+                })()}
               </p>
             )}
           </div>

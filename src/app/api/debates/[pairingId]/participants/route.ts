@@ -19,8 +19,8 @@ export async function GET(
     const pairing = await prisma.roundPairing.findUnique({
       where: { id: pairingId },
       include: {
-        propTeam: { include: { institution: true } },
-        oppTeam: { include: { institution: true } },
+        propTeam: { include: { institution: true, participations: true } },
+        oppTeam: { include: { institution: true, participations: true } },
       },
     });
 
@@ -76,8 +76,29 @@ export async function GET(
     );
     const judges = participantsWithUsers.filter((p: any) => p.teamId === null);
 
+    // Check if current user is eligible to join (either in a team or assigned as judge)
+    const isInPropTeam = pairing.propTeam?.participations.some((p: any) => p.userId === userId);
+    const isInOppTeam = pairing.oppTeam?.participations.some((p: any) => p.userId === userId);
+    
+    // Check if user is assigned as a judge for this pairing
+    const judgeAssignments = await prisma.roundPairingJudge.findMany({
+      where: { pairingId },
+      include: { participation: true },
+    });
+    const isJudge = judgeAssignments.some((j: any) => j.participation.userId === userId);
+    
+    const canJoin = isInPropTeam || isInOppTeam || isJudge;
+    
+    // Determine which team the user belongs to
+    let userTeamId: string | null = null;
+    if (isInPropTeam) userTeamId = pairing.propTeamId;
+    else if (isInOppTeam) userTeamId = pairing.oppTeamId;
+
     return NextResponse.json({
       callId: pairing.callId,
+      canJoin,
+      userTeamId,
+      isJudge,
       propTeam: {
         id: pairing.propTeamId,
         name: pairing.propTeam?.name,

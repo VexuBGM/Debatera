@@ -231,7 +231,7 @@ model DebateParticipant {
   pairing RoundPairing    @relation(fields: [pairingId], references: [id], onDelete: Cascade)
   team    TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
-  @@unique([pairingId, userId]) // A user can only have one role per debate
+  // Removed @@unique([pairingId, userId]) to allow users to have both a main role and REPLY_SPEAKER role
   @@unique([pairingId, teamId, role]) // A role can only be taken once per team (null teamId allowed for multiple judges)
   @@index([pairingId])
   @@index([userId])

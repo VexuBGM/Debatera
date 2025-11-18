@@ -38,10 +38,10 @@ const MeetingSetup = ({
     <div className='flex h-screen w-full flex-col items-center justify-center gap-3 text-white'>
       <h1 className='text-2xl font-bold'>Setup</h1>
       {userRole && (
-        <div className='bg-blue-600 px-4 py-2 rounded-lg'>
+        <div className='bg-blue-600 px-4 py-2 rounded-lg text-center'>
           <p className='text-sm font-medium'>Your Role: {userRole}</p>
           {streamRole && (
-            <p className='text-xs mt-1'>Stream Role: {streamRole}</p>
+            <p className='text-xs mt-1 opacity-75'>Stream Role: {streamRole}</p>
           )}
         </div>
       )}

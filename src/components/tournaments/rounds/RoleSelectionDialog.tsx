@@ -40,14 +40,13 @@ interface RoleSelectionDialogProps {
   onClose: () => void;
   pairingId: string;
   userTeamId: string;
-  onRoleSelected?: (role: string, callId: string) => void;
+  onRoleSelected?: (roles: string[], callId: string) => void;
 }
 
-const SPEAKER_ROLES = [
+const MAIN_SPEAKER_ROLES = [
   { value: 'FIRST_SPEAKER', label: 'First Speaker', description: 'Opening arguments' },
   { value: 'SECOND_SPEAKER', label: 'Second Speaker', description: 'Rebuttals and extensions' },
   { value: 'THIRD_SPEAKER', label: 'Third Speaker', description: 'Summary and closing' },
-  { value: 'REPLY_SPEAKER', label: 'Reply Speaker', description: 'Final rebuttal (optional)' },
 ] as const;
 
 export function RoleSelectionDialog({
@@ -60,7 +59,8 @@ export function RoleSelectionDialog({
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [reserving, setReserving] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedMainRole, setSelectedMainRole] = useState<string | null>(null);
+  const [includeReply, setIncludeReply] = useState(false);
   const [participants, setParticipants] = useState<{
     propTeam: TeamParticipants;
     oppTeam: TeamParticipants;
@@ -91,33 +91,42 @@ export function RoleSelectionDialog({
   }
 
   async function handleReserveRole() {
-    if (!selectedRole) return;
+    if (!selectedMainRole) return;
+
+    // Check if reply speaker is selected with third speaker
+    if (includeReply && selectedMainRole === 'THIRD_SPEAKER') {
+      toast.error('Third speaker cannot be the reply speaker');
+      return;
+    }
 
     setReserving(true);
     try {
+      const roles = includeReply ? [selectedMainRole, 'REPLY_SPEAKER'] : [selectedMainRole];
+      
       const response = await fetch(`/api/debates/${pairingId}/reserve-role`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: selectedRole }),
+        body: JSON.stringify({ roles }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || 'Failed to reserve role');
+        toast.error(data.error || 'Failed to reserve roles');
         
         // If role was just taken, refresh the participants list
         if (response.status === 409) {
           await fetchParticipants();
-          setSelectedRole(null);
+          setSelectedMainRole(null);
+          setIncludeReply(false);
         }
         return;
       }
 
-      toast.success(data.message || 'Role reserved successfully');
+      toast.success(data.message || 'Roles reserved successfully');
       
       if (onRoleSelected && data.callId) {
-        onRoleSelected(data.role, data.callId);
+        onRoleSelected(data.roles, data.callId);
       } else if (data.callId) {
         // Navigate to the debate room
         router.push(`/debate/${pairingId}`);
@@ -126,13 +135,20 @@ export function RoleSelectionDialog({
       onClose();
     } catch (error) {
       console.error('Error reserving role:', error);
-      toast.error('Failed to reserve role');
+      toast.error('Failed to reserve roles');
     } finally {
       setReserving(false);
     }
   }
 
   if (!open) return null;
+
+  function getRoleLabel(role: string): string {
+    const mainRole = MAIN_SPEAKER_ROLES.find((r) => r.value === role);
+    if (mainRole) return mainRole.label;
+    if (role === 'REPLY_SPEAKER') return 'Reply Speaker';
+    return role;
+  }
 
   const myTeamParticipants = participants
     ? participants.propTeam.id === userTeamId
@@ -142,9 +158,13 @@ export function RoleSelectionDialog({
       : []
     : [];
 
-  const takenRoles = new Set(myTeamParticipants.map((p) => p.role));
-  const debaterCount = myTeamParticipants.filter((p) => p.role !== 'JUDGE').length;
-  const teamFull = debaterCount >= 3;
+  const takenMainRoles = new Set(myTeamParticipants.filter(p => p.role !== 'REPLY_SPEAKER' && p.role !== 'JUDGE').map((p) => p.role));
+  const uniqueDebaters = new Set(myTeamParticipants.filter(p => p.role !== 'JUDGE').map(p => p.userId));
+  const teamFull = uniqueDebaters.size >= 3;
+  
+  // Check if reply speaker role is taken by someone else
+  const replyRoleTaken = myTeamParticipants.some(p => p.role === 'REPLY_SPEAKER');
+  const replyRoleTaker = myTeamParticipants.find(p => p.role === 'REPLY_SPEAKER');
 
   function getRoleTaker(role: string): User | null {
     const participant = myTeamParticipants.find((p) => p.role === role);
@@ -181,7 +201,7 @@ export function RoleSelectionDialog({
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span>{p.user?.username || p.user?.email}</span>
                     <Badge variant="outline" className="ml-auto">
-                      {SPEAKER_ROLES.find((r) => r.value === p.role)?.label || p.role}
+                      {getRoleLabel(p.role)}
                     </Badge>
                   </div>
                 ))}
@@ -193,15 +213,16 @@ export function RoleSelectionDialog({
         ) : (
           <>
             <div className="space-y-3 py-4">
-              {SPEAKER_ROLES.map((role) => {
-                const isTaken = takenRoles.has(role.value);
+              <p className="text-sm font-medium mb-2">Select your main speaker role:</p>
+              {MAIN_SPEAKER_ROLES.map((role) => {
+                const isTaken = takenMainRoles.has(role.value);
                 const taker = getRoleTaker(role.value);
-                const isSelected = selectedRole === role.value;
+                const isSelected = selectedMainRole === role.value;
 
                 return (
                   <button
                     key={role.value}
-                    onClick={() => !isTaken && setSelectedRole(role.value)}
+                    onClick={() => !isTaken && setSelectedMainRole(role.value)}
                     disabled={isTaken || reserving}
                     className={`
                       w-full text-left p-4 rounded-lg border-2 transition-all
@@ -243,11 +264,65 @@ export function RoleSelectionDialog({
                   </button>
                 );
               })}
+              
+              {/* Reply Speaker Checkbox */}
+              {selectedMainRole && selectedMainRole !== 'THIRD_SPEAKER' && (
+                <div className={`mt-4 p-4 rounded-lg border-2 ${
+                  replyRoleTaken 
+                    ? 'border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 opacity-70' 
+                    : 'border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20'
+                }`}>
+                  <label className={`flex items-start gap-3 ${replyRoleTaken ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      checked={includeReply}
+                      onChange={(e) => setIncludeReply(e.target.checked)}
+                      disabled={reserving || replyRoleTaken}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                    <div className="flex-1">
+                      <div className={`font-semibold ${replyRoleTaken ? 'text-gray-700 dark:text-gray-400' : 'text-purple-900 dark:text-purple-100'}`}>
+                        Also serve as Reply Speaker
+                        {replyRoleTaken && (
+                          <Badge variant="secondary" className="ml-2 text-xs">
+                            Taken
+                          </Badge>
+                        )}
+                      </div>
+                      <p className={`text-sm mt-1 ${replyRoleTaken ? 'text-gray-600 dark:text-gray-500' : 'text-purple-700 dark:text-purple-300'}`}>
+                        Reply speakers give the final rebuttal speech. Only first or second speakers can take this role.
+                      </p>
+                      {replyRoleTaken && replyRoleTaker && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Taken by {replyRoleTaker.user?.username || replyRoleTaker.user?.email}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              )}
+              
+              {selectedMainRole === 'THIRD_SPEAKER' && (
+                <div className="mt-4 p-4 rounded-lg border-2 border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-orange-900 dark:text-orange-100">Third speakers cannot be reply speakers</div>
+                      <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                        In debate format rules, only the first or second speaker can deliver the reply speech.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-muted/50 rounded-lg p-3 text-sm">
               <p className="text-muted-foreground">
-                <strong>Team capacity:</strong> {debaterCount} / 3 speakers joined
+                <strong>Team capacity:</strong> {uniqueDebaters.size} / 3 speakers joined
               </p>
             </div>
 
@@ -262,7 +337,7 @@ export function RoleSelectionDialog({
               </Button>
               <Button
                 onClick={handleReserveRole}
-                disabled={!selectedRole || reserving}
+                disabled={!selectedMainRole || reserving}
                 className="flex-1 bg-cyan-500 hover:bg-cyan-600"
               >
                 {reserving ? (

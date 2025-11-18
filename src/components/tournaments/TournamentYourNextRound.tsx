@@ -116,7 +116,7 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
         const response = await fetch(`/api/debates/${pairingId}/reserve-role`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'JUDGE' }),
+          body: JSON.stringify({ roles: ['JUDGE'] }),
         });
 
         const result = await response.json();
@@ -129,33 +129,9 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
         return;
       }
 
-      // If user is a debater, check if they already have a role
+      // If user is a debater, always show role selection dialog so they can choose/change their role
       if (data.role === 'DEBATER') {
-        // Check participants to see if user already has a role
-        const participantsResponse = await fetch(`/api/debates/${pairingId}/participants`);
-        
-        if (participantsResponse.ok) {
-          const participantsData = await participantsResponse.json();
-          const allParticipants = [
-            ...participantsData.propTeam.participants,
-            ...participantsData.oppTeam.participants,
-            ...participantsData.judges,
-          ];
-
-          // Check if current user already has a participant entry
-          const existingParticipant = allParticipants.find(
-            (p: any) => p.userId === user?.id
-          );
-
-          if (existingParticipant) {
-            // User already has a role, go directly to room
-            router.push(`/debate/${pairingId}`);
-            setCheckingRole(false);
-            return;
-          }
-        }
-
-        // User doesn't have a role yet, show role selection dialog
+        // Show role selection dialog for debaters every time they enter
         setCheckingRole(false);
         setShowRoleDialog(true);
         return;
