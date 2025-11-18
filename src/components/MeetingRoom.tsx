@@ -75,11 +75,13 @@ const isDebater = (p: any) => !isJudge(p) && !isSpectator(p)
 const MeetingRoom = ({ 
   hideControls = false,
   debateInfo,
-  userParticipant
+  userParticipant,
+  pairingId
 }: { 
   hideControls?: boolean;
   debateInfo?: DebateInfo | null;
   userParticipant?: Participant | null;
+  pairingId?: string;
 }) => {
   const { useParticipants, useDominantSpeaker, useCallCallingState } = useCallStateHooks()
   const participants = useParticipants()
@@ -88,33 +90,91 @@ const MeetingRoom = ({
   const call = useCall()
   const router = useRouter()
 
+  // Handle updating participant status when user leaves
   useEffect(() => {
     if (!call) return
-    if (callingState === CallingState.LEFT) router.push("/")
-  }, [callingState, call, router])
+    if (callingState === CallingState.LEFT) {
+      // Update participant status in database before redirecting
+      if (pairingId) {
+        fetch(`/api/debates/${pairingId}/leave`, {
+          method: 'POST',
+        }).catch(error => {
+          console.error('Error updating participant status on leave:', error);
+        });
+      }
+      router.push("/")
+    }
+  }, [callingState, call, router, pairingId])
 
   const { propSlots, oppSlots, judges, anyDebater } = useMemo(() => {
     const visible = participants.filter((p) => !isSpectator(p))
     const judgeList = visible.filter((p) => isJudge(p))
     const debaters = visible.filter((p) => isDebater(p))
 
-    const propExplicit = debaters.filter((p) => getTeam(p) === "prop")
-    const oppExplicit = debaters.filter((p) => getTeam(p) === "opp")
-    const unknowns = debaters.filter((p) => getTeam(p) === "unknown")
-
-    const propArr = [...propExplicit]
-    const oppArr = [...oppExplicit]
-    unknowns.forEach((p, i) => {
-      if (propArr.length <= oppArr.length) propArr.push(p)
-      else oppArr.push(p)
-    })
-
     const SIDE_SLOTS = 3
+    let propArr: any[] = []
+    let oppArr: any[] = []
+
+    // If we have debate info from the database, use it to properly arrange speakers
+    if (debateInfo) {
+      // Map Stream participants to database participants
+      const createSortedSlots = (teamParticipants: Participant[]) => {
+        // Define the order of roles
+        const roleOrder = {
+          'FIRST_SPEAKER': 0,
+          'SECOND_SPEAKER': 1,
+          'THIRD_SPEAKER': 2,
+          'REPLY_SPEAKER': 3, // In case we want to show reply speakers
+        };
+
+        // Sort by role order
+        const sortedParticipants = [...teamParticipants].sort((a, b) => {
+          const orderA = roleOrder[a.role as keyof typeof roleOrder] ?? 999;
+          const orderB = roleOrder[b.role as keyof typeof roleOrder] ?? 999;
+          return orderA - orderB;
+        });
+
+        // Match Stream participants with database participants by userId
+        const slots: any[] = [];
+        for (const dbParticipant of sortedParticipants) {
+          // Skip judges and reply speakers for now
+          if (dbParticipant.role === 'JUDGE' || dbParticipant.role === 'REPLY_SPEAKER') continue;
+          
+          // Find matching Stream participant by user ID
+          const streamParticipant = debaters.find((sp) => {
+            // Stream uses userId in the user object
+            return sp.userId === dbParticipant.userId;
+          });
+
+          if (streamParticipant) {
+            slots.push(streamParticipant);
+          }
+        }
+
+        return slots;
+      };
+
+      propArr = createSortedSlots(debateInfo.propTeam.participants);
+      oppArr = createSortedSlots(debateInfo.oppTeam.participants);
+    } else {
+      // Fallback to the old logic if no debate info
+      const propExplicit = debaters.filter((p) => getTeam(p) === "prop")
+      const oppExplicit = debaters.filter((p) => getTeam(p) === "opp")
+      const unknowns = debaters.filter((p) => getTeam(p) === "unknown")
+
+      propArr = [...propExplicit]
+      oppArr = [...oppExplicit]
+      unknowns.forEach((p, i) => {
+        if (propArr.length <= oppArr.length) propArr.push(p)
+        else oppArr.push(p)
+      })
+    }
+
     const propSlots = Array.from({ length: SIDE_SLOTS }, (_, i) => propArr[i])
     const oppSlots = Array.from({ length: SIDE_SLOTS }, (_, i) => oppArr[i])
 
     return { propSlots, oppSlots, judges: judgeList, anyDebater: [...propArr, ...oppArr][0] }
-  }, [participants])
+  }, [participants, debateInfo])
 
   const centerParticipant = useMemo(() => {
     if (dominant && (isDebater(dominant) || isJudge(dominant))) return dominant
@@ -149,7 +209,18 @@ const MeetingRoom = ({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">{!hideControls && <CustomCallControls />}</div>
+        <div className="flex items-center gap-3">{!hideControls && <CustomCallControls onLeave={async () => {
+          // Update participant status before leaving
+          if (pairingId) {
+            try {
+              await fetch(`/api/debates/${pairingId}/leave`, {
+                method: 'POST',
+              });
+            } catch (error) {
+              console.error('Error updating participant status on leave:', error);
+            }
+          }
+        }} />}</div>
         <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
           <p className="text-xs text-muted-foreground">Participants</p>
           <p className="text-xl font-mono font-bold">{participants.length}</p>
@@ -180,7 +251,13 @@ const MeetingRoom = ({
                   {debateInfo && (
                     <div className="absolute bottom-2 left-2 right-2">
                       <Badge variant="secondary" className="text-xs">
-                        Speaker {i + 1}
+                        {(() => {
+                          // Find the matching database participant to get their role
+                          const dbParticipant = debateInfo.propTeam.participants.find(
+                            (dbP) => dbP.userId === p.userId
+                          );
+                          return dbParticipant ? ROLE_LABELS[dbParticipant.role] || `Speaker ${i + 1}` : `Speaker ${i + 1}`;
+                        })()}
                       </Badge>
                     </div>
                   )}
@@ -259,7 +336,13 @@ const MeetingRoom = ({
                   {debateInfo && (
                     <div className="absolute bottom-2 left-2 right-2">
                       <Badge variant="secondary" className="text-xs">
-                        Speaker {i + 1}
+                        {(() => {
+                          // Find the matching database participant to get their role
+                          const dbParticipant = debateInfo.oppTeam.participants.find(
+                            (dbP) => dbP.userId === p.userId
+                          );
+                          return dbParticipant ? ROLE_LABELS[dbParticipant.role] || `Speaker ${i + 1}` : `Speaker ${i + 1}`;
+                        })()}
                       </Badge>
                     </div>
                   )}

@@ -294,7 +294,7 @@ const Meeting = () => {
                 }
               />
             ) : (
-              <MeetingRoom debateInfo={debateInfo} userParticipant={userParticipant} />
+              <MeetingRoom debateInfo={debateInfo} userParticipant={userParticipant} pairingId={id} />
             )}
           </StreamTheme>
         </StreamCall>
