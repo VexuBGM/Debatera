@@ -11,6 +11,44 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import Loader from "@/components/Loader"
 import CustomCallControls from "./CustomCallControls"
+import { Badge } from "./ui/badge"
+
+interface Participant {
+  id: string;
+  userId: string;
+  role: 'FIRST_SPEAKER' | 'SECOND_SPEAKER' | 'THIRD_SPEAKER' | 'REPLY_SPEAKER' | 'JUDGE';
+  status: string;
+  teamId: string | null;
+  user: {
+    id: string;
+    username: string | null;
+    email: string | null;
+  } | null;
+}
+
+interface TeamInfo {
+  id: string | null;
+  name: string | null;
+  institution: {
+    id: string;
+    name: string;
+  } | null;
+  participants: Participant[];
+}
+
+interface DebateInfo {
+  propTeam: TeamInfo;
+  oppTeam: TeamInfo;
+  judges: Participant[];
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  FIRST_SPEAKER: '1st Speaker',
+  SECOND_SPEAKER: '2nd Speaker',
+  THIRD_SPEAKER: '3rd Speaker',
+  REPLY_SPEAKER: 'Reply',
+  JUDGE: 'Judge',
+};
 
 type Team = "prop" | "opp" | "judge" | "spectator" | "unknown"
 
@@ -34,7 +72,15 @@ const isJudge = (p: any) => getTeam(p) === "judge"
 const isSpectator = (p: any) => getTeam(p) === "spectator"
 const isDebater = (p: any) => !isJudge(p) && !isSpectator(p)
 
-const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
+const MeetingRoom = ({ 
+  hideControls = false,
+  debateInfo,
+  userParticipant
+}: { 
+  hideControls?: boolean;
+  debateInfo?: DebateInfo | null;
+  userParticipant?: Participant | null;
+}) => {
   const { useParticipants, useDominantSpeaker, useCallCallingState } = useCallStateHooks()
   const participants = useParticipants()
   const dominant = useDominantSpeaker()
@@ -85,13 +131,17 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           <div>
             <p className="font-semibold text-sm">Debate Room</p>
-            <p className="text-xs text-muted-foreground">Round 1 — Motion: Technology Benefits Society</p>
+            {userParticipant && (
+              <p className="text-xs text-cyan-400">
+                Your Role: {ROLE_LABELS[userParticipant.role] || userParticipant.role}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">{!hideControls && <CustomCallControls />}</div>
         <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
-          <p className="text-xs text-muted-foreground">Time Remaining</p>
-          <p className="text-xl font-mono font-bold">05:30</p>
+          <p className="text-xs text-muted-foreground">Participants</p>
+          <p className="text-xl font-mono font-bold">{participants.length}</p>
         </div>
       </div>
 
@@ -101,6 +151,9 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
         <div className="flex flex-col flex-1 w-64 gap-3 overflow-hidden">
           <div className="bg-blue-900/30 border-2 border-blue-600 rounded-lg px-4 py-2">
             <h2 className="text-center font-bold uppercase text-sm">PROPOSITION</h2>
+            {debateInfo?.propTeam.name && (
+              <p className="text-center text-xs text-muted-foreground">{debateInfo.propTeam.name}</p>
+            )}
           </div>
           <div className="flex-1 flex flex-col gap-3 min-h-0">
             {propSlots.map((p, i) =>
@@ -113,6 +166,13 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
                   )}
                 >
                   <ParticipantView participant={p} className="w-full h-full object-cover" />
+                  {debateInfo && (
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <Badge variant="secondary" className="text-xs">
+                        Speaker {i + 1}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div
@@ -170,6 +230,9 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
         <div className="flex flex-col flex-1 w-64 gap-3 overflow-hidden">
           <div className="bg-red-900/30 border-2 border-red-600 rounded-lg px-4 py-2">
             <h2 className="text-center font-bold uppercase text-sm">OPPOSITION</h2>
+            {debateInfo?.oppTeam.name && (
+              <p className="text-center text-xs text-muted-foreground">{debateInfo.oppTeam.name}</p>
+            )}
           </div>
           <div className="flex-1 flex flex-col gap-3 min-h-0">
             {oppSlots.map((p, i) =>
@@ -182,6 +245,13 @@ const MeetingRoom = ({ hideControls = false }: { hideControls?: boolean }) => {
                   )}
                 >
                   <ParticipantView participant={p} className="w-full h-full object-cover" />
+                  {debateInfo && (
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <Badge variant="secondary" className="text-xs">
+                        Speaker {i + 1}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div

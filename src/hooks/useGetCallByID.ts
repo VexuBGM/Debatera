@@ -16,13 +16,25 @@ export const useGetCallByID = (id: string | string[] | undefined) => {
       }
 
       try {
+        // First try to query for existing call
         const { calls } = await client.queryCalls({
           filter_conditions: { id },
         });
+        
         if (!mounted) return;
-        if (calls.length > 0) setCall(calls[0]);
+        
+        if (calls.length > 0) {
+          setCall(calls[0]);
+        } else {
+          // Call doesn't exist, create it
+          const newCall = client.call('default', id as string);
+          await newCall.getOrCreate();
+          if (mounted) {
+            setCall(newCall);
+          }
+        }
       } catch (err) {
-        console.error('Failed to load call', err);
+        console.error('Failed to load or create call', err);
       } finally {
         if (mounted) setIsCallLoading(false);
       }

@@ -5,13 +5,18 @@ import React, { useEffect, useState } from 'react'
 import { Button } from './ui/button';
 import { useUser } from '@clerk/nextjs';
 
-const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: boolean) => void}) => {
+const MeetingSetup = ({ 
+  setIsSetupComplete,
+  userRole,
+  streamRole
+}: { 
+  setIsSetupComplete: (value: boolean) => void;
+  userRole?: string;
+  streamRole?: 'judge' | 'debater' | 'spectator';
+}) => {
   const [isMicCamToggledOn, setIsMicCamToggledOn] = useState(false);
-  type Role = 'judge' | 'debater' | 'spectator';
-  const [selectedRole, setSelectedRole] = useState<Role>('spectator');
   const { user } = useUser();
   const call = useCall();
-  const localParticipant = call?.state.localParticipant;
 
   if(!call) {
     throw new Error("usecall must be used within a StreamCall component")
@@ -20,12 +25,6 @@ const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: bool
   useEffect(() => {
   if (!call) return;
 
-  if (selectedRole === 'spectator') {
-    call.camera.disable();
-    call.microphone.disable();
-    return;
-  }
-
   if (isMicCamToggledOn) {
     call.camera.disable();
     call.microphone.disable();
@@ -33,13 +32,19 @@ const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: bool
     call.camera.enable();
     call.microphone.enable();
   }
-
-  console.log('MeetingSetup effect fired');
-}, [isMicCamToggledOn, selectedRole, call]);
+}, [isMicCamToggledOn, call]);
 
   return (
     <div className='flex h-screen w-full flex-col items-center justify-center gap-3 text-white'>
       <h1 className='text-2xl font-bold'>Setup</h1>
+      {userRole && (
+        <div className='bg-blue-600 px-4 py-2 rounded-lg'>
+          <p className='text-sm font-medium'>Your Role: {userRole}</p>
+          {streamRole && (
+            <p className='text-xs mt-1'>Stream Role: {streamRole}</p>
+          )}
+        </div>
+      )}
       <VideoPreview />
       <div className='flex h-16 items-center justify-center gap-3'>
         <label className='flex items-center justify-center gap-2 font-medium'>
@@ -52,32 +57,6 @@ const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: bool
         </label>
         <DeviceSettings />
       </div>
-      <div className='flex items-center justify-center gap-3'>
-        <span className='mr-2 font-medium'>Role:</span>
-        <div className='flex gap-2'>
-          <button
-            className={`rounded px-3 py-1 ${selectedRole === 'judge' ? 'bg-blue-600' : 'bg-gray-700'}`}
-            onClick={() => setSelectedRole('judge')}
-            type="button"
-          >
-            Judge
-          </button>
-          <button
-            className={`rounded px-3 py-1 ${selectedRole === 'debater' ? 'bg-blue-600' : 'bg-gray-700'}`}
-            onClick={() => setSelectedRole('debater')}
-            type="button"
-          >
-            Debater
-          </button>
-          <button
-            className={`rounded px-3 py-1 ${selectedRole === 'spectator' ? 'bg-blue-600' : 'bg-gray-700'}`}
-            onClick={() => setSelectedRole('spectator')}
-            type="button"
-          >
-            Spectator
-          </button>
-        </div>
-      </div>
       <Button
         className="rounded-md bg-green-500 px-4 py-2.5"
         onClick={async () => {
@@ -87,17 +66,24 @@ const MeetingSetup = ({ setIsSetupComplete }: { setIsSetupComplete: (value: bool
           }
 
           try {
+            // Determine the Stream role based on the speaker role
+            const role = streamRole || 'debater'; // Default to debater
+            
+            console.log('Setting Stream role:', role, 'for user:', user.id);
+            
+            // Update call members with the correct role
             await call.updateCallMembers({
               update_members: [
                 {
                   user_id: user.id,
-                  role: selectedRole
+                  role: role,
                 },
               ],
             });
             
+            console.log('Stream role set successfully');
+            
             await call.join();
-
             setIsSetupComplete(true);
           } catch (err) {
             console.error("Failed to join call:", err);

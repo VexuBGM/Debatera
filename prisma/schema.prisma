@@ -19,11 +19,25 @@ enum RoleType {
 }
 
 enum RoundStatus {
-  PLANNING    // draft
-  PUBLISHED   // pairings out, debate happening or about to happen
-  BALLOTING   // debate done, waiting for judges to enter ballots
-  FINAL       // results locked
-  CANCELLED   // round cancelled
+  PLANNING // draft
+  PUBLISHED // pairings out, debate happening or about to happen
+  BALLOTING // debate done, waiting for judges to enter ballots
+  FINAL // results locked
+  CANCELLED // round cancelled
+}
+
+enum SpeakerRole {
+  FIRST_SPEAKER
+  SECOND_SPEAKER
+  THIRD_SPEAKER
+  REPLY_SPEAKER
+  JUDGE
+}
+
+enum ParticipantStatus {
+  ACTIVE // Currently in the debate room
+  LEFT // Left the debate room
+  RESERVED // Role reserved but not yet joined
 }
 
 model User {
@@ -100,11 +114,12 @@ model TournamentTeam {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tournament     Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  institution    Institution               @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  participations TournamentParticipation[]
-  propTeam RoundPairing[] @relation("propTeam")
-  oppTeam    RoundPairing[] @relation("oppTeam")
+  tournament         Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  institution        Institution               @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  participations     TournamentParticipation[]
+  propTeam           RoundPairing[]            @relation("propTeam")
+  oppTeam            RoundPairing[]            @relation("oppTeam")
+  debateParticipants DebateParticipant[]
 
   @@unique([tournamentId, institutionId, teamNumber])
   @@index([tournamentId])
@@ -121,10 +136,10 @@ model TournamentParticipation {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tournament  Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  team        TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  institution Institution?    @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament       Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team             TournamentTeam?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  institution      Institution?        @relation(fields: [institutionId], references: [id], onDelete: SetNull)
   judgeAssignments RoundPairingJudge[]
 
   @@unique([userId, tournamentId]) // Single appearance rule
@@ -149,35 +164,37 @@ model TournamentInstitutionRegistration {
 }
 
 model Round {
-  id          String      @id @default(dbgenerated("'rnd_' || gen_random_uuid()::text")) @db.VarChar(128)
-  tournamentId String     @db.VarChar(128)
-  number      Int
-  name        String?     // e.g., "Preliminary 1", "Quarterfinal", "Finals"
-  motion      String?     // The debate motion/topic
-  infoSlide   String?     // Description/context for the motion
-  status      RoundStatus @default(PLANNING)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String      @id @default(dbgenerated("'rnd_' || gen_random_uuid()::text")) @db.VarChar(128)
+  tournamentId String      @db.VarChar(128)
+  number       Int
+  name         String? // e.g., "Preliminary 1", "Quarterfinal", "Finals"
+  motion       String? // The debate motion/topic
+  infoSlide    String? // Description/context for the motion
+  status       RoundStatus @default(PLANNING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  roundPairings    RoundPairing[]
+  tournament    Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  roundPairings RoundPairing[]
 
   @@index([tournamentId])
 }
 
 model RoundPairing {
-  id          String   @id @default(dbgenerated("'rpair_' || gen_random_uuid()::text")) @db.VarChar(128)
-  roundId     String   @db.VarChar(128)
-  propTeamId String? @db.VarChar(128)
-  oppTeamId    String? @db.VarChar(128)
+  id          String    @id @default(dbgenerated("'rpair_' || gen_random_uuid()::text")) @db.VarChar(128)
+  roundId     String    @db.VarChar(128)
+  propTeamId  String?   @db.VarChar(128)
+  oppTeamId   String?   @db.VarChar(128)
+  callId      String?   @db.VarChar(256) // Stream video call ID
   scheduledAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  round            Round           @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  propTeam TournamentTeam? @relation("propTeam", fields: [propTeamId], references: [id], onDelete: Cascade)
-  oppTeam    TournamentTeam? @relation("oppTeam", fields: [oppTeamId], references: [id], onDelete: Cascade)
-  judges RoundPairingJudge[]
+  round        Round               @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  propTeam     TournamentTeam?     @relation("propTeam", fields: [propTeamId], references: [id], onDelete: Cascade)
+  oppTeam      TournamentTeam?     @relation("oppTeam", fields: [oppTeamId], references: [id], onDelete: Cascade)
+  judges       RoundPairingJudge[]
+  participants DebateParticipant[]
 
   @@index([roundId])
   @@index([propTeamId])
@@ -197,4 +214,26 @@ model RoundPairingJudge {
   @@unique([pairingId, participationId])
   @@index([pairingId])
   @@index([participationId])
+}
+
+model DebateParticipant {
+  id        String            @id @default(dbgenerated("'dpart_' || gen_random_uuid()::text")) @db.VarChar(128)
+  pairingId String            @db.VarChar(128)
+  userId    String            @db.VarChar(128)
+  teamId    String?           @db.VarChar(128) // null for judges
+  role      SpeakerRole
+  status    ParticipantStatus @default(RESERVED)
+  joinedAt  DateTime          @default(now())
+  leftAt    DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  pairing RoundPairing    @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  team    TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([pairingId, userId]) // A user can only have one role per debate
+  @@unique([pairingId, teamId, role]) // A role can only be taken once per team (null teamId allowed for multiple judges)
+  @@index([pairingId])
+  @@index([userId])
+  @@index([teamId])
 }
