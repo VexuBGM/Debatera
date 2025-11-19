@@ -21,7 +21,6 @@ enum RoleType {
 enum RoundStatus {
   PLANNING // draft
   PUBLISHED // pairings out, debate happening or about to happen
-  BALLOTING // debate done, waiting for judges to enter ballots
   FINAL // results locked
   CANCELLED // round cancelled
 }
@@ -38,6 +37,14 @@ enum ParticipantStatus {
   ACTIVE // Currently in the debate room
   LEFT // Left the debate room
   RESERVED // Role reserved but not yet joined
+}
+
+enum BallotStatus {
+  NOT_STARTED // Judge hasn't started filling the ballot
+  DRAFT // Judge is actively filling, auto-saving
+  SUBMITTED // Judge has submitted the ballot
+  CONFIRMED // Admin has reviewed and confirmed
+  VOIDED // Admin has marked as invalid/wrong judge
 }
 
 model User {
@@ -120,6 +127,9 @@ model TournamentTeam {
   propTeam           RoundPairing[]            @relation("propTeam")
   oppTeam            RoundPairing[]            @relation("oppTeam")
   debateParticipants DebateParticipant[]
+  ballotWins         Ballot[]                  // Ballots where this team won
+  resultWins         DebateResult[]            @relation("ResultWinner")
+  resultLosses       DebateResult[]            @relation("ResultLoser")
 
   @@unique([tournamentId, institutionId, teamNumber])
   @@index([tournamentId])
@@ -195,6 +205,8 @@ model RoundPairing {
   oppTeam      TournamentTeam?     @relation("oppTeam", fields: [oppTeamId], references: [id], onDelete: Cascade)
   judges       RoundPairingJudge[]
   participants DebateParticipant[]
+  ballots      Ballot[]
+  result       DebateResult?
 
   @@index([roundId])
   @@index([propTeamId])
@@ -236,4 +248,98 @@ model DebateParticipant {
   @@index([pairingId])
   @@index([userId])
   @@index([teamId])
+}
+
+model Ballot {
+  id        String       @id @default(dbgenerated("'ballot_' || gen_random_uuid()::text")) @db.VarChar(128)
+  pairingId String       @db.VarChar(128)
+  judgeId   String       @db.VarChar(128) // User ID of the judge
+  isChair   Boolean      @default(false)
+  status    BallotStatus @default(NOT_STARTED)
+
+  // Winner selection
+  winnerTeamId String? @db.VarChar(128) // ID of the winning team
+
+  // Team feedback
+  propFeedback String? @db.Text // Feedback for Proposition team
+  oppFeedback  String? @db.Text // Feedback for Opposition team
+
+  // Optional comments
+  generalComments String? @db.Text // General comments about the debate
+  privateComments String? @db.Text // Private comments only for tab/admin
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submittedAt DateTime? // When the judge submitted the ballot
+  confirmedAt DateTime? // When admin confirmed the ballot
+
+  pairing       RoundPairing    @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  winnerTeam    TournamentTeam? @relation(fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  speakerScores SpeakerScore[]
+
+  @@unique([pairingId, judgeId]) // One ballot per judge per debate
+  @@index([pairingId])
+  @@index([judgeId])
+  @@index([winnerTeamId])
+}
+
+model SpeakerScore {
+  id       String @id @default(dbgenerated("'score_' || gen_random_uuid()::text")) @db.VarChar(128)
+  ballotId String @db.VarChar(128)
+  userId   String @db.VarChar(128) // The speaker being scored
+  teamId   String @db.VarChar(128) // The team the speaker is on
+  role     SpeakerRole // The role they had in the debate
+
+  // Scoring
+  totalScore Float? // Total score (e.g., 60-80 in British Parliamentary)
+
+  // Optional: breakdown by criteria (can add later for more sophisticated scoring)
+  contentScore  Float? // Score for content/arguments
+  styleScore    Float? // Score for style/delivery
+  strategyScore Float? // Score for strategy
+
+  // Speaker-specific feedback
+  feedback String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ballot Ballot @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+
+  @@unique([ballotId, userId, role]) // One score per speaker per role per ballot
+  @@index([ballotId])
+  @@index([userId])
+  @@index([teamId])
+}
+
+model DebateResult {
+  id        String  @id @default(dbgenerated("'result_' || gen_random_uuid()::text")) @db.VarChar(128)
+  pairingId String  @unique @db.VarChar(128)
+  
+  // Final result
+  winnerTeamId String  @db.VarChar(128)
+  loserTeamId  String  @db.VarChar(128)
+  
+  // Panel information
+  panelVotesProp Int @default(0) // Number of judges who voted for Prop
+  panelVotesOpp  Int @default(0) // Number of judges who voted for Opp
+  
+  // Average scores (optional, for speaker tab)
+  propAvgScore Float? // Average score for Prop team
+  oppAvgScore  Float? // Average score for Opp team
+  
+  // Status
+  isFinal   Boolean @default(false) // Whether this result is locked
+  publishedAt DateTime? // When results were published to teams
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pairing    RoundPairing   @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  winnerTeam TournamentTeam @relation("ResultWinner", fields: [winnerTeamId], references: [id], onDelete: Cascade)
+  loserTeam  TournamentTeam @relation("ResultLoser", fields: [loserTeamId], references: [id], onDelete: Cascade)
+
+  @@index([pairingId])
+  @@index([winnerTeamId])
+  @@index([loserTeamId])
 }

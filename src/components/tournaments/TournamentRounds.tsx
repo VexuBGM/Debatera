@@ -11,6 +11,7 @@ import { Loader2, Plus, Trash2, Users, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@clerk/nextjs'
 import { PairingBoard } from './rounds/PairingBoard'
+import { RoundBallots } from './rounds/RoundBallots'
 
 interface TournamentTeam {
   id: string;
@@ -557,21 +558,37 @@ const TournamentRounds = ({ tournamentId, teams, judges, isAdmin = false }: Tour
                   </CardContent>
                 </Card>
 
-                {isAdmin ? (
-                  <PairingBoard
-                    roundId={round.id}
-                    roundNumber={round.number}
-                    roundName={round.name}
-                    pairings={round.roundPairings}
-                    teams={teams}
-                    judges={judges}
-                    tournamentId={tournamentId}
-                    onRefresh={fetchRounds}
-                    isGenerating={isGeneratingPairings}
-                  />
-                ) : (
-                  <ReadOnlyPairingsTable pairings={round.roundPairings} />
-                )}
+                {/* Sub-tabs for Pairings and Ballots */}
+                <Tabs defaultValue="pairings" className="w-full">
+                  <TabsList>
+                    <TabsTrigger value="pairings">Pairings</TabsTrigger>
+                    {isAdmin && <TabsTrigger value="ballots">Ballots & Results</TabsTrigger>}
+                  </TabsList>
+                  
+                  <TabsContent value="pairings" className="mt-4">
+                    {isAdmin ? (
+                      <PairingBoard
+                        roundId={round.id}
+                        roundNumber={round.number}
+                        roundName={round.name}
+                        pairings={round.roundPairings}
+                        teams={teams}
+                        judges={judges}
+                        tournamentId={tournamentId}
+                        onRefresh={fetchRounds}
+                        isGenerating={isGeneratingPairings}
+                      />
+                    ) : (
+                      <ReadOnlyPairingsTable pairings={round.roundPairings} />
+                    )}
+                  </TabsContent>
+                  
+                  {isAdmin && (
+                    <TabsContent value="ballots" className="mt-4">
+                      <RoundBallots roundId={round.id} />
+                    </TabsContent>
+                  )}
+                </Tabs>
                 </>) }
               </TabsContent>
             ))}

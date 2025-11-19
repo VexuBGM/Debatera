@@ -595,8 +595,17 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
             </div>
           )}
 
-          {/* Room Link */}
-          <div className="flex justify-center pt-4">
+          {/* Room Link and Ballot */}
+          <div className="flex gap-4 justify-center pt-4">
+            <Link href={`/debate/ballot?pairingId=${data.pairing.id}`}>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-purple-500 text-purple-500 hover:bg-purple-50"
+              >
+                Open Ballot
+              </Button>
+            </Link>
             <Button
               size="lg"
               className="bg-purple-500 hover:bg-purple-600 text-white"
