@@ -13,7 +13,7 @@ const AddMemberSchema = z.object({
 
 /**
  * POST /api/institutions/[id]/members
- * Add a user to an institution (only coaches can do this)
+ * Create an invitation for a user to join an institution (only coaches can do this)
  */
 export async function POST(
   req: Request,
@@ -44,7 +44,7 @@ export async function POST(
     const isUserCoach = await isCoach(currentUserId, institutionId);
     if (!isUserCoach) {
       return NextResponse.json(
-        { error: 'Only coaches can add members to the institution' },
+        { error: 'Only coaches can invite members to the institution' },
         { status: 403 }
       );
     }
@@ -54,50 +54,75 @@ export async function POST(
       where: { email: parsed.email },
     });
 
-    if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const targetUserId = targetUser.id;
+    const targetUserId = targetUser?.id;
 
     // Check if user is already in an institution (InstitutionMember has unique userId)
-    const existingMembership = await prisma.institutionMember.findUnique({
-      where: { userId: targetUserId },
-    });
+    if (targetUserId) {
+      const existingMembership = await prisma.institutionMember.findUnique({
+        where: { userId: targetUserId },
+      });
 
-    if (existingMembership) {
-      if (existingMembership.institutionId === institutionId) {
+      if (existingMembership) {
+        if (existingMembership.institutionId === institutionId) {
+          return NextResponse.json(
+            { error: 'User is already a member of this institution' },
+            { status: 409 }
+          );
+        }
         return NextResponse.json(
-          { error: 'User is already a member of this institution' },
+          { error: 'User is already a member of another institution' },
           { status: 409 }
         );
       }
+    }
+
+    // Check if there's already a pending invitation for this email
+    const existingInvite = await prisma.institutionInvite.findFirst({
+      where: {
+        institutionId,
+        inviteeEmail: parsed.email,
+        status: 'PENDING',
+      },
+    });
+
+    if (existingInvite) {
       return NextResponse.json(
-        { error: 'User is already a member of another institution' },
+        { error: 'An invitation has already been sent to this email' },
         { status: 409 }
       );
     }
 
-    // Add user to institution
-    const member = await prisma.institutionMember.create({
+    // Create invitation (expires in 7 days)
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const invite = await prisma.institutionInvite.create({
       data: {
-        userId: targetUserId,
         institutionId,
+        inviterId: currentUserId,
+        inviteeEmail: parsed.email,
+        inviteeId: targetUserId,
         isCoach: parsed.isCoach,
+        expiresAt,
       },
       include: {
-        user: {
+        institution: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        inviter: {
           select: {
             id: true,
             username: true,
             email: true,
-            imageUrl: true,
           },
         },
       },
     });
 
-    return NextResponse.json(member, { status: 201 });
+    return NextResponse.json(invite, { status: 201 });
   } catch (err: any) {
     // Return more explicit validation errors for Zod failures
     if (err instanceof z.ZodError) {

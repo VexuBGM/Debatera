@@ -5,13 +5,117 @@ import { usePathname } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bell, Plus, Search } from 'lucide-react';
+import { Bell, Plus, Search, Check, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import CreateMeetingButton from './CreateMeetingButton';
+import { useEffect, useState } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+
+interface InstitutionInvite {
+  id: string;
+  institutionId: string;
+  inviterId: string;
+  inviteeEmail: string;
+  isCoach: boolean;
+  createdAt: string;
+  expiresAt: string;
+  institution: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
+  inviter: {
+    id: string;
+    username: string | null;
+    email: string | null;
+    imageUrl: string | null;
+  };
+}
 
 export default function TopNav() {
   const pathname = usePathname();
+  const [invitations, setInvitations] = useState<InstitutionInvite[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
+
+  const fetchNotifications = async () => {
+    try {
+      setIsLoadingNotifications(true);
+      const response = await fetch('/api/notifications');
+      if (response.ok) {
+        const data = await response.json();
+        setInvitations(data.invitations || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    setProcessingInviteId(inviteId);
+    try {
+      const response = await fetch(`/api/invitations/${inviteId}/accept`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to accept invitation');
+      }
+
+      toast.success(`Joined ${data.institution.name}!`);
+      fetchNotifications(); // Refresh notifications
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setProcessingInviteId(null);
+    }
+  };
+
+  const handleRejectInvite = async (inviteId: string) => {
+    setProcessingInviteId(inviteId);
+    try {
+      const response = await fetch(`/api/invitations/${inviteId}/reject`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reject invitation');
+      }
+
+      toast.success('Invitation rejected');
+      fetchNotifications(); // Refresh notifications
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setProcessingInviteId(null);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1530]/70 backdrop-blur-xl">
@@ -57,15 +161,98 @@ export default function TopNav() {
             <CreateMeetingButton />
 
             {/* Notifications - Invites, judge assignments, round pairings, schedule changes, feedback received, moderation pings. */}
-
-            <Button
-              size="icon"
-              variant="ghost"
-              className="rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5" />
-            </Button>
+            <SignedIn>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="relative rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -right-1 -top-1 h-5 min-w-5 px-1 text-xs"
+                      >
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel className="font-semibold">
+                    Notifications
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  
+                  {isLoadingNotifications ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : invitations.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No new notifications
+                    </div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                      {invitations.map((invite) => (
+                        <div
+                          key={invite.id}
+                          className="border-b p-3 last:border-b-0"
+                        >
+                          <div className="mb-2">
+                            <p className="text-sm font-medium">
+                              Institution Invitation
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {invite.inviter.username || invite.inviter.email} invited you to join{' '}
+                              <span className="font-semibold">{invite.institution.name}</span>
+                              {invite.isCoach && ' as a coach'}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="flex-1 bg-green-600 hover:bg-green-700"
+                              onClick={() => handleAcceptInvite(invite.id)}
+                              disabled={processingInviteId === invite.id}
+                            >
+                              {processingInviteId === invite.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Check className="mr-1 h-4 w-4" />
+                                  Accept
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => handleRejectInvite(invite.id)}
+                              disabled={processingInviteId === invite.id}
+                            >
+                              {processingInviteId === invite.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <X className="mr-1 h-4 w-4" />
+                                  Reject
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SignedIn>
 
             {/* User menu */}
 

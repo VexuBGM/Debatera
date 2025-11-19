@@ -116,10 +116,10 @@ export default function InstitutionDetailPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to add member');
+        throw new Error(data.error || 'Failed to send invitation');
       }
 
-      toast.success('Member added successfully');
+      toast.success('Invitation sent successfully! The user will be notified.');
       setIsAddMemberOpen(false);
       setNewMemberEmail('');
       setNewMemberIsCoach(false);
@@ -267,9 +267,9 @@ export default function InstitutionDetailPage() {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Add Member</DialogTitle>
+                        <DialogTitle>Invite Member</DialogTitle>
                         <DialogDescription>
-                          Add a new member to your institution. They must not be in another institution.
+                          Send an invitation to join your institution. The user will receive a notification and must accept.
                         </DialogDescription>
                       </DialogHeader>
                       {error && (
@@ -316,10 +316,10 @@ export default function InstitutionDetailPage() {
                             {isAddingMember ? (
                               <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Adding...
+                                Sending...
                               </>
                             ) : (
-                              'Add Member'
+                              'Send Invitation'
                             )}
                           </Button>
                           <Button

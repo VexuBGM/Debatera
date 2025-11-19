@@ -47,6 +47,13 @@ enum BallotStatus {
   VOIDED // Admin has marked as invalid/wrong judge
 }
 
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
 model User {
   id        String   @id @db.VarChar(128) // Clerk user id
   email     String?  @unique
@@ -58,6 +65,8 @@ model User {
   // Institution relations
   institutionMemberships InstitutionMember[]
   institutionsCreated    Institution[]       @relation("InstitutionsCreated")
+  institutionInvitesSent     InstitutionInvite[]     @relation("InvitesSent")
+  institutionInvitesReceived InstitutionInvite[]     @relation("InvitesReceived")
 
   // Tournament participation
   tournamentParticipations TournamentParticipation[]
@@ -94,6 +103,7 @@ model Institution {
   teams                   TournamentTeam[]
   tournamentRegistrations TournamentInstitutionRegistration[]
   participations          TournamentParticipation[]
+  invites                 InstitutionInvite[]
 
   @@index([createdById])
 }
@@ -110,6 +120,31 @@ model InstitutionMember {
 
   @@unique([userId]) // A user can only be in one institution
   @@index([institutionId])
+}
+
+model InstitutionInvite {
+  id            String       @id @default(dbgenerated("'inv_' || gen_random_uuid()::text")) @db.VarChar(128)
+  institutionId String       @db.VarChar(128)
+  inviterId     String       @db.VarChar(128)
+  inviteeEmail  String       @db.VarChar(256)
+  inviteeId     String?      @db.VarChar(128) // null if user doesn't exist yet
+  isCoach       Boolean      @default(false)
+  status        InviteStatus @default(PENDING)
+  token         String       @unique @default(uuid())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  expiresAt     DateTime     // Invitations expire after a certain time
+  respondedAt   DateTime?    // When the invite was accepted/rejected
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  inviter     User        @relation("InvitesSent", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee     User?       @relation("InvitesReceived", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([inviteeEmail])
+  @@index([status])
 }
 
 model TournamentTeam {
