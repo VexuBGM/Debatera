@@ -96,6 +96,7 @@ export async function GET(
                 },
               },
             },
+            result: true, // Include debate result for FINAL rounds
           },
         },
       },
@@ -145,6 +146,16 @@ export async function GET(
                 user: j.participation.user,
                 institution: j.participation.institution,
               })),
+              result: pairing.result ? {
+                winnerTeamId: pairing.result.winnerTeamId,
+                loserTeamId: pairing.result.loserTeamId,
+                panelVotesProp: pairing.result.panelVotesProp,
+                panelVotesOpp: pairing.result.panelVotesOpp,
+                propAvgScore: pairing.result.propAvgScore,
+                oppAvgScore: pairing.result.oppAvgScore,
+                isFinal: pairing.result.isFinal,
+                publishedAt: pairing.result.publishedAt,
+              } : null,
               isAdmin: tournament.ownerId === userId,
             });
           }
@@ -180,6 +191,16 @@ export async function GET(
                 user: j.participation.user,
                 institution: j.participation.institution,
               })),
+              result: pairing.result ? {
+                winnerTeamId: pairing.result.winnerTeamId,
+                loserTeamId: pairing.result.loserTeamId,
+                panelVotesProp: pairing.result.panelVotesProp,
+                panelVotesOpp: pairing.result.panelVotesOpp,
+                propAvgScore: pairing.result.propAvgScore,
+                oppAvgScore: pairing.result.oppAvgScore,
+                isFinal: pairing.result.isFinal,
+                publishedAt: pairing.result.publishedAt,
+              } : null,
               isAdmin: tournament.ownerId === userId,
             });
           }

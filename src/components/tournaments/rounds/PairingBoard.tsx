@@ -58,12 +58,41 @@ interface JudgeParticipation {
   } | null;
 }
 
+interface DebateResult {
+  id: string;
+  winnerTeamId: string;
+  loserTeamId: string;
+  panelVotesProp: number;
+  panelVotesOpp: number;
+  propAvgScore: number | null;
+  oppAvgScore: number | null;
+  isFinal: boolean;
+  publishedAt: string | null;
+  winnerTeam: {
+    id: string;
+    name: string;
+    institution: {
+      id: string;
+      name: string;
+    };
+  };
+  loserTeam: {
+    id: string;
+    name: string;
+    institution: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
 interface RoundPairing {
   id: string;
   propTeam: TournamentTeam | null;
   oppTeam: TournamentTeam | null;
   judges: Judge[];
   scheduledAt: string | null;
+  result?: DebateResult | null;
 }
 
 interface PairingBoardProps {

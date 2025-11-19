@@ -63,6 +63,20 @@ export async function GET(
               },
               orderBy: { isChair: 'desc' },
             },
+            result: {
+              include: {
+                winnerTeam: {
+                  include: {
+                    institution: true,
+                  },
+                },
+                loserTeam: {
+                  include: {
+                    institution: true,
+                  },
+                },
+              },
+            },
           },
         },
       },

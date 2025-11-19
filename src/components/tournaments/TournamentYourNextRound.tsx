@@ -45,12 +45,23 @@ interface Round {
   name: string;
   motion: string | null;
   infoSlide: string | null;
-  status?: 'PLANNING' | 'PUBLISHED' | 'BALLOTING' | 'FINAL' | 'CANCELLED';
+  status?: 'PLANNING' | 'PUBLISHED' | 'FINAL' | 'CANCELLED';
 }
 
 interface Pairing {
   id: string;
   scheduledAt: string | null;
+}
+
+interface Result {
+  winnerTeamId: string;
+  loserTeamId: string;
+  panelVotesProp: number;
+  panelVotesOpp: number;
+  propAvgScore: number | null;
+  oppAvgScore: number | null;
+  isFinal: boolean;
+  publishedAt: string | null;
 }
 
 interface NextRoundDebater {
@@ -61,6 +72,7 @@ interface NextRoundDebater {
   yourTeam: Team;
   opponentTeam: Team | null;
   judges: Judge[];
+  result?: Result | null;
   isAdmin?: boolean;
 }
 
@@ -72,6 +84,7 @@ interface NextRoundJudge {
   propTeam: Team | null;
   oppTeam: Team | null;
   judges: Judge[];
+  result?: Result | null;
   isAdmin?: boolean;
 }
 
@@ -411,26 +424,86 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
             </div>
           )}
 
-          {/* Room Link */}
-          <div className="flex justify-center pt-4">
-            <Button
-              size="lg"
-              className="bg-cyan-500 hover:bg-cyan-600 text-white"
-              onClick={handleEnterRoom}
-              disabled={checkingRole}
-            >
-              {checkingRole ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                <>
-                  Enter Debate Room
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </>
-              )}
-            </Button>
+          {/* Result Display (FINAL rounds only) */}
+          {data.round.status === 'FINAL' && data.result && data.result.publishedAt && (
+            <div className="border-2 rounded-lg p-6 bg-linear-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30">
+              <div className="text-center mb-4">
+                <h4 className="font-semibold text-lg mb-2 flex items-center justify-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  Debate Result
+                </h4>
+              </div>
+              
+              <div className="flex items-center justify-center gap-6 mb-4">
+                {data.result.winnerTeamId === data.yourTeam.id ? (
+                  <div className="text-center">
+                    <Badge className="bg-green-500 text-white text-xl px-6 py-2 mb-2">
+                      VICTORY!
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">Congratulations!</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <Badge variant="destructive" className="text-xl px-6 py-2 mb-2">
+                      LOSS
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">Keep improving!</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="bg-white/50 dark:bg-gray-900/50 rounded p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Panel Votes</p>
+                  <p className="text-2xl font-bold">
+                    {data.side === 'PROP' ? data.result.panelVotesProp : data.result.panelVotesOpp} - {data.side === 'PROP' ? data.result.panelVotesOpp : data.result.panelVotesProp}
+                  </p>
+                </div>
+                <div className="bg-white/50 dark:bg-gray-900/50 rounded p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
+                  <p className="text-2xl font-bold">
+                    {((data.side === 'PROP' ? data.result.propAvgScore : data.result.oppAvgScore) || 0).toFixed(1)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-center gap-4 pt-4">
+            {data.round.status === 'FINAL' && (
+              <Link href={`/debate/feedback?teamId=${data.yourTeam.id}&tournamentId=${tournamentId}`}>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-purple-500 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
+                >
+                  <Trophy className="mr-2 h-5 w-5" />
+                  View Feedback
+                </Button>
+              </Link>
+            )}
+            
+            {data.round.status !== 'FINAL' && (
+              <Button
+                size="lg"
+                className="bg-cyan-500 hover:bg-cyan-600 text-white"
+                onClick={handleEnterRoom}
+                disabled={checkingRole}
+              >
+                {checkingRole ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    Enter Debate Room
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -595,35 +668,93 @@ const TournamentYourNextRound = ({ tournamentId }: TournamentYourNextRoundProps)
             </div>
           )}
 
+          {/* Result Display (FINAL rounds only) */}
+          {data.round.status === 'FINAL' && data.result && data.result.publishedAt && (
+            <div className="border-2 rounded-lg p-6 bg-linear-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/30 dark:to-orange-950/30">
+              <div className="text-center mb-4">
+                <h4 className="font-semibold text-lg mb-2 flex items-center justify-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  Final Result
+                </h4>
+              </div>
+              
+              <div className="flex items-center justify-center gap-6 mb-4">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-1">Winner</p>
+                  <Badge className="bg-green-500 text-white text-lg px-4 py-2">
+                    {data.result.winnerTeamId === data.propTeam?.id ? data.propTeam.name : data.oppTeam?.name}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="bg-white/50 dark:bg-gray-900/50 rounded p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Panel Votes</p>
+                  <p className="text-xl font-bold">
+                    {data.result.panelVotesProp} - {data.result.panelVotesOpp}
+                  </p>
+                </div>
+                <div className="bg-white/50 dark:bg-gray-900/50 rounded p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Prop Avg</p>
+                  <p className="text-xl font-bold">
+                    {(data.result.propAvgScore || 0).toFixed(1)}
+                  </p>
+                </div>
+                <div className="bg-white/50 dark:bg-gray-900/50 rounded p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Opp Avg</p>
+                  <p className="text-xl font-bold">
+                    {(data.result.oppAvgScore || 0).toFixed(1)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Room Link and Ballot */}
           <div className="flex gap-4 justify-center pt-4">
-            <Link href={`/debate/ballot?pairingId=${data.pairing.id}`}>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-purple-500 text-purple-500 hover:bg-purple-50"
-              >
-                Open Ballot
-              </Button>
-            </Link>
-            <Button
-              size="lg"
-              className="bg-purple-500 hover:bg-purple-600 text-white"
-              onClick={handleEnterRoom}
-              disabled={checkingRole}
-            >
-              {checkingRole ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Joining...
-                </>
-              ) : (
-                <>
-                  Enter Judging Room
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </>
-              )}
-            </Button>
+            {data.round.status !== 'FINAL' && (
+              <>
+                <Link href={`/debate/ballot?pairingId=${data.pairing.id}`}>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-purple-500 text-purple-500 hover:bg-purple-50"
+                  >
+                    Open Ballot
+                  </Button>
+                </Link>
+                <Button
+                  size="lg"
+                  className="bg-purple-500 hover:bg-purple-600 text-white"
+                  onClick={handleEnterRoom}
+                  disabled={checkingRole}
+                >
+                  {checkingRole ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Joining...
+                    </>
+                  ) : (
+                    <>
+                      Enter Judging Room
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+            
+            {data.round.status === 'FINAL' && (
+              <Link href={`/debate/ballot?pairingId=${data.pairing.id}`}>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-purple-500 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
+                >
+                  View Your Ballot
+                </Button>
+              </Link>
+            )}
           </div>
         </CardContent>
       </Card>

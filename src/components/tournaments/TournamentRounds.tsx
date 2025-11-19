@@ -60,12 +60,41 @@ interface JudgeParticipation {
   } | null;
 }
 
+interface DebateResult {
+  id: string;
+  winnerTeamId: string;
+  loserTeamId: string;
+  panelVotesProp: number;
+  panelVotesOpp: number;
+  propAvgScore: number | null;
+  oppAvgScore: number | null;
+  isFinal: boolean;
+  publishedAt: string | null;
+  winnerTeam: {
+    id: string;
+    name: string;
+    institution: {
+      id: string;
+      name: string;
+    };
+  };
+  loserTeam: {
+    id: string;
+    name: string;
+    institution: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
 interface RoundPairing {
   id: string;
   propTeam: TournamentTeam | null;
   oppTeam: TournamentTeam | null;
   judges: Judge[];
   scheduledAt: string | null;
+  result: DebateResult | null;
 }
 
 interface Round {
@@ -86,7 +115,7 @@ interface TournamentRoundsProps {
 }
 
 // Simple read-only table view for non-admins
-function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
+function ReadOnlyPairingsTable({ pairings, roundStatus }: { pairings: RoundPairing[]; roundStatus: string }) {
   if (pairings.length === 0) {
     return (
       <div className="text-center py-8 border rounded-lg">
@@ -94,6 +123,8 @@ function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
       </div>
     );
   }
+
+  const isFinalRound = roundStatus === 'FINAL';
 
   return (
     <Table>
@@ -104,6 +135,7 @@ function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
           <TableHead className="w-12"></TableHead>
           <TableHead>Opposition Team</TableHead>
           <TableHead>Judges</TableHead>
+          {isFinalRound && <TableHead>Result</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -113,7 +145,12 @@ function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
             <TableCell>
               {pairing.propTeam ? (
                 <div>
-                  <div className="font-medium">{pairing.propTeam.name}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{pairing.propTeam.name}</span>
+                    {isFinalRound && pairing.result && pairing.result.publishedAt && pairing.result.winnerTeamId === pairing.propTeam.id && (
+                      <Badge className="bg-green-500 text-white">Winner</Badge>
+                    )}
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     {pairing.propTeam.institution.name}
                   </div>
@@ -133,7 +170,12 @@ function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
             <TableCell>
               {pairing.oppTeam ? (
                 <div>
-                  <div className="font-medium">{pairing.oppTeam.name}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{pairing.oppTeam.name}</span>
+                    {isFinalRound && pairing.result && pairing.result.publishedAt && pairing.result.winnerTeamId === pairing.oppTeam.id && (
+                      <Badge className="bg-green-500 text-white">Winner</Badge>
+                    )}
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     {pairing.oppTeam.institution.name}
                   </div>
@@ -165,6 +207,22 @@ function ReadOnlyPairingsTable({ pairings }: { pairings: RoundPairing[] }) {
                 <span className="text-muted-foreground italic text-sm">TBD</span>
               )}
             </TableCell>
+            {isFinalRound && (
+              <TableCell>
+                {pairing.result && pairing.result.publishedAt ? (
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">
+                      {pairing.result.winnerTeam.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {pairing.result.panelVotesProp} - {pairing.result.panelVotesOpp}
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground italic text-sm">Pending</span>
+                )}
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>
@@ -579,7 +637,7 @@ const TournamentRounds = ({ tournamentId, teams, judges, isAdmin = false }: Tour
                         isGenerating={isGeneratingPairings}
                       />
                     ) : (
-                      <ReadOnlyPairingsTable pairings={round.roundPairings} />
+                      <ReadOnlyPairingsTable pairings={round.roundPairings} roundStatus={round.status} />
                     )}
                   </TabsContent>
                   
