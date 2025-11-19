@@ -71,6 +71,7 @@ export default function InstitutionDetailPage() {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberIsCoach, setNewMemberIsCoach] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   const institutionId = params.id as string;
 
@@ -132,9 +133,53 @@ export default function InstitutionDetailPage() {
     }
   };
 
+  const handleRemoveMember = async (memberUserId: string, isSelf: boolean) => {
+    const confirmMessage = isSelf
+      ? 'Are you sure you want to leave this institution?'
+      : 'Are you sure you want to remove this member from the institution?';
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setRemovingMemberId(memberUserId);
+
+    try {
+      const response = await fetch(`/api/institutions/${institutionId}/members`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: memberUserId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove member');
+      }
+
+      toast.success(data.message);
+
+      // If user left themselves, redirect to institutions page
+      if (isSelf) {
+        router.push('/institutions');
+      } else {
+        fetchInstitution();
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
   const isCoach = institution?.members.find(
     (m) => m.userId === userId && m.isCoach
   );
+
+  const isMember = institution?.members.find((m) => m.userId === userId);
+  const isCreator = institution?.createdBy.id === userId;
 
   if (isLoading) {
     return (
@@ -347,42 +392,74 @@ export default function InstitutionDetailPage() {
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {institution.members.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center text-muted-foreground">
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
                         No members yet
                       </TableCell>
                     </TableRow>
                   ) : (
-                    institution.members.map((member) => (
-                      <TableRow key={member.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">
-                              {member.user.username || member.user.email || 'Unknown User'}
-                            </div>
-                            {member.user.email && member.user.username && (
-                              <div className="text-sm text-muted-foreground">
-                                {member.user.email}
+                    institution.members.map((member) => {
+                      const isSelf = member.userId === userId;
+                      const canRemove = isSelf || (isCoach && member.userId !== institution.createdBy.id);
+                      const isRemovingThis = removingMemberId === member.userId;
+
+                      return (
+                        <TableRow key={member.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">
+                                {member.user.username || member.user.email || 'Unknown User'}
+                                {isSelf && <span className="text-cyan-500 ml-2">(You)</span>}
+                                {member.userId === institution.createdBy.id && (
+                                  <Badge variant="outline" className="ml-2">Creator</Badge>
+                                )}
                               </div>
+                              {member.user.email && member.user.username && (
+                                <div className="text-sm text-muted-foreground">
+                                  {member.user.email}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {member.isCoach ? (
+                              <Badge className="bg-cyan-500">Coach</Badge>
+                            ) : (
+                              <Badge variant="outline">Member</Badge>
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {member.isCoach ? (
-                            <Badge className="bg-cyan-500">Coach</Badge>
-                          ) : (
-                            <Badge variant="outline">Member</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(member.joinedAt).toLocaleDateString()}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(member.joinedAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {canRemove ? (
+                              <Button
+                                variant={isSelf ? "outline" : "destructive"}
+                                size="sm"
+                                onClick={() => handleRemoveMember(member.userId, isSelf)}
+                                disabled={isRemovingThis}
+                              >
+                                {isRemovingThis ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    {isSelf ? 'Leaving...' : 'Removing...'}
+                                  </>
+                                ) : (
+                                  isSelf ? 'Leave' : 'Remove'
+                                )}
+                              </Button>
+                            ) : member.userId === institution.createdBy.id ? (
+                              <span className="text-xs text-muted-foreground">Cannot remove creator</span>
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

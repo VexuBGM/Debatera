@@ -168,3 +168,98 @@ export async function GET(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+const RemoveMemberSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+});
+
+/**
+ * DELETE /api/institutions/[id]/members
+ * Remove a member from the institution
+ * - Members can remove themselves (leave)
+ * - Coaches can remove any member (kick)
+ * - Cannot remove the creator of the institution
+ */
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { userId: currentUserId } = await auth();
+  if (!currentUserId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { id: institutionId } = await params;
+    const json = await req.json();
+    const parsed = RemoveMemberSchema.parse(json);
+    const targetUserId = parsed.userId;
+
+    // Check if institution exists
+    const institution = await prisma.institution.findUnique({
+      where: { id: institutionId },
+      select: { id: true, createdById: true },
+    });
+
+    if (!institution) {
+      return NextResponse.json({ error: 'Institution not found' }, { status: 404 });
+    }
+
+    // Cannot remove the institution creator
+    if (targetUserId === institution.createdById) {
+      return NextResponse.json(
+        { error: 'Cannot remove the creator of the institution' },
+        { status: 403 }
+      );
+    }
+
+    // Get target member details
+    const targetMember = await prisma.institutionMember.findFirst({
+      where: {
+        userId: targetUserId,
+        institutionId,
+      },
+    });
+
+    if (!targetMember) {
+      return NextResponse.json(
+        { error: 'User is not a member of this institution' },
+        { status: 404 }
+      );
+    }
+
+    // Check permissions:
+    // - User can leave themselves
+    // - Coaches can kick other members
+    const isSelf = currentUserId === targetUserId;
+    const isUserCoach = await isCoach(currentUserId, institutionId);
+
+    if (!isSelf && !isUserCoach) {
+      return NextResponse.json(
+        { error: 'Only coaches can remove other members' },
+        { status: 403 }
+      );
+    }
+
+    // Delete the membership
+    // This will cascade and also remove tournament participations due to onDelete: SetNull
+    await prisma.institutionMember.delete({
+      where: { id: targetMember.id },
+    });
+
+    return NextResponse.json(
+      {
+        message: isSelf
+          ? 'You have left the institution'
+          : 'Member removed successfully',
+      },
+      { status: 200 }
+    );
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.flatten() }, { status: 400 });
+    }
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
