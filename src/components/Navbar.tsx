@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +62,7 @@ interface DebateMeetingInvite {
 
 export default function TopNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [invitations, setInvitations] = useState<InstitutionInvite[]>([]);
   const [meetingInvites, setMeetingInvites] = useState<DebateMeetingInvite[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -152,6 +153,9 @@ export default function TopNav() {
 
       toast.success(`Accepted invitation to "${data.meeting.title}"!`);
       fetchNotifications(); // Refresh notifications
+      
+      // Redirect to the meeting
+      router.push(`/debate/meeting/${data.meeting.id}`);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
