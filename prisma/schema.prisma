@@ -10,7 +10,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum RoleType {
@@ -377,4 +376,45 @@ model DebateResult {
   @@index([pairingId])
   @@index([winnerTeamId])
   @@index([loserTeamId])
+}
+
+// Standalone debate meetings (not part of tournament rounds)
+model DebateMeeting {
+  id          String   @id @default(dbgenerated("'meet_' || gen_random_uuid()::text")) @db.VarChar(128)
+  title       String
+  description String?  @db.Text
+  creatorId   String   @db.VarChar(128)
+  callId      String   @db.VarChar(256) // Stream video call ID
+  status      String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  scheduledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invites DebateMeetingInvite[]
+
+  @@index([creatorId])
+  @@index([callId])
+}
+
+// Invitations to standalone debate meetings
+model DebateMeetingInvite {
+  id           String       @id @default(dbgenerated("'minv_' || gen_random_uuid()::text")) @db.VarChar(128)
+  meetingId    String       @db.VarChar(128)
+  inviterId    String       @db.VarChar(128)
+  inviteeEmail String       @db.VarChar(256)
+  inviteeId    String?      @db.VarChar(128) // null if user doesn't exist yet
+  role         String       // DEBATER or JUDGE
+  status       InviteStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  expiresAt    DateTime     // Invitations expire after a certain time
+  respondedAt  DateTime?    // When the invite was accepted/rejected
+
+  meeting DebateMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([inviteeEmail])
+  @@index([status])
 }

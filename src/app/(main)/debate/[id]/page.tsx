@@ -8,7 +8,7 @@ import { useGetCallByID } from '@/hooks/useGetCallByID';
 import { useUser } from '@clerk/nextjs';
 import { StreamCall, StreamTheme } from '@stream-io/video-react-sdk';
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { AlertCircle, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -88,6 +88,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const Meeting = () => {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params?.id;
 
   const { user, isLoaded } = useUser();
@@ -100,14 +101,33 @@ const Meeting = () => {
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [userTeamId, setUserTeamId] = useState<string>('');
   const [isJudge, setIsJudge] = useState(false);
+  const [checkingMeetingType, setCheckingMeetingType] = useState(true);
   
   const { call, isCallLoading } = useGetCallByID(callId);
 
+  // Check if this ID is a meeting or pairing, and redirect if it's a meeting
   useEffect(() => {
-    if (id && user) {
+    if (!id || !isLoaded) return;
+
+    const checkMeetingType = async () => {
+      // Check if this looks like a meeting ID (starts with 'meet_')
+      if (id.startsWith('meet_')) {
+        router.replace(`/debate/meeting/${id}`);
+        return;
+      }
+      
+      // Otherwise, continue with pairing logic
+      setCheckingMeetingType(false);
+    };
+
+    checkMeetingType();
+  }, [id, isLoaded, router]);
+
+  useEffect(() => {
+    if (id && user && !checkingMeetingType) {
       fetchDebateInfo();
     }
-  }, [id, user]);
+  }, [id, user, checkingMeetingType]);
 
   async function fetchDebateInfo() {
     if (!id) return;
@@ -170,6 +190,7 @@ const Meeting = () => {
     fetchDebateInfo();
   };
 
+  if (checkingMeetingType) return <Loader />;
   if (!isLoaded || isCallLoading || loadingDebateInfo) return <Loader />;
 
   // User is not a participant - show access denied
