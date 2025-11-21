@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { useUser } from '@clerk/nextjs';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { RoleSelectionDialog } from './tournaments/rounds/RoleSelectionDialog';
 
 const StandaloneMeetingSetup = ({ 
   setIsSetupComplete,
@@ -18,6 +19,7 @@ const StandaloneMeetingSetup = ({
 }) => {
   const [isMicCamToggledOn, setIsMicCamToggledOn] = useState(false);
   const [selectedRole, setSelectedRole] = useState<'judge' | 'debater' | 'spectator'>('spectator');
+  const [showSpeechRoleDialog, setShowSpeechRoleDialog] = useState(false);
   const { user } = useUser();
   const call = useCall();
 
@@ -81,7 +83,7 @@ const StandaloneMeetingSetup = ({
               <SelectItem value="debater">
                 <div className='py-1'>
                   <div className='font-semibold'>Debater</div>
-                  <div className='text-xs text-muted-foreground'>Full audio/video, can speak</div>
+                  <div className='text-xs text-muted-foreground'>Choose your speech role next</div>
                 </div>
               </SelectItem>
               <SelectItem value="judge">
@@ -99,7 +101,7 @@ const StandaloneMeetingSetup = ({
             </SelectContent>
           </Select>
           <p className='text-xs text-white/60 mt-2'>
-            {selectedRole === 'debater' && '✓ You can actively participate in the debate with full speaking rights'}
+            {selectedRole === 'debater' && '✓ You will select your specific speech role in the next step'}
             {selectedRole === 'judge' && '✓ You can moderate, evaluate, and provide feedback'}
             {selectedRole === 'spectator' && '✓ You can watch the debate without speaking permissions'}
           </p>
@@ -128,22 +130,28 @@ const StandaloneMeetingSetup = ({
           }
 
           try {
-            console.log('Setting Stream role:', selectedRole, 'for user:', user.id);
-            
-            // Update call members with the selected role
-            await call.updateCallMembers({
-              update_members: [
-                {
-                  user_id: user.id,
-                  role: selectedRole,
-                },
-              ],
-            });
-            
-            console.log('Stream role set successfully');
-            
-            await call.join();
-            setIsSetupComplete(true);
+            if (selectedRole === 'debater') {
+              // For debaters, show speech role selection dialog
+              await call.join();
+              setShowSpeechRoleDialog(true);
+            } else {
+              // For judges and spectators, join directly
+              console.log('Setting Stream role:', selectedRole, 'for user:', user.id);
+              
+              await call.updateCallMembers({
+                update_members: [
+                  {
+                    user_id: user.id,
+                    role: selectedRole,
+                  },
+                ],
+              });
+              
+              console.log('Stream role set successfully');
+              
+              await call.join();
+              setIsSetupComplete(true);
+            }
           } catch (err) {
             console.error("Failed to join call:", err);
           }
@@ -151,6 +159,19 @@ const StandaloneMeetingSetup = ({
       >
         Join Meeting
       </Button>
+      
+      <RoleSelectionDialog
+        open={showSpeechRoleDialog}
+        onClose={() => {
+          setShowSpeechRoleDialog(false);
+          setIsSetupComplete(true);
+        }}
+        isStandaloneMeeting={true}
+        onRoleSelected={() => {
+          setShowSpeechRoleDialog(false);
+          setIsSetupComplete(true);
+        }}
+      />
     </div>
   )
 }

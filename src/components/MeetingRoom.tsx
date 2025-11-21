@@ -76,12 +76,14 @@ const MeetingRoom = ({
   hideControls = false,
   debateInfo,
   userParticipant,
-  pairingId
+  pairingId,
+  isStandaloneMeeting = false
 }: { 
   hideControls?: boolean;
   debateInfo?: DebateInfo | null;
   userParticipant?: Participant | null;
   pairingId?: string;
+  isStandaloneMeeting?: boolean;
 }) => {
   const { useParticipants, useDominantSpeaker, useCallCallingState } = useCallStateHooks()
   const participants = useParticipants()
@@ -209,18 +211,21 @@ const MeetingRoom = ({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">{!hideControls && <CustomCallControls onLeave={async () => {
-          // Update participant status before leaving
-          if (pairingId) {
-            try {
-              await fetch(`/api/debates/${pairingId}/leave`, {
-                method: 'POST',
-              });
-            } catch (error) {
-              console.error('Error updating participant status on leave:', error);
+        <div className="flex items-center gap-3">{!hideControls && <CustomCallControls 
+          showRoleChange={isStandaloneMeeting}
+          onLeave={async () => {
+            // Update participant status before leaving
+            if (pairingId) {
+              try {
+                await fetch(`/api/debates/${pairingId}/leave`, {
+                  method: 'POST',
+                });
+              } catch (error) {
+                console.error('Error updating participant status on leave:', error);
+              }
             }
-          }
-        }} />}</div>
+          }} 
+        />}</div>
         <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
           <p className="text-xs text-muted-foreground">Participants</p>
           <p className="text-xl font-mono font-bold">{participants.length}</p>
