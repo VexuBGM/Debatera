@@ -193,7 +193,7 @@ const MeetingPage = () => {
               />
             </div>
           ) : (
-            <MeetingRoom />
+            <MeetingRoom isStandaloneMeeting={true} />
           )}
         </StreamTheme>
       </StreamCall>
