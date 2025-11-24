@@ -117,45 +117,71 @@ const MeetingRoom = ({
 
     // If we have debate info from the database, use it to properly arrange speakers
     if (debateInfo) {
-      // Map Stream participants to database participants
-      const createSortedSlots = (teamParticipants: Participant[]) => {
-        // Define the order of roles
-        const roleOrder = {
-          'FIRST_SPEAKER': 0,
-          'SECOND_SPEAKER': 1,
-          'THIRD_SPEAKER': 2,
-          'REPLY_SPEAKER': 3, // In case we want to show reply speakers
-        };
+      // Create a mapping of userId to database participant info
+      const dbParticipantMap = new Map<string, Participant>();
+      [...debateInfo.propTeam.participants, ...debateInfo.oppTeam.participants].forEach(p => {
+        dbParticipantMap.set(p.userId, p);
+      });
 
-        // Sort by role order
-        const sortedParticipants = [...teamParticipants].sort((a, b) => {
-          const orderA = roleOrder[a.role as keyof typeof roleOrder] ?? 999;
-          const orderB = roleOrder[b.role as keyof typeof roleOrder] ?? 999;
-          return orderA - orderB;
-        });
+      // Sort Stream participants into prop/opp based on database info
+      const propStreamParticipants: any[] = [];
+      const oppStreamParticipants: any[] = [];
+      const unknownStreamParticipants: any[] = [];
 
-        // Match Stream participants with database participants by userId
-        const slots: any[] = [];
-        for (const dbParticipant of sortedParticipants) {
-          // Skip judges and reply speakers for now
-          if (dbParticipant.role === 'JUDGE' || dbParticipant.role === 'REPLY_SPEAKER') continue;
+      for (const streamParticipant of debaters) {
+        const dbInfo = dbParticipantMap.get(streamParticipant.userId);
+        
+        if (dbInfo) {
+          // Skip judges
+          if (dbInfo.role === 'JUDGE') continue;
           
-          // Find matching Stream participant by user ID
-          const streamParticipant = debaters.find((sp) => {
-            // Stream uses userId in the user object
-            return sp.userId === dbParticipant.userId;
-          });
-
-          if (streamParticipant) {
-            slots.push(streamParticipant);
+          // Check if they're on prop or opp team
+          const isProp = debateInfo.propTeam.participants.some(p => p.userId === streamParticipant.userId && p.role !== 'JUDGE');
+          const isOpp = debateInfo.oppTeam.participants.some(p => p.userId === streamParticipant.userId && p.role !== 'JUDGE');
+          
+          if (isProp) {
+            propStreamParticipants.push({ stream: streamParticipant, db: dbInfo });
+          } else if (isOpp) {
+            oppStreamParticipants.push({ stream: streamParticipant, db: dbInfo });
+          } else {
+            unknownStreamParticipants.push(streamParticipant);
           }
+        } else {
+          // No database info - check Stream metadata or default to unknown
+          unknownStreamParticipants.push(streamParticipant);
         }
+      }
 
-        return slots;
+      // Define role order for sorting
+      const roleOrder = {
+        'FIRST_SPEAKER': 0,
+        'SECOND_SPEAKER': 1,
+        'THIRD_SPEAKER': 2,
+        'REPLY_SPEAKER': 3,
       };
 
-      propArr = createSortedSlots(debateInfo.propTeam.participants);
-      oppArr = createSortedSlots(debateInfo.oppTeam.participants);
+      // Sort each team by role
+      propStreamParticipants.sort((a, b) => {
+        const orderA = roleOrder[a.db.role as keyof typeof roleOrder] ?? 999;
+        const orderB = roleOrder[b.db.role as keyof typeof roleOrder] ?? 999;
+        return orderA - orderB;
+      });
+
+      oppStreamParticipants.sort((a, b) => {
+        const orderA = roleOrder[a.db.role as keyof typeof roleOrder] ?? 999;
+        const orderB = roleOrder[b.db.role as keyof typeof roleOrder] ?? 999;
+        return orderA - orderB;
+      });
+
+      // Extract the Stream participant objects
+      propArr = propStreamParticipants.map(p => p.stream);
+      oppArr = oppStreamParticipants.map(p => p.stream);
+
+      // Add unknown participants to balance teams
+      unknownStreamParticipants.forEach((p) => {
+        if (propArr.length <= oppArr.length) propArr.push(p);
+        else oppArr.push(p);
+      });
     } else {
       // Fallback to the old logic if no debate info
       const propExplicit = debaters.filter((p) => getTeam(p) === "prop")
@@ -241,13 +267,17 @@ const MeetingRoom = ({
             {propSlots.map((p, i) =>
               p ? (
                 <div
-                  key={p.sessionId ?? `prop-${i}`}
+                  key={p.userId ?? p.sessionId ?? `prop-${i}`}
                   className={cn(
                     "flex-1 rounded-lg border border-blue-600/50 overflow-hidden relative",
                     centerParticipant?.sessionId === p.sessionId && "ring-2 ring-blue-400"
                   )}
                 >
-                  <ParticipantView participant={p} className="w-full h-full object-cover" />
+                  <ParticipantView 
+                    participant={p} 
+                    className="w-full h-full object-cover"
+                    trackType="videoTrack"
+                  />
                   {debateInfo && (
                     <div className="absolute bottom-2 left-2 right-2">
                       <Badge variant="secondary" className="text-xs">
@@ -279,7 +309,11 @@ const MeetingRoom = ({
           {/* Active Speaker (as large as possible without scrolling) */}
           <div className="flex-1 rounded-lg border-2 border-primary overflow-hidden relative bg-[#0A1A2B]">
             {centerParticipant ? (
-              <ParticipantView participant={centerParticipant} className="w-full h-full object-contain" />
+              <ParticipantView 
+                participant={centerParticipant} 
+                className="w-full h-full object-contain"
+                trackType="videoTrack"
+              />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-secondary/30">
                 <div className="text-center">
@@ -301,10 +335,14 @@ const MeetingRoom = ({
               {judges.length > 0 ? (
                 judges.map((judge) => (
                   <div
-                    key={judge.sessionId}
+                    key={judge.userId ?? judge.sessionId}
                     className="flex-1 max-w-[210px] aspect-video rounded-lg border border-blue-900/60 overflow-hidden relative bg-[#0c1e34]"
                   >
-                    <ParticipantView participant={judge} className="w-full h-full object-contain" />
+                    <ParticipantView 
+                      participant={judge} 
+                      className="w-full h-full object-contain"
+                      trackType="videoTrack"
+                    />
                   </div>
                 ))
               ) : (
@@ -326,13 +364,17 @@ const MeetingRoom = ({
             {oppSlots.map((p, i) =>
               p ? (
                 <div
-                  key={p.sessionId ?? `opp-${i}`}
+                  key={p.userId ?? p.sessionId ?? `opp-${i}`}
                   className={cn(
                     "flex-1 rounded-lg border border-red-600/50 overflow-hidden relative",
                     centerParticipant?.sessionId === p.sessionId && "ring-2 ring-red-400"
                   )}
                 >
-                  <ParticipantView participant={p} className="w-full h-full object-cover" />
+                  <ParticipantView 
+                    participant={p} 
+                    className="w-full h-full object-cover"
+                    trackType="videoTrack"
+                  />
                   {debateInfo && (
                     <div className="absolute bottom-2 left-2 right-2">
                       <Badge variant="secondary" className="text-xs">

@@ -120,117 +120,129 @@ export async function POST(
       );
     }
 
-    // Check if user already has roles reserved
-    const existingParticipants = await prisma.debateParticipant.findMany({
-      where: {
-        pairingId,
-        userId,
-      },
-    });
-
-    // For judges, if they already have a role, just return it (reconnect scenario)
-    if (isJudge && existingParticipants.length > 0) {
-      return NextResponse.json({
-        success: true,
-        roles: existingParticipants.map(p => p.role),
-        callId: pairing.callId,
-        message: 'Rejoining with existing role',
-      });
-    }
-
-    // For debaters, delete existing roles to allow re-selection each time they enter
-    if (!isJudge && existingParticipants.length > 0) {
-      await prisma.debateParticipant.deleteMany({
+    // Use a transaction to ensure atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if user already has roles reserved
+      const existingParticipants = await tx.debateParticipant.findMany({
         where: {
           pairingId,
           userId,
         },
       });
-    }
 
-    // For debaters, enforce the 3-person-per-team limit and role uniqueness
-    if (userTeamId && !hasJudge) {
-      // Get current team participants (excluding the current user who we just deleted)
-      const teamParticipants = await prisma.debateParticipant.findMany({
-        where: {
-          pairingId,
-          teamId: userTeamId,
-          role: { not: SpeakerRole.JUDGE },
-          status: { in: [ParticipantStatus.ACTIVE, ParticipantStatus.RESERVED] },
-        },
-      });
-
-      // Get unique user IDs (since users can have multiple roles)
-      const uniqueUserIds = new Set(teamParticipants.map((p: any) => p.userId));
-      
-      // Check if team already has 3 different debaters
-      if (uniqueUserIds.size >= 3) {
-        return NextResponse.json(
-          { error: 'Your team already has 3 debaters in this room' },
-          { status: 400 }
-        );
+      // For judges, if they already have a role, just return it (reconnect scenario)
+      if (isJudge && existingParticipants.length > 0) {
+        return {
+          success: true,
+          roles: existingParticipants.map(p => p.role),
+          callId: pairing.callId,
+          participantIds: existingParticipants.map(p => p.id),
+          message: 'Rejoining with existing role',
+        };
       }
 
-      // Check if any main speaker role (FIRST, SECOND, THIRD) is already taken by someone else
-      const mainRoles = roles.filter(r => r !== SpeakerRole.REPLY_SPEAKER);
-      for (const role of mainRoles) {
-        const roleAlreadyTaken = teamParticipants.some(
-          (p: any) => p.role === role && p.userId !== userId
-        );
-
-        if (roleAlreadyTaken) {
-          return NextResponse.json(
-            { error: `That role is already taken by another team member` },
-            { status: 400 }
-          );
-        }
-      }
-    }
-
-    // Create or ensure callId exists for this pairing
-    let callId = pairing.callId;
-    if (!callId) {
-      // Generate a unique callId (you can customize this format)
-      callId = `debate_${pairingId}_${Date.now()}`;
-      await prisma.roundPairing.update({
-        where: { id: pairingId },
-        data: { callId },
-      });
-    }
-
-    // Reserve all the roles for the user
-    const participants = await Promise.all(
-      roles.map(role =>
-        prisma.debateParticipant.create({
-          data: {
+      // For debaters, delete existing roles to allow re-selection each time they enter
+      if (!isJudge && existingParticipants.length > 0) {
+        await tx.debateParticipant.deleteMany({
+          where: {
             pairingId,
             userId,
-            teamId: userTeamId,
-            role,
-            status: ParticipantStatus.RESERVED,
           },
-        })
-      )
-    );
+        });
+      }
 
-    return NextResponse.json({
-      success: true,
-      roles: participants.map(p => p.role),
-      callId,
-      participantIds: participants.map(p => p.id),
-      message: 'Roles reserved successfully',
+      // For debaters, enforce the 3-person-per-team limit and role uniqueness
+      if (userTeamId && !hasJudge) {
+        // Get current team participants (NOW excluding the current user after deletion)
+        const teamParticipants = await tx.debateParticipant.findMany({
+          where: {
+            pairingId,
+            teamId: userTeamId,
+            role: { not: SpeakerRole.JUDGE },
+            status: { in: [ParticipantStatus.ACTIVE, ParticipantStatus.RESERVED] },
+          },
+        });
+
+        // Get unique user IDs (since users can have multiple roles)
+        const uniqueUserIds = new Set(teamParticipants.map((p: any) => p.userId));
+        
+        // Check if team already has 3 different debaters
+        if (uniqueUserIds.size >= 3) {
+          throw new Error('Your team already has 3 debaters in this room');
+        }
+
+        // Check if any main speaker role (FIRST, SECOND, THIRD) is already taken by someone else
+        const mainRoles = roles.filter(r => r !== SpeakerRole.REPLY_SPEAKER);
+        for (const role of mainRoles) {
+          const roleAlreadyTaken = teamParticipants.some(
+            (p: any) => p.role === role && p.userId !== userId
+          );
+
+          if (roleAlreadyTaken) {
+            throw new Error('That role is already taken by another team member');
+          }
+        }
+      }
+
+      // Create or ensure callId exists for this pairing
+      let callId = pairing.callId;
+      if (!callId) {
+        // Generate a unique callId (you can customize this format)
+        callId = `debate_${pairingId}_${Date.now()}`;
+        await tx.roundPairing.update({
+          where: { id: pairingId },
+          data: { callId },
+        });
+      }
+
+      // Reserve all the roles for the user
+      const participants = await Promise.all(
+        roles.map(role =>
+          tx.debateParticipant.create({
+            data: {
+              pairingId,
+              userId,
+              teamId: userTeamId,
+              role,
+              status: ParticipantStatus.RESERVED,
+            },
+          })
+        )
+      );
+
+      return {
+        success: true,
+        roles: participants.map(p => p.role),
+        callId,
+        participantIds: participants.map(p => p.id),
+        message: 'Roles reserved successfully',
+      };
     });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error reserving role:', error);
     
-    // Handle unique constraint violations (race conditions)
-    if (error instanceof Error && 'code' in error) {
-      const prismaError = error as any;
-      if (prismaError.code === 'P2002') {
+    // Handle validation errors from transaction
+    if (error instanceof Error) {
+      // Handle our custom validation errors
+      if (error.message.includes('already has 3 debaters') || 
+          error.message.includes('already taken')) {
         return NextResponse.json(
-          { error: 'That role was just taken by another user. Please choose another role.' },
-          { status: 409 }
+          { error: error.message },
+          { status: 400 }
         );
+      }
+      
+      // Handle unique constraint violations (race conditions)
+      if ('code' in error) {
+        const prismaError = error as any;
+        if (prismaError.code === 'P2002') {
+          return NextResponse.json(
+            { error: 'That role was just taken by another user. Please choose another role.' },
+            { status: 409 }
+          );
+        }
       }
     }
     
