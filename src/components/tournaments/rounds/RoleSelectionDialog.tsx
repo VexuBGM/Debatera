@@ -13,8 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { useCall, useCallStateHooks } from '@stream-io/video-react-sdk';
-import { useUser } from '@clerk/nextjs';
 
 interface User {
   id: string;
@@ -42,9 +40,8 @@ interface RoleSelectionDialogProps {
   onClose: () => void;
   pairingId?: string;
   userTeamId?: string;
-  onRoleSelected?: (roles: string[], callId?: string) => void;
   isStandaloneMeeting?: boolean;
-  trigger?: React.ReactNode;
+  onRoleSelected?: () => void;
 }
 
 const MAIN_SPEAKER_ROLES = [
@@ -53,35 +50,21 @@ const MAIN_SPEAKER_ROLES = [
   { value: 'THIRD_SPEAKER', label: 'Third Speaker', description: 'Summary and closing' },
 ] as const;
 
-const ROLE_MAPPING = {
-  'FIRST_SPEAKER': 'first',
-  'SECOND_SPEAKER': 'second',
-  'THIRD_SPEAKER': 'third',
-  'REPLY_SPEAKER': 'reply',
-  'JUDGE': 'judge',
-} as const;
-
 export function RoleSelectionDialog({
   open,
   onClose,
   pairingId,
   userTeamId,
-  onRoleSelected,
   isStandaloneMeeting = false,
-  trigger,
+  onRoleSelected,
 }: RoleSelectionDialogProps) {
   const router = useRouter();
-  const { user: clerkUser } = useUser();
-  const call = useCall();
-  const { useParticipants } = useCallStateHooks();
-  const streamParticipants = useParticipants();
-  
-  const [loading, setLoading] = useState(true);
+
+  const [loading, setLoading] = useState(!isStandaloneMeeting);
   const [reserving, setReserving] = useState(false);
-  const [baseRole, setBaseRole] = useState<'debater' | 'judge' | 'spectator'>('debater');
-  const [selectedTeam, setSelectedTeam] = useState<'prop' | 'opp'>('prop');
   const [selectedMainRole, setSelectedMainRole] = useState<string | null>(null);
   const [includeReply, setIncludeReply] = useState(false);
+
   const [participants, setParticipants] = useState<{
     propTeam: TeamParticipants;
     oppTeam: TeamParticipants;
@@ -89,19 +72,11 @@ export function RoleSelectionDialog({
   } | null>(null);
 
   useEffect(() => {
-    if (open) {
-      if (isStandaloneMeeting) {
-        // For standalone meetings, we don't need to fetch from API
-        setLoading(false);
-      } else {
-        fetchParticipants();
-      }
-    }
+    if (!open || isStandaloneMeeting) return;
+    fetchParticipants();
   }, [open, pairingId, isStandaloneMeeting]);
 
   async function fetchParticipants() {
-    if (!pairingId) return;
-    
     setLoading(true);
     try {
       const response = await fetch(`/api/debates/${pairingId}/participants`);
@@ -119,41 +94,8 @@ export function RoleSelectionDialog({
   }
 
   async function handleReserveRole() {
-    // For judge and spectator, no speech role needed
-    if (baseRole === 'judge' || baseRole === 'spectator') {
-      setReserving(true);
-      try {
-        if (isStandaloneMeeting && call && clerkUser) {
-          await call.updateCallMembers({
-            update_members: [
-              {
-                user_id: clerkUser.id,
-                role: baseRole,
-              },
-            ],
-          });
-          
-          toast.success(`Role updated to ${baseRole}`);
-          
-          if (onRoleSelected) {
-            onRoleSelected([baseRole.toUpperCase()]);
-          }
-          
-          onClose();
-        }
-      } catch (error) {
-        console.error('Error updating role:', error);
-        toast.error('Failed to update role');
-      } finally {
-        setReserving(false);
-      }
-      return;
-    }
-
-    // For debaters, require speech role selection
     if (!selectedMainRole) return;
 
-    // Check if reply speaker is selected with third speaker
     if (includeReply && selectedMainRole === 'THIRD_SPEAKER') {
       toast.error('Third speaker cannot be the reply speaker');
       return;
@@ -161,66 +103,40 @@ export function RoleSelectionDialog({
 
     setReserving(true);
     try {
-      const roles = includeReply ? [selectedMainRole, 'REPLY_SPEAKER'] : [selectedMainRole];
-      
-      if (isStandaloneMeeting && call && clerkUser) {
-        // For standalone meetings, update Stream directly
-        const mainSpeechRole = ROLE_MAPPING[selectedMainRole as keyof typeof ROLE_MAPPING];
-        
-        await call.updateCallMembers({
-          update_members: [
-            {
-              user_id: clerkUser.id,
-              role: 'debater',
-              custom: {
-                speechRole: mainSpeechRole,
-                includeReply: includeReply,
-                team: selectedTeam,
-              },
-            },
-          ],
-        });
-        
-        toast.success('Role updated successfully');
-        
-        if (onRoleSelected) {
-          onRoleSelected(roles);
-        }
-        
-        onClose();
-      } else if (pairingId) {
-        // For tournament debates, use the API
-        const response = await fetch(`/api/debates/${pairingId}/reserve-role`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roles }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          toast.error(data.error || 'Failed to reserve roles');
-          
-          // If role was just taken, refresh the participants list
-          if (response.status === 409) {
-            await fetchParticipants();
-            setSelectedMainRole(null);
-            setIncludeReply(false);
-          }
-          return;
-        }
-
-        toast.success(data.message || 'Roles reserved successfully');
-        
-        if (onRoleSelected && data.callId) {
-          onRoleSelected(data.roles, data.callId);
-        } else if (data.callId) {
-          // Navigate to the debate room
-          router.push(`/debate/${pairingId}`);
-        }
-        
-        onClose();
+      // For standalone meetings, just call the callback
+      if (isStandaloneMeeting) {
+        toast.success('Role selected successfully');
+        onRoleSelected?.();
+        return;
       }
+
+      const roles = includeReply ? [selectedMainRole, 'REPLY_SPEAKER'] : [selectedMainRole];
+
+      const response = await fetch(`/api/debates/${pairingId}/reserve-role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roles }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to reserve roles');
+
+        // If role was just taken, refresh the participants list
+        if (response.status === 409) {
+          await fetchParticipants();
+          setSelectedMainRole(null);
+          setIncludeReply(false);
+        }
+        return;
+      }
+
+      toast.success(data.message || 'Roles reserved successfully');
+
+      // Go straight to the debate room
+      router.push(`/debate/${pairingId}`);
+      onClose();
     } catch (error) {
       console.error('Error reserving role:', error);
       toast.error('Failed to reserve roles');
@@ -231,68 +147,38 @@ export function RoleSelectionDialog({
 
   if (!open) return null;
 
+  // --- Derived tournament state (no Stream hooks) ---
+
+  const myTeamParticipants: Participant[] = isStandaloneMeeting
+    ? []
+    : participants
+    ? participants.propTeam.id === userTeamId
+      ? participants.propTeam.participants
+      : participants.oppTeam.id === userTeamId
+      ? participants.oppTeam.participants
+      : []
+    : [];
+
+  const takenMainRoles = new Set(
+    myTeamParticipants
+      .filter((p) => p.role !== 'REPLY_SPEAKER' && p.role !== 'JUDGE')
+      .map((p) => p.role),
+  );
+
+  const uniqueDebaters = new Set(
+    myTeamParticipants.filter((p) => p.role !== 'JUDGE').map((p) => p.userId),
+  );
+
+  const teamFull = !isStandaloneMeeting && uniqueDebaters.size >= 3;
+
+  const replyRoleTaken = myTeamParticipants.some((p) => p.role === 'REPLY_SPEAKER');
+  const replyRoleTaker = myTeamParticipants.find((p) => p.role === 'REPLY_SPEAKER');
+
   function getRoleLabel(role: string): string {
     const mainRole = MAIN_SPEAKER_ROLES.find((r) => r.value === role);
     if (mainRole) return mainRole.label;
     if (role === 'REPLY_SPEAKER') return 'Reply Speaker';
     return role;
-  }
-
-  // For standalone meetings, analyze current Stream participants
-  let myTeamParticipants: Participant[] = [];
-  let takenMainRoles = new Set<string>();
-  let uniqueDebaters = new Set<string>();
-  let teamFull = false;
-  let replyRoleTaken = false;
-  let replyRoleTaker: Participant | undefined;
-
-  if (isStandaloneMeeting && clerkUser) {
-    // Analyze Stream participants for standalone meetings
-    const debaters = streamParticipants.filter(p => 
-      p.roles?.includes('debater') || p.roles?.[0] === 'debater'
-    );
-    
-    debaters.forEach(p => {
-      const speechRole = (p as any)?.custom?.speechRole;
-      const hasReply = (p as any)?.custom?.includeReply;
-      
-      if (speechRole && p.userId !== clerkUser.id) {
-        const dbRole = Object.entries(ROLE_MAPPING).find(([_, v]) => v === speechRole)?.[0];
-        if (dbRole) {
-          takenMainRoles.add(dbRole);
-        }
-      }
-      
-      if (hasReply && p.userId !== clerkUser.id) {
-        replyRoleTaken = true;
-      }
-      
-      uniqueDebaters.add(p.userId);
-    });
-    
-    // Remove current user from count if they're already a debater
-    if (streamParticipants.some(p => p.userId === clerkUser.id && p.roles?.includes('debater'))) {
-      uniqueDebaters.delete(clerkUser.id);
-    }
-    
-    teamFull = false; // No team limit for standalone meetings
-  } else {
-    // For tournament debates, use participants from API
-    myTeamParticipants = participants
-      ? participants.propTeam.id === userTeamId
-        ? participants.propTeam.participants
-        : participants.oppTeam.id === userTeamId
-        ? participants.oppTeam.participants
-        : []
-      : [];
-
-    takenMainRoles = new Set(myTeamParticipants.filter(p => p.role !== 'REPLY_SPEAKER' && p.role !== 'JUDGE').map((p) => p.role));
-    uniqueDebaters = new Set(myTeamParticipants.filter(p => p.role !== 'JUDGE').map(p => p.userId));
-    teamFull = uniqueDebaters.size >= 3;
-    
-    // Check if reply speaker role is taken by someone else
-    replyRoleTaken = myTeamParticipants.some(p => p.role === 'REPLY_SPEAKER');
-    replyRoleTaker = myTeamParticipants.find(p => p.role === 'REPLY_SPEAKER');
   }
 
   function getRoleTaker(role: string): User | null {
@@ -306,10 +192,9 @@ export function RoleSelectionDialog({
         <DialogHeader>
           <DialogTitle>Choose Your Role</DialogTitle>
           <DialogDescription>
-            {isStandaloneMeeting 
-              ? 'Select your role for this meeting.'
-              : 'Select your role for this debate. Only 3 debaters per team can join.'
-            }
+            {isStandaloneMeeting
+              ? 'Select your speaking role for this debate.'
+              : 'Select your role for this debate. Only 3 debaters per team can join.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -345,80 +230,8 @@ export function RoleSelectionDialog({
         ) : (
           <>
             <div className="space-y-3 py-4">
-              {isStandaloneMeeting && (
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm font-medium">Base Role:</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => setBaseRole('debater')}
-                      className={`p-3 rounded-lg border-2 transition-all text-center ${
-                        baseRole === 'debater'
-                          ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30'
-                          : 'border-gray-200 dark:border-gray-800 hover:border-cyan-300 dark:hover:border-cyan-700'
-                      }`}
-                    >
-                      <div className="font-semibold text-sm">Debater</div>
-                      <div className="text-xs text-muted-foreground mt-1">Choose speech role</div>
-                    </button>
-                    <button
-                      onClick={() => setBaseRole('judge')}
-                      className={`p-3 rounded-lg border-2 transition-all text-center ${
-                        baseRole === 'judge'
-                          ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30'
-                          : 'border-gray-200 dark:border-gray-800 hover:border-cyan-300 dark:hover:border-cyan-700'
-                      }`}
-                    >
-                      <div className="font-semibold text-sm">Judge</div>
-                      <div className="text-xs text-muted-foreground mt-1">Moderate & evaluate</div>
-                    </button>
-                    <button
-                      onClick={() => setBaseRole('spectator')}
-                      className={`p-3 rounded-lg border-2 transition-all text-center ${
-                        baseRole === 'spectator'
-                          ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30'
-                          : 'border-gray-200 dark:border-gray-800 hover:border-cyan-300 dark:hover:border-cyan-700'
-                      }`}
-                    >
-                      <div className="font-semibold text-sm">Spectator</div>
-                      <div className="text-xs text-muted-foreground mt-1">Watch only</div>
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {baseRole === 'debater' && isStandaloneMeeting && (
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm font-medium">Team:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setSelectedTeam('prop')}
-                      className={`p-3 rounded-lg border-2 transition-all text-center ${
-                        selectedTeam === 'prop'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                          : 'border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700'
-                      }`}
-                    >
-                      <div className="font-semibold text-sm">Proposition</div>
-                      <div className="text-xs text-muted-foreground mt-1">Supporting the motion</div>
-                    </button>
-                    <button
-                      onClick={() => setSelectedTeam('opp')}
-                      className={`p-3 rounded-lg border-2 transition-all text-center ${
-                        selectedTeam === 'opp'
-                          ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
-                          : 'border-gray-200 dark:border-gray-800 hover:border-red-300 dark:hover:border-red-700'
-                      }`}
-                    >
-                      <div className="font-semibold text-sm">Opposition</div>
-                      <div className="text-xs text-muted-foreground mt-1">Opposing the motion</div>
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {baseRole === 'debater' && (
-                <>
-                  <p className="text-sm font-medium mb-2">Select your main speaker role:</p>
+              <p className="text-sm font-medium mb-2">Select your main speaker role:</p>
+
               {MAIN_SPEAKER_ROLES.map((role) => {
                 const isTaken = takenMainRoles.has(role.value);
                 const taker = getRoleTaker(role.value);
@@ -469,15 +282,21 @@ export function RoleSelectionDialog({
                   </button>
                 );
               })}
-              
+
               {/* Reply Speaker Checkbox */}
               {selectedMainRole && selectedMainRole !== 'THIRD_SPEAKER' && (
-                <div className={`mt-4 p-4 rounded-lg border-2 ${
-                  replyRoleTaken 
-                    ? 'border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 opacity-70' 
-                    : 'border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20'
-                }`}>
-                  <label className={`flex items-start gap-3 ${replyRoleTaken ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                <div
+                  className={`mt-4 p-4 rounded-lg border-2 ${
+                    replyRoleTaken
+                      ? 'border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 opacity-70'
+                      : 'border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20'
+                  }`}
+                >
+                  <label
+                    className={`flex items-start gap-3 ${
+                      replyRoleTaken ? 'cursor-not-allowed' : 'cursor-pointer'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       checked={includeReply}
@@ -486,7 +305,13 @@ export function RoleSelectionDialog({
                       className="mt-1 h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <div className="flex-1">
-                      <div className={`font-semibold ${replyRoleTaken ? 'text-gray-700 dark:text-gray-400' : 'text-purple-900 dark:text-purple-100'}`}>
+                      <div
+                        className={`font-semibold ${
+                          replyRoleTaken
+                            ? 'text-gray-700 dark:text-gray-400'
+                            : 'text-purple-900 dark:text-purple-100'
+                        }`}
+                      >
                         Also serve as Reply Speaker
                         {replyRoleTaken && (
                           <Badge variant="secondary" className="ml-2 text-xs">
@@ -494,14 +319,22 @@ export function RoleSelectionDialog({
                           </Badge>
                         )}
                       </div>
-                      <p className={`text-sm mt-1 ${replyRoleTaken ? 'text-gray-600 dark:text-gray-500' : 'text-purple-700 dark:text-purple-300'}`}>
-                        Reply speakers give the final rebuttal speech. Only first or second speakers can take this role.
+                      <p
+                        className={`text-sm mt-1 ${
+                          replyRoleTaken
+                            ? 'text-gray-600 dark:text-gray-500'
+                            : 'text-purple-700 dark:text-purple-300'
+                        }`}
+                      >
+                        Reply speakers give the final rebuttal speech. Only first or
+                        second speakers can take this role.
                       </p>
                       {replyRoleTaken && replyRoleTaker && (
                         <div className="mt-2 flex items-center gap-2">
                           <User className="h-3 w-3 text-muted-foreground" />
                           <span className="text-xs text-muted-foreground">
-                            Taken by {replyRoleTaker.user?.username || replyRoleTaker.user?.email}
+                            Taken by{' '}
+                            {replyRoleTaker.user?.username || replyRoleTaker.user?.email}
                           </span>
                         </div>
                       )}
@@ -509,31 +342,30 @@ export function RoleSelectionDialog({
                   </label>
                 </div>
               )}
-              
+
               {selectedMainRole === 'THIRD_SPEAKER' && (
                 <div className="mt-4 p-4 rounded-lg border-2 border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="font-semibold text-orange-900 dark:text-orange-100">Third speakers cannot be reply speakers</div>
+                      <div className="font-semibold text-orange-900 dark:text-orange-100">
+                        Third speakers cannot be reply speakers
+                      </div>
                       <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                        In debate format rules, only the first or second speaker can deliver the reply speech.
+                        In debate format rules, only the first or second speaker can
+                        deliver the reply speech.
                       </p>
                     </div>
                   </div>
                 </div>
               )}
-                </>
-              )}
             </div>
 
-            {!isStandaloneMeeting && (
-              <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                <p className="text-muted-foreground">
-                  <strong>Team capacity:</strong> {uniqueDebaters.size} / 3 speakers joined
-                </p>
-              </div>
-            )}
+            <div className="bg-muted/50 rounded-lg p-3 text-sm">
+              <p className="text-muted-foreground">
+                <strong>Team capacity:</strong> {uniqueDebaters.size} / 3 speakers joined
+              </p>
+            </div>
 
             <div className="flex gap-3 pt-4">
               <Button
@@ -546,7 +378,7 @@ export function RoleSelectionDialog({
               </Button>
               <Button
                 onClick={handleReserveRole}
-                disabled={(baseRole === 'debater' && !selectedMainRole) || reserving}
+                disabled={!selectedMainRole || reserving}
                 className="flex-1 bg-cyan-500 hover:bg-cyan-600"
               >
                 {reserving ? (
