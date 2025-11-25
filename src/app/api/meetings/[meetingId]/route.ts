@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
  */
 export async function GET(
   request: Request,
-  { params }: { params: { meetingId: string } }
+  { params }: { params: Promise<{ meetingId: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) {
@@ -18,7 +18,7 @@ export async function GET(
   }
 
   try {
-    const { meetingId } = params;
+    const { meetingId } = await params;
 
     // Get the meeting
     const meeting = await prisma.debateMeeting.findUnique({
