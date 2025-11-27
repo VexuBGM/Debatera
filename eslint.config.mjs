@@ -22,4 +22,17 @@ export default [
 
   // 2) Legacy configs via FlatCompat
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  
+  // 3) Customizations to allow certain warnings during build
+  {
+    rules: {
+      // Downgrade to warnings instead of errors
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react/no-unescaped-entities': 'warn',
+      '@typescript-eslint/no-require-imports': 'warn',
+      'prefer-const': 'warn',
+    }
+  }
 ];

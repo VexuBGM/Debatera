@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Call, useStreamVideoClient } from "@stream-io/video-react-sdk";
+import { logger } from '@/lib/logger';
 
 export const useGetCallByID = (id: string | string[] | undefined) => {
   const [call, setCall] = useState<Call>();
@@ -34,7 +35,7 @@ export const useGetCallByID = (id: string | string[] | undefined) => {
           }
         }
       } catch (err) {
-        console.error('Failed to load or create call', err);
+        logger.error('Failed to load or create call', err);
       } finally {
         if (mounted) setIsCallLoading(false);
       }

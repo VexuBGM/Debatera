@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import Image from 'next/image';
 import CreateMeetingButton from './CreateMeetingButton';
 import { useEffect, useState } from 'react';
@@ -86,7 +87,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
         setUnreadCount(data.unreadCount || 0);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error fetching notifications', error);
     } finally {
       setIsLoadingNotifications(false);
     }
@@ -102,7 +103,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
         setIsAdmin(data.role === 'ADMIN');
       }
     } catch (error) {
-      console.error('Error checking admin status:', error);
+      logger.error('Error checking admin status', error);
     }
   };
 
@@ -236,7 +237,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
             </span>
           </Link>
 
-          {/* Search - Global search across debates, teams, tournaments, people. --> Results grouped into tabs; keyboard nav; quick “Join”/“Open” actions inline. */}
+          {/* Search - Global search across debates, teams, tournaments, people. --> Results grouped into tabs; keyboard nav; quick “Join”/“Open” actions inline.
           <div className="ml-2 hidden flex-1 items-center md:flex">
             <div className="relative w-full max-w-xl">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
@@ -245,7 +246,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
                 placeholder="Search debates, teams, tournaments…"
               />
             </div>
-          </div>
+          </div> */}
 
           {/* Right side CTAs - Buttons for creating a tournament or a debate --> the debate is Quick ad-hoc room creation for your team or training */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">

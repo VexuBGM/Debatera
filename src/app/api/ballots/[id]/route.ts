@@ -6,7 +6,7 @@ import { BallotStatus } from "@prisma/client";
 // GET /api/ballots/[id] - Get a specific ballot
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await currentUser();
@@ -14,8 +14,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const ballot = await prisma.ballot.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         pairing: {
           include: {
@@ -65,7 +66,7 @@ export async function GET(
 // PATCH /api/ballots/[id] - Update ballot (admin actions: confirm, void, reopen)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await currentUser();
@@ -76,8 +77,9 @@ export async function PATCH(
     const body = await req.json();
     const { status, action } = body;
 
+    const { id } = await params;
     const ballot = await prisma.ballot.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         pairing: {
           include: {
@@ -128,7 +130,7 @@ export async function PATCH(
     }
 
     const updatedBallot = await prisma.ballot.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         speakerScores: true,
@@ -149,7 +151,7 @@ export async function PATCH(
 // DELETE /api/ballots/[id] - Delete a ballot (admin only)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await currentUser();
@@ -157,8 +159,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const ballot = await prisma.ballot.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         pairing: {
           include: {
@@ -188,7 +191,7 @@ export async function DELETE(
     }
 
     await prisma.ballot.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

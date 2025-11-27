@@ -2,10 +2,24 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ensureUserInDB } from '@/lib/ensureUser';
+import { initErrorMonitoring } from '@/lib/error-monitoring';
+import { validateEnv } from '@/lib/env';
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
 import { Toaster } from "@/components/ui/sonner";
+
+// Validate environment and initialize monitoring on app start
+if (typeof window === 'undefined') {
+  // Server-side only
+  try {
+    validateEnv();
+    initErrorMonitoring();
+  } catch (error) {
+    console.error('Failed to initialize application:', error);
+    process.exit(1);
+  }
+}
 
 export const metadata: Metadata = {
   title: "Debatera",

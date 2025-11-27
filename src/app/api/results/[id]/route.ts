@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 // PATCH /api/results/[id] - Update result (lock/unlock, manual override)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await currentUser();
@@ -16,8 +16,9 @@ export async function PATCH(
     const body = await req.json();
     const { isFinal, winnerTeamId } = body;
 
+    const { id } = await params;
     const result = await prisma.debateResult.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         pairing: {
           include: {
@@ -70,7 +71,7 @@ export async function PATCH(
     }
 
     const updatedResult = await prisma.debateResult.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         pairing: {

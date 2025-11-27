@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
+    "build:analyze": "cross-env ANALYZE=true next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx prisma/seed.ts"
+    "lint:fix": "eslint --fix",
+    "seed": "tsx prisma/seed.ts",
+    "type-check": "tsc --noEmit",
+    "validate": "npm run type-check && npm run lint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.33.7",

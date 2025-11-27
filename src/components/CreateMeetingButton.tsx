@@ -12,6 +12,7 @@ import { Textarea } from './ui/textarea'
 import { Plus, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { logger } from '@/lib/logger'
 
 interface Invite {
   email: string;
@@ -117,7 +118,7 @@ const CreateMeetingButton = () => {
       // Optionally navigate to the meeting
       router.push(`/debate/meeting/${data.meeting.id}`)
     } catch (error: any) {
-      console.error('Error creating meeting:', error)
+      logger.error('Error creating meeting', error);
       toast.error(error.message || 'Failed to create meeting')
     } finally {
       setIsCreating(false)

@@ -22,6 +22,8 @@ async function main() {
         id: TOURNAMENT_ID,
         name: 'Seeded Tournament (auto-created)',
         ownerId: seedOwner.id,
+        startDate: new Date(),
+        contactInfo: 'seed@example.com',
       },
     })
   }

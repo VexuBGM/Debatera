@@ -4,6 +4,7 @@ import { DeviceSettings, useCall, VideoPreview } from '@stream-io/video-react-sd
 import React, { useEffect, useState } from 'react'
 import { Button } from './ui/button';
 import { useUser } from '@clerk/nextjs';
+import { logger } from '@/lib/logger';
 
 const MeetingSetup = ({ 
   setIsSetupComplete,
@@ -64,7 +65,7 @@ const MeetingSetup = ({
         className="rounded-md bg-green-500 hover:bg-green-600 px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base w-full max-w-xs"
         onClick={async () => {
           if (!user?.id) {
-            console.error('Unable to join call without an authenticated user');
+            logger.error('Unable to join call without an authenticated user');
             return;
           }
 
@@ -72,7 +73,7 @@ const MeetingSetup = ({
             // Determine the Stream role based on the speaker role
             const role = streamRole || 'debater'; // Default to debater
             
-            console.log('Setting Stream role:', role, 'for user:', user.id);
+            logger.debug('Setting Stream role', { role, userId: user.id });
             
             // Update call members with the correct role
             await call.updateCallMembers({
@@ -84,12 +85,10 @@ const MeetingSetup = ({
               ],
             });
             
-            console.log('Stream role set successfully');
-            
             await call.join();
             setIsSetupComplete(true);
           } catch (err) {
-            console.error("Failed to join call:", err);
+            logger.error('Failed to join call', err);
           }
         }}
       >

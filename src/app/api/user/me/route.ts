@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
+import { apiLogger } from '@/lib/api-logger';
 
 export const runtime = 'nodejs';
 
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(user);
   } catch (err) {
-    console.error(err);
+    apiLogger.error('Error fetching user', err, { userId });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

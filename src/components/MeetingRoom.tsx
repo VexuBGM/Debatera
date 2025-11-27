@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import Loader from "@/components/Loader"
 import CustomCallControls from "./CustomCallControls"
 import { Badge } from "./ui/badge"
+import { logger } from "@/lib/logger"
 
 interface Participant {
   id: string;
@@ -203,7 +204,7 @@ const MeetingRoom = ({
           },
         })
       } catch (err) {
-        console.error("Failed to update current speaker", err)
+        logger.error('Failed to update current speaker', err);
       }
     },
     [call]
@@ -217,7 +218,7 @@ const MeetingRoom = ({
         fetch(`/api/debates/${pairingId}/leave`, {
           method: "POST",
         }).catch((error) => {
-          console.error("Error updating participant status on leave:", error)
+          logger.error('Error updating participant status on leave', error);
         })
       }
       router.push("/")
@@ -369,7 +370,7 @@ const MeetingRoom = ({
                       method: "POST",
                     })
                   } catch (error) {
-                    console.error("Error updating participant status on leave:", error)
+                    logger.error('Error updating participant status on leave', error);
                   }
                 }
               }}

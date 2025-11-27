@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 // GET /api/debates/[pairingId] - Get pairing details for ballot/debate
 export async function GET(
   req: NextRequest,
-  { params }: { params: { pairingId: string } }
+  { params }: { params: Promise<{ pairingId: string }> }
 ) {
   try {
     const user = await currentUser();
@@ -13,8 +13,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { pairingId } = await params;
     const pairing = await prisma.roundPairing.findUnique({
-      where: { id: params.pairingId },
+      where: { id: pairingId },
       include: {
         round: {
           include: {
