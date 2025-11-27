@@ -56,6 +56,14 @@ export async function GET(req: Request) {
   try {
     const tournaments = await prisma.tournament.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            participations: true,
+            registeredInstitutions: true,
+          },
+        },
+      },
     });
     return NextResponse.json(tournaments, { status: 200 });
   } catch (err) {
