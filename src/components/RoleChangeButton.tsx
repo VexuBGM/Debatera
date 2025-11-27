@@ -142,7 +142,7 @@ export function RoleChangeButton() {
         onClick={handleOpenDialog}
         variant="outline"
         size="sm"
-        className="gap-2 text-black hover:bg-gray-100"
+        className="gap-2 text-white hover:bg-gray-800"
       >
         <UserCircle className="h-4 w-4" />
         Change Role
