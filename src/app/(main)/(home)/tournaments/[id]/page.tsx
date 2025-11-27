@@ -250,7 +250,7 @@ export default function TournamentDetailPage() {
               {!tournament.isRosterFrozen ? (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-black text-xs sm:text-sm">
+                    <Button variant="outline" size="sm" className="text-xs sm:text-sm">
                       <Lock className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="hidden sm:inline">Freeze Roster</span>
                       <span className="sm:hidden">Freeze</span>
@@ -310,7 +310,7 @@ export default function TournamentDetailPage() {
               ) : (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-black text-xs sm:text-sm">
+                    <Button variant="outline" size="sm" className="text-xs sm:text-sm">
                       <Lock className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="hidden sm:inline">Unfreeze Roster</span>
                       <span className="sm:hidden">Unfreeze</span>
@@ -406,7 +406,7 @@ export default function TournamentDetailPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status:</span>
-              <Badge variant={tournament.isVerified ? "default" : "secondary"} className={tournament.isVerified ? "bg-green-500 hover:bg-green-600" : ""}>
+              <Badge variant={tournament.isVerified ? "default" : "secondary"} className={tournament.isVerified ? "bg-cyan-600 hover:bg-cyan-700" : ""}>
                 {tournament.isVerified ? '✓ Verified' : '⏳ Unverified'}
               </Badge>
             </div>
@@ -482,7 +482,7 @@ export default function TournamentDetailPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 sm:gap-2 text-green-500">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-cyan-400">
                   <Unlock className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span className="text-base sm:text-lg font-bold">Open</span>
                 </div>

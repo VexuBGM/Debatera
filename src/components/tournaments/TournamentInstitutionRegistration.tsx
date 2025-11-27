@@ -170,9 +170,9 @@ export default function TournamentInstitutionRegistration({
   return (
     <div className="space-y-6">
       {/* Info Banner */}
-      <Alert className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-        <AlertCircle className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-900 dark:text-blue-100">
+      <Alert className="bg-blue-950/30 border-blue-800/50">
+        <AlertCircle className="h-4 w-4 text-blue-400" />
+        <AlertDescription className="text-blue-100">
           <strong>Registration Process:</strong> Institutions must register first before coaches can register users or create teams.
           This ensures proper organization and tracking of tournament participation.
         </AlertDescription>
@@ -189,11 +189,11 @@ export default function TournamentInstitutionRegistration({
             <div className="flex flex-col items-center text-center flex-1">
               <div className={`rounded-full p-4 mb-3 ${
                 isMyInstitutionRegistered 
-                  ? 'bg-green-100 dark:bg-green-900/20' 
-                  : 'bg-cyan-100 dark:bg-cyan-900/20'
+                  ? 'bg-cyan-900/30' 
+                  : 'bg-cyan-900/20'
               }`}>
                 <Building2 className={`h-8 w-8 ${
-                  isMyInstitutionRegistered ? 'text-green-600' : 'text-cyan-600'
+                  isMyInstitutionRegistered ? 'text-cyan-400' : 'text-cyan-500'
                 }`} />
               </div>
               <h3 className="font-semibold mb-1">1. Register Institution</h3>
@@ -201,7 +201,7 @@ export default function TournamentInstitutionRegistration({
                 Coaches register their institution for the tournament
               </p>
               {isMyInstitutionRegistered && (
-                <Badge variant="default" className="mt-2 bg-green-500">
+                <Badge variant="default" className="mt-2 bg-cyan-600">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Complete
                 </Badge>
@@ -213,12 +213,12 @@ export default function TournamentInstitutionRegistration({
             <div className="flex flex-col items-center text-center flex-1">
               <div className={`rounded-full p-4 mb-3 ${
                 isMyInstitutionRegistered 
-                  ? 'bg-cyan-100 dark:bg-cyan-900/20' 
-                  : 'bg-gray-100 dark:bg-gray-800'
+                  ? 'bg-cyan-900/20' 
+                  : 'bg-gray-800'
               }`}>
                 <Users className={`h-8 w-8 ${
                   isMyInstitutionRegistered 
-                    ? 'text-cyan-600' 
+                    ? 'text-cyan-500' 
                     : 'text-gray-400'
                 }`} />
               </div>
@@ -238,12 +238,12 @@ export default function TournamentInstitutionRegistration({
             <div className="flex flex-col items-center text-center flex-1">
               <div className={`rounded-full p-4 mb-3 ${
                 isMyInstitutionRegistered 
-                  ? 'bg-cyan-100 dark:bg-cyan-900/20' 
-                  : 'bg-gray-100 dark:bg-gray-800'
+                  ? 'bg-cyan-900/20' 
+                  : 'bg-gray-800'
               }`}>
                 <Trophy className={`h-8 w-8 ${
                   isMyInstitutionRegistered 
-                    ? 'text-cyan-600' 
+                    ? 'text-cyan-500' 
                     : 'text-gray-400'
                 }`} />
               </div>
@@ -348,7 +348,7 @@ export default function TournamentInstitutionRegistration({
                   {isMyInstitutionRegistered ? (
                     <>
                       {myRegistrationStatus === 'APPROVED' && (
-                        <Badge variant="default" className="bg-green-500 gap-1">
+                        <Badge variant="default" className="bg-cyan-600 gap-1">
                           <CheckCircle2 className="h-3 w-3" />
                           Approved
                         </Badge>
@@ -414,9 +414,9 @@ export default function TournamentInstitutionRegistration({
               )}
 
               {isMyInstitutionRegistered && (
-                <Alert className="bg-cyan-50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800">
-                  <CheckCircle2 className="h-4 w-4 text-cyan-600" />
-                  <AlertDescription className="text-cyan-900 dark:text-cyan-100">
+                <Alert className="bg-cyan-950/30 border-cyan-800/50">
+                  <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+                  <AlertDescription className="text-cyan-100">
                     Your institution is registered! You can now register users and create teams in the other tabs.
                   </AlertDescription>
                 </Alert>
@@ -474,7 +474,7 @@ export default function TournamentInstitutionRegistration({
                     return (
                       <TableRow
                         key={registration.id}
-                        className={isMyInst ? 'bg-cyan-50 dark:bg-cyan-950/20' : ''}
+                        className={isMyInst ? 'bg-cyan-950/20' : ''}
                       >
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -496,7 +496,7 @@ export default function TournamentInstitutionRegistration({
                         </TableCell>
                         <TableCell className="text-center">
                           {registration.status === 'APPROVED' && (
-                            <Badge variant="default" className="bg-green-500">
+                            <Badge variant="default" className="bg-cyan-600">
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                               Approved
                             </Badge>
