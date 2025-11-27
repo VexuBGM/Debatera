@@ -14,17 +14,17 @@ const Tournaments = async () => {
   }
   const tournaments: Props[] = await res.json()
   return (
-    <main className="max-w-2xl mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">Tournaments</h1>
+    <main className="max-w-2xl mx-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
+      <h1 className="text-xl sm:text-2xl font-semibold">Tournaments</h1>
       {tournaments.length === 0 ? (
-        <p>No tournaments.</p>
+        <p className="text-sm sm:text-base">No tournaments.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2 sm:space-y-3">
           {tournaments.map(t => (
             <Link key={t.id} href={`/tournaments/${t.id}`}>
-              <li className="rounded-lg border p-4">
-                <h2 className="font-medium">{t.name}</h2>
-                <p className="text-sm text-gray-500">
+              <li className="rounded-lg border p-3 sm:p-4 hover:border-cyan-500/50 transition-colors">
+                <h2 className="text-sm sm:text-base font-medium">{t.name}</h2>
+                <p className="text-xs sm:text-sm text-gray-500">
                   {t.description ?? 'No description'}
                 </p>
               </li>

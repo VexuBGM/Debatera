@@ -183,11 +183,11 @@ export default function InstitutionDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container py-8">
-        <Skeleton className="h-8 w-48 mb-4" />
-        <Skeleton className="h-12 w-96 mb-2" />
-        <Skeleton className="h-6 w-full max-w-2xl mb-8" />
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+        <Skeleton className="h-6 sm:h-8 w-32 sm:w-48 mb-3 sm:mb-4" />
+        <Skeleton className="h-8 sm:h-12 w-64 sm:w-96 mb-2" />
+        <Skeleton className="h-4 sm:h-6 w-full max-w-2xl mb-6 sm:mb-8" />
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 mb-6 sm:mb-8">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -201,22 +201,22 @@ export default function InstitutionDetailPage() {
   }
 
   return (
-    <div className="container py-8">
-      <div className="mb-6">
+    <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+      <div className="mb-4 sm:mb-6">
         <Link href="/institutions">
-          <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
+          <Button variant="ghost" size="sm" className="mb-3 sm:mb-4 text-xs sm:text-sm">
+            <ArrowLeft className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Back to Institutions
           </Button>
         </Link>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Building2 className="h-8 w-8 text-cyan-500" />
-              <h1 className="text-3xl font-bold">{institution.name}</h1>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2">
+              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-cyan-500 shrink-0" />
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold wrap-break-word">{institution.name}</h1>
             </div>
             {institution.description && (
-              <p className="text-muted-foreground max-w-3xl">
+              <p className="text-sm sm:text-base text-muted-foreground max-w-3xl">
                 {institution.description}
               </p>
             )}
@@ -228,24 +228,24 @@ export default function InstitutionDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 mb-6 sm:mb-8">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
               Total Members
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-cyan-500" />
-              <span className="text-2xl font-bold">{institution._count.members}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />
+              <span className="text-xl sm:text-2xl font-bold">{institution._count.members}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
               Tournament Teams
             </CardTitle>
           </CardHeader>

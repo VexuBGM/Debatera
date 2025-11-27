@@ -333,15 +333,15 @@ const MeetingRoom = ({
   if (callingState === CallingState.JOINING) return <Loader />
 
   return (
-    <section className="h-screen w-full flex flex-col bg-[#0a1a2b] text-white p-2 overflow-hidden">
+    <section className="h-screen w-full flex flex-col bg-[#0a1a2b] text-white p-1 sm:p-2 overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between bg-[#0d2036] border border-blue-900 rounded-lg px-6 py-1 mb-2 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+      <div className="flex items-center justify-between bg-[#0d2036] border border-blue-900 rounded-lg px-2 sm:px-4 lg:px-6 py-1 mb-1 sm:mb-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3">
+          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full animate-pulse" />
           <div>
-            <p className="font-semibold text-sm">Debate Room</p>
+            <p className="font-semibold text-xs sm:text-sm">Debate Room</p>
             {userParticipant && debateInfo && (
-              <p className="text-xs text-cyan-400">
+              <p className="text-[10px] sm:text-xs text-cyan-400 hidden sm:block">
                 Your Role:{" "}
                 {(() => {
                   const allParticipants = [
@@ -376,17 +376,17 @@ const MeetingRoom = ({
             />
           )}
         </div>
-        <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
-          <p className="text-xs text-muted-foreground">Participants</p>
-          <p className="text-xl font-mono font-bold">{participants.length}</p>
+        <div className="text-center bg-blue-900/40 px-2 sm:px-3 py-1 sm:py-2 rounded-lg">
+          <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Participants</p>
+          <p className="text-base sm:text-xl font-mono font-bold">{participants.length}</p>
         </div>
       </div>
 
       {/* Main Debate Area */}
-      <div className="flex flex-1 gap-4 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 gap-2 sm:gap-3 lg:gap-4 overflow-hidden">
         {/* Left (Proposition) */}
-        <div className="flex flex-col flex-1 w-64 gap-3 overflow-hidden">
-          <div className="bg-blue-900/30 border-2 border-blue-600 rounded-lg px-4 py-2">
+        <div className="flex flex-row lg:flex-col flex-1 gap-2 sm:gap-3 overflow-hidden">
+          <div className="bg-blue-900/30 border-2 border-blue-600 rounded-lg px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 shrink-0">
             <h2 className="text-center font-bold uppercase text-sm">PROPOSITION</h2>
             {debateInfo?.propTeam.name && (
               <p className="text-center text-xs text-muted-foreground">
@@ -429,9 +429,10 @@ const MeetingRoom = ({
                 return (
                   <div
                     key={`prop-placeholder-${i}`}
-                    className="flex-1 bg-gray-800/40 rounded-lg border border-blue-600/30 flex items-center justify-center text-xs text-muted-foreground"
+                    className="flex-1 min-w-[100px] lg:min-w-0 bg-gray-800/40 rounded-lg border border-blue-600/30 flex items-center justify-center text-[10px] sm:text-xs text-muted-foreground px-2"
                   >
-                    Waiting for participant
+                    <span className="hidden sm:inline">Waiting for participant</span>
+                    <span className="sm:hidden">Waiting</span>
                   </div>
                 )
               }
@@ -461,11 +462,11 @@ const MeetingRoom = ({
                     className="w-full h-full object-cover"
                     trackType="videoTrack"
                   />
-                  <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-                    <Badge variant="secondary" className="text-[0.65rem]">
+                  <div className="absolute bottom-1 sm:bottom-2 left-1 sm:left-2 right-1 sm:right-2 flex justify-between items-center">
+                    <Badge variant="secondary" className="text-[0.5rem] sm:text-[0.6rem] lg:text-[0.65rem] px-1 py-0">
                       {roleLabel}
                     </Badge>
-                    <span className="text-[0.6rem] uppercase text-blue-200/80">
+                    <span className="hidden sm:inline text-[0.55rem] lg:text-[0.6rem] uppercase text-blue-200/80">
                       Proposition
                     </span>
                   </div>
@@ -512,11 +513,11 @@ const MeetingRoom = ({
               </>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-secondary/30">
-                <div className="text-center">
-                  <div className="w-32 h-32 rounded-xl bg-primary/20 border-4 border-primary mb-4 flex items-center justify-center">
-                    <span className="text-5xl font-bold text-primary">S</span>
+                <div className="text-center px-2">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-xl bg-primary/20 border-2 sm:border-4 border-primary mb-2 sm:mb-4 flex items-center justify-center mx-auto">
+                    <span className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary">S</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-foreground mb-1">
+                  <h3 className="text-base sm:text-xl lg:text-2xl font-bold text-foreground mb-1">
                     Waiting for speaker…
                   </h3>
                 </div>
@@ -525,11 +526,11 @@ const MeetingRoom = ({
           </div>
 
           {/* Judges Panel */}
-          <div className="shrink-0 bg-[#0d2036] border border-blue-900 rounded-lg px-4 py-3">
-            <h3 className="text-sm font-semibold text-center uppercase tracking-wide text-white mb-2">
+          <div className="shrink-0 bg-[#0d2036] border border-blue-900 rounded-lg px-2 sm:px-3 lg:px-4 py-2 sm:py-3">
+            <h3 className="text-[10px] sm:text-xs lg:text-sm font-semibold text-center uppercase tracking-wide text-white mb-1.5 sm:mb-2">
               Judges Panel
             </h3>
-            <div className="flex justify-center gap-3">
+            <div className="flex justify-center gap-1.5 sm:gap-2 lg:gap-3 overflow-x-auto">
               {judges.length > 0 ? (
                 judges
                   .filter(
@@ -541,7 +542,7 @@ const MeetingRoom = ({
                   .map((judge) => (
                     <div
                       key={judge.userId ?? judge.sessionId}
-                      className="flex-1 max-w-[210px] aspect-video rounded-lg border border-blue-900/60 overflow-hidden relative bg-[#0c1e34]"
+                      className="flex-1 min-w-[120px] sm:min-w-[150px] max-w-[210px] aspect-video rounded-lg border border-blue-900/60 overflow-hidden relative bg-[#0c1e34]"
                     >
                       <ParticipantView
                         participant={judge}
@@ -551,7 +552,7 @@ const MeetingRoom = ({
                     </div>
                   ))
               ) : (
-                <div className="text-xs text-muted-foreground py-2">
+                <div className="text-[10px] sm:text-xs text-muted-foreground py-1.5 sm:py-2">
                   No judges assigned
                 </div>
               )}
@@ -560,11 +561,11 @@ const MeetingRoom = ({
         </div>
 
         {/* Right (Opposition) */}
-        <div className="flex flex-col flex-1 w-64 gap-3 overflow-hidden">
-          <div className="bg-red-900/30 border-2 border-red-600 rounded-lg px-4 py-2">
-            <h2 className="text-center font-bold uppercase text-sm">OPPOSITION</h2>
+        <div className="flex flex-row lg:flex-col flex-1 gap-2 sm:gap-3 overflow-hidden">
+          <div className="bg-red-900/30 border-2 border-red-600 rounded-lg px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 shrink-0">
+            <h2 className="text-center font-bold uppercase text-[10px] sm:text-xs lg:text-sm">OPPOSITION</h2>
             {debateInfo?.oppTeam.name && (
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="text-center text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground truncate">
                 {debateInfo.oppTeam.name}
               </p>
             )}

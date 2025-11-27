@@ -251,11 +251,11 @@ export default function TournamentInstitutionRegistration({
 
       {/* Quick Stats */}
       {!isLoading && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+                <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Registered Institutions
               </CardTitle>
             </CardHeader>

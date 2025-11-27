@@ -35,19 +35,21 @@ const MeetingSetup = ({
 }, [isMicCamToggledOn, call]);
 
   return (
-    <div className='flex h-screen w-full flex-col items-center justify-center gap-3 text-white'>
-      <h1 className='text-2xl font-bold'>Setup</h1>
+    <div className='flex h-screen w-full flex-col items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 text-white'>
+      <h1 className='text-xl sm:text-2xl font-bold'>Setup</h1>
       {userRole && (
-        <div className='bg-blue-600 px-4 py-2 rounded-lg text-center'>
-          <p className='text-sm font-medium'>Your Role: {userRole}</p>
+        <div className='bg-blue-600 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-center max-w-md'>
+          <p className='text-xs sm:text-sm font-medium'>Your Role: {userRole}</p>
           {streamRole && (
-            <p className='text-xs mt-1 opacity-75'>Stream Role: {streamRole}</p>
+            <p className='text-[10px] sm:text-xs mt-1 opacity-75'>Stream Role: {streamRole}</p>
           )}
         </div>
       )}
-      <VideoPreview />
-      <div className='flex h-16 items-center justify-center gap-3'>
-        <label className='flex items-center justify-center gap-2 font-medium'>
+      <div className='w-full max-w-2xl'>
+        <VideoPreview />
+      </div>
+      <div className='flex h-auto sm:h-16 flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 w-full max-w-2xl'>
+        <label className='flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base font-medium'>
           <input 
             type="checkbox"
             checked={isMicCamToggledOn}
@@ -58,7 +60,8 @@ const MeetingSetup = ({
         <DeviceSettings />
       </div>
       <Button
-        className="rounded-md bg-green-500 px-4 py-2.5"
+        size="lg"
+        className="rounded-md bg-green-500 hover:bg-green-600 px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base w-full max-w-xs"
         onClick={async () => {
           if (!user?.id) {
             console.error('Unable to join call without an authenticated user');

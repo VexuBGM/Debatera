@@ -195,29 +195,29 @@ const Meeting = () => {
   // User is not a participant - show access denied
   if (!canJoinCall) {
     return (
-      <main className="min-h-screen w-full flex-center px-4 bg-linear-to-b from-dark-2 to-dark-1">
-        <div className="max-w-2xl w-full rounded-xl border bg-card/60 backdrop-blur p-8 text-center shadow-lg">
-          <AlertCircle className="h-16 w-16 mx-auto text-orange-500 mb-4" />
-          <h1 className="text-2xl font-bold mb-3">Access Restricted</h1>
-          <p className="text-muted-foreground mb-6">
+      <main className="min-h-screen w-full flex-center px-3 sm:px-4 py-4 bg-linear-to-b from-dark-2 to-dark-1">
+        <div className="max-w-2xl w-full rounded-lg sm:rounded-xl border bg-card/60 backdrop-blur p-4 sm:p-6 lg:p-8 text-center shadow-lg">
+          <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-orange-500 mb-3 sm:mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3">Access Restricted</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
             You are not authorized to join this debate room. Only assigned speakers (max 3 per team) and judges can participate in the video call.
           </p>
 
           {debateInfo && (
-            <div className="bg-muted/50 rounded-lg p-6 text-left">
-              <h3 className="font-semibold mb-4 text-center">Current Participants</h3>
+            <div className="bg-muted/50 rounded-lg p-3 sm:p-4 lg:p-6 text-left">
+              <h3 className="text-sm sm:text-base font-semibold mb-3 sm:mb-4 text-center">Current Participants</h3>
               
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* Prop Team */}
                 {debateInfo.propTeam.participants.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-green-500">PROP</Badge>
-                      <span className="text-sm font-medium">{debateInfo.propTeam.name}</span>
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <Badge className="bg-green-500 text-xs sm:text-sm">PROP</Badge>
+                      <span className="text-xs sm:text-sm font-medium truncate">{debateInfo.propTeam.name}</span>
                     </div>
-                    <div className="space-y-1 ml-4">
+                    <div className="space-y-1 ml-2 sm:ml-4">
                       {groupParticipantsByUser(debateInfo.propTeam.participants).map((p) => (
-                        <div key={p.userId} className="flex items-center gap-2 text-sm">
+                        <div key={p.userId} className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                           <Users className="h-3 w-3 text-muted-foreground" />
                           <span>{p.user?.username || p.user?.email}</span>
                           <Badge variant="outline" className="text-xs ml-auto">
@@ -232,13 +232,13 @@ const Meeting = () => {
                 {/* Opp Team */}
                 {debateInfo.oppTeam.participants.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-orange-500">OPP</Badge>
-                      <span className="text-sm font-medium">{debateInfo.oppTeam.name}</span>
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <Badge className="bg-orange-500 text-xs sm:text-sm">OPP</Badge>
+                      <span className="text-xs sm:text-sm font-medium truncate">{debateInfo.oppTeam.name}</span>
                     </div>
-                    <div className="space-y-1 ml-4">
+                    <div className="space-y-1 ml-2 sm:ml-4">
                       {groupParticipantsByUser(debateInfo.oppTeam.participants).map((p) => (
-                        <div key={p.userId} className="flex items-center gap-2 text-sm">
+                        <div key={p.userId} className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                           <Users className="h-3 w-3 text-muted-foreground" />
                           <span>{p.user?.username || p.user?.email}</span>
                           <Badge variant="outline" className="text-xs ml-auto">
@@ -253,12 +253,12 @@ const Meeting = () => {
                 {/* Judges */}
                 {debateInfo.judges.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-purple-500">JUDGES</Badge>
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <Badge className="bg-purple-500 text-xs sm:text-sm">JUDGES</Badge>
                     </div>
-                    <div className="space-y-1 ml-4">
+                    <div className="space-y-1 ml-2 sm:ml-4">
                       {groupParticipantsByUser(debateInfo.judges).map((p) => (
-                        <div key={p.userId} className="flex items-center gap-2 text-sm">
+                        <div key={p.userId} className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                           <Users className="h-3 w-3 text-muted-foreground" />
                           <span>{p.user?.username || p.user?.email}</span>
                         </div>
@@ -279,10 +279,10 @@ const Meeting = () => {
   }
   
   if (!call) return (
-    <main className="min-h-screen w-full flex-center px-4">
-      <div className="max-w-md w-full rounded-xl border bg-card/60 backdrop-blur p-6 text-center shadow">
-        <h1 className="text-xl font-semibold">Meeting not found</h1>
-        <p className="mt-2 text-muted-foreground">We couldn&apos;t locate this meeting. It may have ended or the link is incorrect.</p>
+    <main className="min-h-screen w-full flex-center px-3 sm:px-4">
+      <div className="max-w-md w-full rounded-lg sm:rounded-xl border bg-card/60 backdrop-blur p-4 sm:p-6 text-center shadow">
+        <h1 className="text-lg sm:text-xl font-semibold">Meeting not found</h1>
+        <p className="mt-2 text-sm sm:text-base text-muted-foreground">We couldn&apos;t locate this meeting. It may have ended or the link is incorrect.</p>
       </div>
     </main>
   );

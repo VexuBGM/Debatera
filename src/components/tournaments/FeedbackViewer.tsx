@@ -80,7 +80,7 @@ export function FeedbackViewer({ teamId, tournamentId }: FeedbackViewerProps) {
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export function FeedbackViewer({ teamId, tournamentId }: FeedbackViewerProps) {
                     <Trophy className="h-4 w-4 text-blue-600" />
                     Debate Outcome
                   </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4 text-xs sm:text-sm">
                     <div>
                       <span className="text-muted-foreground">Winner:</span>
                       <span className="ml-2 font-medium">{item.result.finalWinner}</span>

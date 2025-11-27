@@ -194,10 +194,10 @@ export default function TournamentDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container py-8">
-        <Skeleton className="h-8 w-48 mb-4" />
-        <Skeleton className="h-12 w-96 mb-8" />
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+        <Skeleton className="h-6 sm:h-8 w-32 sm:w-48 mb-3 sm:mb-4" />
+        <Skeleton className="h-8 sm:h-12 w-64 sm:w-96 mb-6 sm:mb-8" />
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-3 mb-6 sm:mb-8">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -213,40 +213,41 @@ export default function TournamentDetailPage() {
   const isAdmin = tournament.ownerId === userId;
 
   return (
-    <div className="container py-8">
-      <div className="mb-6">
+    <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+      <div className="mb-4 sm:mb-6">
         <Link href="/tournaments">
-          <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
+          <Button variant="ghost" size="sm" className="mb-3 sm:mb-4 text-xs sm:text-sm">
+            <ArrowLeft className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Back to Tournaments
           </Button>
         </Link>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Trophy className="h-8 w-8 text-cyan-500" />
-              <h1 className="text-3xl font-bold">{tournament.name}</h1>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+              <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-cyan-500 shrink-0" />
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold wrap-break-word">{tournament.name}</h1>
               {tournament.isRosterFrozen && (
-                <Badge variant="destructive" className="gap-1">
-                  <Lock className="h-3 w-3" />
+                <Badge variant="destructive" className="gap-1 text-xs">
+                  <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   Frozen
                 </Badge>
               )}
             </div>
             {tournament.description && (
-              <p className="text-muted-foreground max-w-3xl">
+              <p className="text-sm sm:text-base text-muted-foreground max-w-3xl">
                 {tournament.description}
               </p>
             )}
           </div>
           {isAdmin && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               {!tournament.isRosterFrozen ? (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="text-black">
-                      <Lock className="mr-2 h-4 w-4" />
-                      Freeze Roster
+                    <Button variant="outline" size="sm" className="text-black text-xs sm:text-sm">
+                      <Lock className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Freeze Roster</span>
+                      <span className="sm:hidden">Freeze</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent>
@@ -303,12 +304,13 @@ export default function TournamentDetailPage() {
               ) : (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="text-black">
-                      <Lock className="mr-2 h-4 w-4" />
-                      Unfreeze Roster
+                    <Button variant="outline" size="sm" className="text-black text-xs sm:text-sm">
+                      <Lock className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Unfreeze Roster</span>
+                      <span className="sm:hidden">Unfreeze</span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent>
+                  <PopoverContent className="w-[calc(100vw-2rem)] max-w-sm">
                     <div className="flex gap-4">
                       <div className="flex flex-col gap-3">
                         <Label htmlFor="date-picker" className="px-1">
@@ -365,47 +367,47 @@ export default function TournamentDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 mb-6 sm:mb-8">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
               Total Teams
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-cyan-500" />
-              <span className="text-2xl font-bold">{tournament._count.teams}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />
+              <span className="text-xl sm:text-2xl font-bold">{tournament._count.teams}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
               Total Participants
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-cyan-500" />
-              <span className="text-2xl font-bold">{tournament._count.participations}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />
+              <span className="text-xl sm:text-2xl font-bold">{tournament._count.participations}</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="col-span-2 md:col-span-1">
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
               Roster Status
             </CardTitle>
           </CardHeader>
           <CardContent>
             {tournament.isRosterFrozen ? (
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2 text-red-500">
-                  <Lock className="h-5 w-5" />
-                  <span className="text-lg font-bold">Frozen</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 text-red-500">
+                  <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-base sm:text-lg font-bold">Frozen</span>
                 </div>
 
                 {tournament.rosterFreezeAt && (
@@ -424,9 +426,9 @@ export default function TournamentDetailPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2 text-green-500">
-                  <Unlock className="h-5 w-5" />
-                  <span className="text-lg font-bold">Open</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 text-green-500">
+                  <Unlock className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-base sm:text-lg font-bold">Open</span>
                 </div>
 
                 {tournament.rosterFreezeAt && (
@@ -448,18 +450,18 @@ export default function TournamentDetailPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="registration" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="registration">Registration</TabsTrigger>
-          <TabsTrigger value="your-next-round">Your Next Round</TabsTrigger>
+      <Tabs defaultValue="registration" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:flex lg:w-auto h-auto gap-1 p-1">
+          <TabsTrigger value="registration" className="text-xs sm:text-sm">Registration</TabsTrigger>
+          <TabsTrigger value="your-next-round" className="text-xs sm:text-sm">Next Round</TabsTrigger>
           {myInstitution?.isCoach && (
             <>
-              <TabsTrigger value="my-institution">My Participants</TabsTrigger>
-              <TabsTrigger value="teams">Teams</TabsTrigger>
+              <TabsTrigger value="my-institution" className="text-xs sm:text-sm">My Participants</TabsTrigger>
+              <TabsTrigger value="teams" className="text-xs sm:text-sm">Teams</TabsTrigger>
             </>
           )}
-          <TabsTrigger value="participants">All Participants</TabsTrigger>
-          <TabsTrigger value="rounds">Rounds</TabsTrigger>
+          <TabsTrigger value="participants" className="text-xs sm:text-sm">All Participants</TabsTrigger>
+          <TabsTrigger value="rounds" className="text-xs sm:text-sm">Rounds</TabsTrigger>
         </TabsList>
 
         <TabsContent value="registration">
