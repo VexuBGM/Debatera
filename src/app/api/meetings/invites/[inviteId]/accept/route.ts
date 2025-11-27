@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
  */
 export async function POST(
   request: Request,
-  { params }: { params: { inviteId: string } }
+  { params }: { params: Promise<{ inviteId: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) {
@@ -18,7 +18,7 @@ export async function POST(
   }
 
   try {
-    const { inviteId } = params;
+    const { inviteId } = await params;
 
     // Get the invitation
     const invite = await prisma.debateMeetingInvite.findUnique({

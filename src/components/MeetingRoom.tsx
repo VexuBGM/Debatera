@@ -43,11 +43,19 @@ interface DebateInfo {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  FIRST_SPEAKER: '1st Speaker',
-  SECOND_SPEAKER: '2nd Speaker',
-  THIRD_SPEAKER: '3rd Speaker',
-  REPLY_SPEAKER: 'Reply',
-  JUDGE: 'Judge',
+  FIRST_SPEAKER: "1st Speaker",
+  SECOND_SPEAKER: "2nd Speaker",
+  THIRD_SPEAKER: "3rd Speaker",
+  REPLY_SPEAKER: "Reply",
+  JUDGE: "Judge",
+};
+
+const ROLE_ORDER: Record<string, number> = {
+  FIRST_SPEAKER: 0,
+  SECOND_SPEAKER: 1,
+  THIRD_SPEAKER: 2,
+  REPLY_SPEAKER: 3,
+  JUDGE: 4,
 };
 
 type Team = "prop" | "opp" | "judge" | "spectator" | "unknown"
@@ -55,16 +63,20 @@ type Team = "prop" | "opp" | "judge" | "spectator" | "unknown"
 const norm = (v?: string) => (typeof v === "string" ? v.trim().toLowerCase() : "")
 
 const getTeam = (p: any): Team => {
-  const roles: string[] = Array.isArray(p?.roles) ? p.roles.map((r: string) => r.toLowerCase()) : []
+  const roles: string[] = Array.isArray(p?.roles)
+    ? p.roles.map((r: string) => r.toLowerCase())
+    : []
   const userRole = norm(p?.user?.role)
   const customTeam = norm(p?.user?.custom?.team)
 
+  // main role from RoleChangeButton: 'judge' / 'debater' / 'spectator'
   if (roles.includes("judge") || userRole === "judge") return "judge"
   if (roles.includes("spectator") || userRole === "spectator") return "spectator"
-  if (customTeam === "prop" || customTeam === "proposition" || userRole === "prop" || userRole === "proposition")
-    return "prop"
-  if (customTeam === "opp" || customTeam === "opposition" || userRole === "opp" || userRole === "opposition")
-    return "opp"
+
+  // side from RoleChangeButton custom.team
+  if (customTeam === "prop" || customTeam === "proposition") return "prop"
+  if (customTeam === "opp" || customTeam === "opposition") return "opp"
+
   return "unknown"
 }
 
@@ -72,13 +84,87 @@ const isJudge = (p: any) => getTeam(p) === "judge"
 const isSpectator = (p: any) => getTeam(p) === "spectator"
 const isDebater = (p: any) => !isJudge(p) && !isSpectator(p)
 
-const MeetingRoom = ({ 
+/**
+ * Get the debate role key for a Stream participant.
+ * - In tournament debates: from debateInfo (DB).
+ * - In standalone meetings: from participant.user.custom.debaterRole set by RoleChangeButton.
+ */
+const getParticipantRoleKey = (
+  streamParticipant: any,
+  debateInfo: DebateInfo | null | undefined,
+  isStandaloneMeeting: boolean
+): string | null => {
+  // 1) DB-based roles when debateInfo is present
+  if (debateInfo && streamParticipant?.userId) {
+    const allDbParticipants = [
+      ...debateInfo.propTeam.participants,
+      ...debateInfo.oppTeam.participants,
+      ...debateInfo.judges,
+    ]
+    const match = allDbParticipants.find((p) => p.userId === streamParticipant.userId)
+    if (match?.role) return match.role
+  }
+
+  // 2) Standalone meetings – use custom.debaterRole from RoleChangeButton
+  if (isStandaloneMeeting) {
+    const metaRole = streamParticipant?.user?.custom?.debaterRole
+    if (!metaRole) return null
+    const key = metaRole.toString().trim().toUpperCase()
+    return ROLE_ORDER[key] !== undefined ? key : null
+  }
+
+  return null
+}
+
+const roleSort = (
+  a: any,
+  b: any,
+  debateInfo: DebateInfo | null | undefined,
+  isStandaloneMeeting: boolean
+) => {
+  const rA = getParticipantRoleKey(a, debateInfo, isStandaloneMeeting)
+  const rB = getParticipantRoleKey(b, debateInfo, isStandaloneMeeting)
+  const oA = rA ? ROLE_ORDER[rA] ?? 999 : 999
+  const oB = rB ? ROLE_ORDER[rB] ?? 999 : 999
+  return oA - oB
+}
+
+const getRoleLabelForParticipant = (
+  streamParticipant: any,
+  debateInfo: DebateInfo | null | undefined,
+  isStandaloneMeeting: boolean,
+  teamSide: "prop" | "opp",
+  fallbackIndex: number
+): string => {
+  // 1) DB-based label
+  if (debateInfo && streamParticipant?.userId) {
+    const teamParticipants =
+      teamSide === "prop"
+        ? debateInfo.propTeam.participants
+        : debateInfo.oppTeam.participants
+    const dbParticipant = teamParticipants.find(
+      (dbP) => dbP.userId === streamParticipant.userId
+    )
+    if (dbParticipant?.role) {
+      return ROLE_LABELS[dbParticipant.role] || dbParticipant.role
+    }
+  }
+
+  // 2) Standalone metadata-based label
+  const key = getParticipantRoleKey(streamParticipant, debateInfo, isStandaloneMeeting)
+  if (key) return ROLE_LABELS[key] || key
+
+  // 3) Generic fallback
+  return `Speaker ${fallbackIndex + 1}`
+}
+
+const MeetingRoom = ({
   hideControls = false,
   debateInfo,
   userParticipant,
   pairingId,
-  isStandaloneMeeting = false
-}: { 
+  isStandaloneMeeting = false,
+}: {
   hideControls?: boolean;
   debateInfo?: DebateInfo | null;
   userParticipant?: Participant | null;
@@ -96,13 +182,12 @@ const MeetingRoom = ({
   useEffect(() => {
     if (!call) return
     if (callingState === CallingState.LEFT) {
-      // Update participant status in database before redirecting
       if (pairingId) {
         fetch(`/api/debates/${pairingId}/leave`, {
-          method: 'POST',
-        }).catch(error => {
-          console.error('Error updating participant status on leave:', error);
-        });
+          method: "POST",
+        }).catch((error) => {
+          console.error("Error updating participant status on leave:", error)
+        })
       }
       router.push("/")
     }
@@ -117,83 +202,72 @@ const MeetingRoom = ({
     let propArr: any[] = []
     let oppArr: any[] = []
 
-    // If we have debate info from the database, use it to properly arrange speakers
     if (debateInfo) {
-      // Create a mapping of userId to database participant info
-      const dbParticipantMap = new Map<string, Participant>();
-      [...debateInfo.propTeam.participants, ...debateInfo.oppTeam.participants].forEach(p => {
-        dbParticipantMap.set(p.userId, p);
-      });
+      // Tournament mode – DB-based team mapping
+      const dbParticipantMap = new Map<string, Participant>()
+      ;[...debateInfo.propTeam.participants, ...debateInfo.oppTeam.participants].forEach(
+        (p) => {
+          dbParticipantMap.set(p.userId, p)
+        }
+      )
 
-      // Sort Stream participants into prop/opp based on database info
-      const propStreamParticipants: any[] = [];
-      const oppStreamParticipants: any[] = [];
-      const unknownStreamParticipants: any[] = [];
+      const propStreamParticipants: any[] = []
+      const oppStreamParticipants: any[] = []
+      const unknownStreamParticipants: any[] = []
 
       for (const streamParticipant of debaters) {
-        const dbInfo = dbParticipantMap.get(streamParticipant.userId);
-        
+        const dbInfo = dbParticipantMap.get(streamParticipant.userId)
+
         if (dbInfo) {
-          // Skip judges
-          if (dbInfo.role === 'JUDGE') continue;
-          
-          // Check if they're on prop or opp team
-          const isProp = debateInfo.propTeam.participants.some(p => p.userId === streamParticipant.userId && p.role !== 'JUDGE');
-          const isOpp = debateInfo.oppTeam.participants.some(p => p.userId === streamParticipant.userId && p.role !== 'JUDGE');
-          
+          if (dbInfo.role === "JUDGE") continue
+
+          const isProp = debateInfo.propTeam.participants.some(
+            (p) => p.userId === streamParticipant.userId && p.role !== "JUDGE"
+          )
+          const isOpp = debateInfo.oppTeam.participants.some(
+            (p) => p.userId === streamParticipant.userId && p.role !== "JUDGE"
+          )
+
           if (isProp) {
-            propStreamParticipants.push({ stream: streamParticipant, db: dbInfo });
+            propStreamParticipants.push(streamParticipant)
           } else if (isOpp) {
-            oppStreamParticipants.push({ stream: streamParticipant, db: dbInfo });
+            oppStreamParticipants.push(streamParticipant)
           } else {
-            unknownStreamParticipants.push(streamParticipant);
+            unknownStreamParticipants.push(streamParticipant)
           }
         } else {
-          // No database info - check Stream metadata or default to unknown
-          unknownStreamParticipants.push(streamParticipant);
+          unknownStreamParticipants.push(streamParticipant)
         }
       }
 
-      // Define role order for sorting
-      const roleOrder = {
-        'FIRST_SPEAKER': 0,
-        'SECOND_SPEAKER': 1,
-        'THIRD_SPEAKER': 2,
-        'REPLY_SPEAKER': 3,
-      };
+      // Sort each team by their speaking role (1st / 2nd / 3rd / Reply)
+      propStreamParticipants.sort((a, b) => roleSort(a, b, debateInfo, isStandaloneMeeting))
+      oppStreamParticipants.sort((a, b) => roleSort(a, b, debateInfo, isStandaloneMeeting))
 
-      // Sort each team by role
-      propStreamParticipants.sort((a, b) => {
-        const orderA = roleOrder[a.db.role as keyof typeof roleOrder] ?? 999;
-        const orderB = roleOrder[b.db.role as keyof typeof roleOrder] ?? 999;
-        return orderA - orderB;
-      });
+      propArr = [...propStreamParticipants]
+      oppArr = [...oppStreamParticipants]
 
-      oppStreamParticipants.sort((a, b) => {
-        const orderA = roleOrder[a.db.role as keyof typeof roleOrder] ?? 999;
-        const orderB = roleOrder[b.db.role as keyof typeof roleOrder] ?? 999;
-        return orderA - orderB;
-      });
-
-      // Extract the Stream participant objects
-      propArr = propStreamParticipants.map(p => p.stream);
-      oppArr = oppStreamParticipants.map(p => p.stream);
-
-      // Add unknown participants to balance teams
       unknownStreamParticipants.forEach((p) => {
-        if (propArr.length <= oppArr.length) propArr.push(p);
-        else oppArr.push(p);
-      });
+        if (propArr.length <= oppArr.length) propArr.push(p)
+        else oppArr.push(p)
+      })
     } else {
-      // Fallback to the old logic if no debate info
+      // Standalone meeting – team & role from Stream metadata (RoleChangeButton)
       const propExplicit = debaters.filter((p) => getTeam(p) === "prop")
       const oppExplicit = debaters.filter((p) => getTeam(p) === "opp")
       const unknowns = debaters.filter((p) => getTeam(p) === "unknown")
 
+      propExplicit.sort((a, b) => roleSort(a, b, debateInfo ?? null, isStandaloneMeeting))
+      oppExplicit.sort((a, b) => roleSort(a, b, debateInfo ?? null, isStandaloneMeeting))
+
       propArr = [...propExplicit]
       oppArr = [...oppExplicit]
-      unknowns.forEach((p, i) => {
-        if (propArr.length <= oppArr.length) propArr.push(p)
+
+      unknowns.forEach((p) => {
+        const team = getTeam(p)
+        if (team === "prop") propArr.push(p)
+        else if (team === "opp") oppArr.push(p)
+        else if (propArr.length <= oppArr.length) propArr.push(p)
         else oppArr.push(p)
       })
     }
@@ -201,8 +275,13 @@ const MeetingRoom = ({
     const propSlots = Array.from({ length: SIDE_SLOTS }, (_, i) => propArr[i])
     const oppSlots = Array.from({ length: SIDE_SLOTS }, (_, i) => oppArr[i])
 
-    return { propSlots, oppSlots, judges: judgeList, anyDebater: [...propArr, ...oppArr][0] }
-  }, [participants, debateInfo])
+    return {
+      propSlots,
+      oppSlots,
+      judges: judgeList,
+      anyDebater: [...propArr, ...oppArr][0],
+    }
+  }, [participants, debateInfo, isStandaloneMeeting])
 
   const centerParticipant = useMemo(() => {
     if (dominant && (isDebater(dominant) || isJudge(dominant))) return dominant
@@ -221,37 +300,40 @@ const MeetingRoom = ({
             <p className="font-semibold text-sm">Debate Room</p>
             {userParticipant && debateInfo && (
               <p className="text-xs text-cyan-400">
-                Your Role: {(() => {
-                  // Get all roles for current user
+                Your Role:{" "}
+                {(() => {
                   const allParticipants = [
                     ...debateInfo.propTeam.participants,
                     ...debateInfo.oppTeam.participants,
                     ...debateInfo.judges,
-                  ];
+                  ]
                   const userRoles = allParticipants
-                    .filter(p => p.userId === userParticipant.userId)
-                    .map(p => ROLE_LABELS[p.role] || p.role);
-                  return userRoles.join(' + ');
+                    .filter((p) => p.userId === userParticipant.userId)
+                    .map((p) => ROLE_LABELS[p.role] || p.role)
+                  return userRoles.join(" + ")
                 })()}
               </p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">{!hideControls && <CustomCallControls 
-          showRoleChange={isStandaloneMeeting}
-          onLeave={async () => {
-            // Update participant status before leaving
-            if (pairingId) {
-              try {
-                await fetch(`/api/debates/${pairingId}/leave`, {
-                  method: 'POST',
-                });
-              } catch (error) {
-                console.error('Error updating participant status on leave:', error);
-              }
-            }
-          }} 
-        />}</div>
+        <div className="flex items-center gap-3">
+          {!hideControls && (
+            <CustomCallControls
+              showRoleChange={isStandaloneMeeting}
+              onLeave={async () => {
+                if (pairingId) {
+                  try {
+                    await fetch(`/api/debates/${pairingId}/leave`, {
+                      method: "POST",
+                    })
+                  } catch (error) {
+                    console.error("Error updating participant status on leave:", error)
+                  }
+                }
+              }}
+            />
+          )}
+        </div>
         <div className="text-center bg-blue-900/40 px-3 py-2 rounded-lg">
           <p className="text-xs text-muted-foreground">Participants</p>
           <p className="text-xl font-mono font-bold">{participants.length}</p>
@@ -265,12 +347,62 @@ const MeetingRoom = ({
           <div className="bg-blue-900/30 border-2 border-blue-600 rounded-lg px-4 py-2">
             <h2 className="text-center font-bold uppercase text-sm">PROPOSITION</h2>
             {debateInfo?.propTeam.name && (
-              <p className="text-center text-xs text-muted-foreground">{debateInfo.propTeam.name}</p>
+              <p className="text-center text-xs text-muted-foreground">
+                {debateInfo.propTeam.name}
+              </p>
             )}
           </div>
           <div className="flex-1 flex flex-col gap-3 min-h-0">
-            {propSlots.map((p, i) =>
-              p ? (
+            {propSlots.map((p, i) => {
+              const isCenter =
+                p && centerParticipant && p.sessionId === centerParticipant.sessionId
+
+              // Placeholder card when this slot is the currently speaking participant
+              if (p && isCenter) {
+                const roleLabel = getRoleLabelForParticipant(
+                  p,
+                  debateInfo ?? null,
+                  isStandaloneMeeting,
+                  "prop",
+                  i
+                )
+                return (
+                  <div
+                    key={p.userId ?? p.sessionId ?? `prop-active-${i}`}
+                    className="flex-1 bg-blue-950/70 rounded-lg border border-blue-400/80 flex items-center justify-center text-xs"
+                  >
+                    <div className="text-center px-2">
+                      <p className="text-[0.7rem] uppercase tracking-wide text-blue-300">
+                        Currently speaking
+                      </p>
+                      <p className="text-sm font-semibold text-white">
+                        {roleLabel} — Proposition
+                      </p>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (!p) {
+                return (
+                  <div
+                    key={`prop-placeholder-${i}`}
+                    className="flex-1 bg-gray-800/40 rounded-lg border border-blue-600/30 flex items-center justify-center text-xs text-muted-foreground"
+                  >
+                    Waiting for participant
+                  </div>
+                )
+              }
+
+              const roleLabel = getRoleLabelForParticipant(
+                p,
+                debateInfo ?? null,
+                isStandaloneMeeting,
+                "prop",
+                i
+              )
+
+              return (
                 <div
                   key={p.userId ?? p.sessionId ?? `prop-${i}`}
                   className={cn(
@@ -278,80 +410,104 @@ const MeetingRoom = ({
                     centerParticipant?.sessionId === p.sessionId && "ring-2 ring-blue-400"
                   )}
                 >
-                  <ParticipantView 
-                    participant={p} 
+                  <ParticipantView
+                    participant={p}
                     className="w-full h-full object-cover"
                     trackType="videoTrack"
                   />
-                  {debateInfo && (
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {(() => {
-                          // Find the matching database participant to get their role
-                          const dbParticipant = debateInfo.propTeam.participants.find(
-                            (dbP) => dbP.userId === p.userId
-                          );
-                          return dbParticipant ? ROLE_LABELS[dbParticipant.role] || `Speaker ${i + 1}` : `Speaker ${i + 1}`;
-                        })()}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div
-                  key={`prop-placeholder-${i}`}
-                  className="flex-1 bg-gray-800/40 rounded-lg border border-blue-600/30 flex items-center justify-center text-xs text-muted-foreground"
-                >
-                  Waiting for participant
+                  <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                    <Badge variant="secondary" className="text-[0.65rem]">
+                      {roleLabel}
+                    </Badge>
+                    <span className="text-[0.6rem] uppercase text-blue-200/80">
+                      Proposition
+                    </span>
+                  </div>
                 </div>
               )
-            )}
+            })}
           </div>
         </div>
 
         {/* Center (Active Speaker + Judges below) */}
         <div className="flex-2 flex flex-col gap-3 min-w-0 overflow-hidden">
-          {/* Active Speaker (as large as possible without scrolling) */}
+          {/* Active Speaker */}
           <div className="flex-1 rounded-lg border-2 border-primary overflow-hidden relative bg-[#0A1A2B]">
             {centerParticipant ? (
-              <ParticipantView 
-                participant={centerParticipant} 
-                className="w-full h-full object-contain"
-                trackType="videoTrack"
-              />
+              <>
+                <ParticipantView
+                  participant={centerParticipant}
+                  className="w-full h-full object-contain"
+                  trackType="videoTrack"
+                />
+                {/* Overlay label for who is speaking and which side */}
+                <div className="absolute bottom-3 left-3 bg-black/50 px-3 py-1 rounded-lg text-xs flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="font-semibold">
+                    {(() => {
+                      const team = getTeam(centerParticipant)
+                      const teamLabel =
+                        team === "prop"
+                          ? "Proposition"
+                          : team === "opp"
+                          ? "Opposition"
+                          : "Judge"
+                      const roleKey = getParticipantRoleKey(
+                        centerParticipant,
+                        debateInfo ?? null,
+                        isStandaloneMeeting
+                      )
+                      const roleLabel =
+                        (roleKey && ROLE_LABELS[roleKey]) || roleKey || "Speaker"
+                      return `${roleLabel} — ${teamLabel}`
+                    })()}
+                  </span>
+                </div>
+              </>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-secondary/30">
                 <div className="text-center">
                   <div className="w-32 h-32 rounded-xl bg-primary/20 border-4 border-primary mb-4 flex items-center justify-center">
                     <span className="text-5xl font-bold text-primary">S</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-foreground mb-1">Waiting for speaker…</h3>
+                  <h3 className="text-2xl font-bold text-foreground mb-1">
+                    Waiting for speaker…
+                  </h3>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Judges Panel — directly below the active speaker */}
+          {/* Judges Panel */}
           <div className="shrink-0 bg-[#0d2036] border border-blue-900 rounded-lg px-4 py-3">
             <h3 className="text-sm font-semibold text-center uppercase tracking-wide text-white mb-2">
               Judges Panel
             </h3>
             <div className="flex justify-center gap-3">
               {judges.length > 0 ? (
-                judges.map((judge) => (
-                  <div
-                    key={judge.userId ?? judge.sessionId}
-                    className="flex-1 max-w-[210px] aspect-video rounded-lg border border-blue-900/60 overflow-hidden relative bg-[#0c1e34]"
-                  >
-                    <ParticipantView 
-                      participant={judge} 
-                      className="w-full h-full object-contain"
-                      trackType="videoTrack"
-                    />
-                  </div>
-                ))
+                judges
+                  .filter(
+                    (judge) =>
+                      !centerParticipant ||
+                      judge.sessionId !== centerParticipant.sessionId
+                  )
+                  .sort((a, b) => roleSort(a, b, debateInfo ?? null, isStandaloneMeeting))
+                  .map((judge) => (
+                    <div
+                      key={judge.userId ?? judge.sessionId}
+                      className="flex-1 max-w-[210px] aspect-video rounded-lg border border-blue-900/60 overflow-hidden relative bg-[#0c1e34]"
+                    >
+                      <ParticipantView
+                        participant={judge}
+                        className="w-full h-full object-contain"
+                        trackType="videoTrack"
+                      />
+                    </div>
+                  ))
               ) : (
-                <div className="text-xs text-muted-foreground py-2">No judges assigned</div>
+                <div className="text-xs text-muted-foreground py-2">
+                  No judges assigned
+                </div>
               )}
             </div>
           </div>
@@ -362,12 +518,62 @@ const MeetingRoom = ({
           <div className="bg-red-900/30 border-2 border-red-600 rounded-lg px-4 py-2">
             <h2 className="text-center font-bold uppercase text-sm">OPPOSITION</h2>
             {debateInfo?.oppTeam.name && (
-              <p className="text-center text-xs text-muted-foreground">{debateInfo.oppTeam.name}</p>
+              <p className="text-center text-xs text-muted-foreground">
+                {debateInfo.oppTeam.name}
+              </p>
             )}
           </div>
           <div className="flex-1 flex flex-col gap-3 min-h-0">
-            {oppSlots.map((p, i) =>
-              p ? (
+            {oppSlots.map((p, i) => {
+              const isCenter =
+                p && centerParticipant && p.sessionId === centerParticipant.sessionId
+
+              // Placeholder card when this slot is the currently speaking participant
+              if (p && isCenter) {
+                const roleLabel = getRoleLabelForParticipant(
+                  p,
+                  debateInfo ?? null,
+                  isStandaloneMeeting,
+                  "opp",
+                  i
+                )
+                return (
+                  <div
+                    key={p.userId ?? p.sessionId ?? `opp-active-${i}`}
+                    className="flex-1 bg-red-950/70 rounded-lg border border-red-400/80 flex items-center justify-center text-xs"
+                  >
+                    <div className="text-center px-2">
+                      <p className="text-[0.7rem] uppercase tracking-wide text-red-300">
+                        Currently speaking
+                      </p>
+                      <p className="text-sm font-semibold text-white">
+                        {roleLabel} — Opposition
+                      </p>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (!p) {
+                return (
+                  <div
+                    key={`opp-placeholder-${i}`}
+                    className="flex-1 bg-gray-800/40 rounded-lg border border-red-600/30 flex items-center justify-center text-xs text-muted-foreground"
+                  >
+                    Waiting for participant
+                  </div>
+                )
+              }
+
+              const roleLabel = getRoleLabelForParticipant(
+                p,
+                debateInfo ?? null,
+                isStandaloneMeeting,
+                "opp",
+                i
+              )
+
+              return (
                 <div
                   key={p.userId ?? p.sessionId ?? `opp-${i}`}
                   className={cn(
@@ -375,34 +581,22 @@ const MeetingRoom = ({
                     centerParticipant?.sessionId === p.sessionId && "ring-2 ring-red-400"
                   )}
                 >
-                  <ParticipantView 
-                    participant={p} 
+                  <ParticipantView
+                    participant={p}
                     className="w-full h-full object-cover"
                     trackType="videoTrack"
                   />
-                  {debateInfo && (
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {(() => {
-                          // Find the matching database participant to get their role
-                          const dbParticipant = debateInfo.oppTeam.participants.find(
-                            (dbP) => dbP.userId === p.userId
-                          );
-                          return dbParticipant ? ROLE_LABELS[dbParticipant.role] || `Speaker ${i + 1}` : `Speaker ${i + 1}`;
-                        })()}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div
-                  key={`opp-placeholder-${i}`}
-                  className="flex-1 bg-gray-800/40 rounded-lg border border-red-600/30 flex items-center justify-center text-xs text-muted-foreground"
-                >
-                  Waiting for participant
+                  <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                    <Badge variant="secondary" className="text-[0.65rem]">
+                      {roleLabel}
+                    </Badge>
+                    <span className="text-[0.6rem] uppercase text-red-200/80">
+                      Opposition
+                    </span>
+                  </div>
                 </div>
               )
-            )}
+            })}
           </div>
         </div>
       </div>
