@@ -37,7 +37,7 @@ const sections: Section[] = [
     title: 'Tournaments',
     items: [
       { label: 'Browse', href: '/tournaments', icon: Compass }, // Public directory with filters (country, dates, format, status: Verified/Pending/Unverified). // Cards show rounds count, dates, verification badge.
-      { label: 'My Tournaments', href: '/tournaments/me', icon: Trophy }, // You as organizer/judge/participant: management shortcuts, drafts, registrations.
+      //{ label: 'My Tournaments', href: '/tournaments/me', icon: Trophy }, // You as organizer/judge/participant: management shortcuts, drafts, registrations.
       { label: 'Create Tournament', href: '/tournaments/new', icon: PlusCircle }, // Same as top-nav CTA (wizard). Only visible/enabled for users with creation rights.
     ],
   },

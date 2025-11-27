@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bell, Plus, Search, Check, X, Loader2, Menu } from 'lucide-react';
+import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import CreateMeetingButton from './CreateMeetingButton';
@@ -67,11 +67,13 @@ interface TopNavProps {
 export default function TopNav({ onMenuClick }: TopNavProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
+  const { userId } = useAuth();
   const [invitations, setInvitations] = useState<InstitutionInvite[]>([]);
   const [meetingInvites, setMeetingInvites] = useState<DebateMeetingInvite[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchNotifications = async () => {
     try {
@@ -90,13 +92,28 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
     }
   };
 
+  const checkAdminStatus = async () => {
+    if (!userId) return;
+    
+    try {
+      const response = await fetch('/api/user/me');
+      if (response.ok) {
+        const data = await response.json();
+        setIsAdmin(data.role === 'ADMIN');
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
+    checkAdminStatus();
     
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [userId]);
 
   const handleAcceptInvite = async (inviteId: string) => {
     setProcessingInviteId(inviteId);
@@ -232,6 +249,21 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
 
           {/* Right side CTAs - Buttons for creating a tournament or a debate --> the debate is Quick ad-hoc room creation for your team or training */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            {isAdmin && (
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="hidden md:flex gap-1 sm:gap-2 rounded-lg border-cyan-500 text-cyan-500 hover:bg-cyan-500 hover:text-black text-xs sm:text-sm"
+              >
+                <Link href="/admin/verify">
+                  <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden lg:inline">Admin Panel</span>
+                  <span className="lg:hidden">Admin</span>
+                </Link>
+              </Button>
+            )}
+            
             <Button
               asChild
               size="sm"
