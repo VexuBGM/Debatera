@@ -15,6 +15,7 @@ import TournamentMyParticipants from '@/components/tournaments/TournamentMyParti
 import TournamentParticipants from '@/components/tournaments/TournamentAllParticipants';
 import TournamentTeams from '@/components/tournaments/TournamentTeams';
 import TournamentInstitutionRegistration from '@/components/tournaments/TournamentInstitutionRegistration';
+import TournamentPendingRegistrations from '@/components/tournaments/TournamentPendingRegistrations';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,11 @@ interface Tournament {
   id: string;
   name: string;
   description: string | null;
+  startDate: string;
+  contactInfo: string;
+  entryFee: number;
+  registrationType: 'OPEN' | 'APPROVAL';
+  isVerified: boolean;
   ownerId: string;
   rosterFreezeAt: string | null;
   frozenById: string | null;
@@ -367,6 +373,56 @@ export default function TournamentDetailPage() {
         </div>
       </div>
 
+      {/* Tournament Info Section */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 mb-6 sm:mb-8">
+        <Card>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-sm font-medium">Tournament Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Start Date:</span>
+              <span className="font-medium">
+                {new Date(tournament.startDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Entry Fee:</span>
+              <span className="font-medium">
+                {tournament.entryFee === 0 ? 'Free' : `$${tournament.entryFee.toFixed(2)}`}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Registration Type:</span>
+              <span className="font-medium">
+                {tournament.registrationType === 'OPEN' ? 'Open Entry' : 'Approval Required'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Status:</span>
+              <Badge variant={tournament.isVerified ? "default" : "secondary"} className={tournament.isVerified ? "bg-green-500 hover:bg-green-600" : ""}>
+                {tournament.isVerified ? '✓ Verified' : '⏳ Unverified'}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-sm font-medium">Contact Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{tournament.contactInfo}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 mb-6 sm:mb-8">
         <Card>
           <CardHeader className="pb-2 sm:pb-3">
@@ -454,6 +510,9 @@ export default function TournamentDetailPage() {
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:flex lg:w-auto h-auto gap-1 p-1">
           <TabsTrigger value="registration" className="text-xs sm:text-sm">Registration</TabsTrigger>
           <TabsTrigger value="your-next-round" className="text-xs sm:text-sm">Next Round</TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="approvals" className="text-xs sm:text-sm">Approvals</TabsTrigger>
+          )}
           {myInstitution?.isCoach && (
             <>
               <TabsTrigger value="my-institution" className="text-xs sm:text-sm">My Participants</TabsTrigger>
@@ -476,6 +535,15 @@ export default function TournamentDetailPage() {
         <TabsContent value="your-next-round">
           <TournamentYourNextRound tournamentId={tournamentId} />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="approvals">
+            <TournamentPendingRegistrations 
+              tournamentId={tournamentId}
+              isOwner={isAdmin}
+            />
+          </TabsContent>
+        )}
 
         {myInstitution?.isCoach && (
           <>

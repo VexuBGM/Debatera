@@ -16,6 +16,9 @@ interface RegisteredInstitution {
   institutionId: string;
   registeredAt: string;
   registeredById: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
   institution: {
     id: string;
     name: string;
@@ -59,9 +62,12 @@ export default function TournamentInstitutionRegistration({
   const [error, setError] = useState<string | null>(null);
   const [deletionStats, setDeletionStats] = useState<DeletionStats | null>(null);
 
-  const isMyInstitutionRegistered = registeredInstitutions.some(
+  const myInstitutionRegistration = registeredInstitutions.find(
     (reg) => reg.institutionId === myInstitution?.id
   );
+  
+  const isMyInstitutionRegistered = !!myInstitutionRegistration;
+  const myRegistrationStatus = myInstitutionRegistration?.status;
 
   useEffect(() => {
     fetchRegisteredInstitutions();
@@ -100,7 +106,13 @@ export default function TournamentInstitutionRegistration({
         throw new Error(data.error || 'Failed to register institution');
       }
 
-      toast.success(`${myInstitution.name} registered successfully!`);
+      // Show appropriate message based on registration type
+      if (data.message) {
+        toast.success(data.message);
+      } else {
+        toast.success(`${myInstitution.name} registered successfully!`);
+      }
+      
       await fetchRegisteredInstitutions();
       onRegistrationChange();
     } catch (err: any) {
@@ -335,10 +347,24 @@ export default function TournamentInstitutionRegistration({
                 <div className="flex items-center gap-3">
                   {isMyInstitutionRegistered ? (
                     <>
-                      <Badge variant="default" className="bg-green-500 gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Registered
-                      </Badge>
+                      {myRegistrationStatus === 'APPROVED' && (
+                        <Badge variant="default" className="bg-green-500 gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Approved
+                        </Badge>
+                      )}
+                      {myRegistrationStatus === 'PENDING' && (
+                        <Badge variant="secondary" className="gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Pending Approval
+                        </Badge>
+                      )}
+                      {myRegistrationStatus === 'REJECTED' && (
+                        <Badge variant="destructive" className="gap-1">
+                          <XCircle className="h-3 w-3" />
+                          Rejected
+                        </Badge>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -435,6 +461,7 @@ export default function TournamentInstitutionRegistration({
                   <TableRow>
                     <TableHead>Institution</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-center">Members</TableHead>
                     <TableHead className="text-center">Teams</TableHead>
                     <TableHead>Registered At</TableHead>
@@ -466,6 +493,26 @@ export default function TournamentInstitutionRegistration({
                           <span className="text-sm text-muted-foreground">
                             {registration.institution.description || '—'}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {registration.status === 'APPROVED' && (
+                            <Badge variant="default" className="bg-green-500">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Approved
+                            </Badge>
+                          )}
+                          {registration.status === 'PENDING' && (
+                            <Badge variant="secondary">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Pending
+                            </Badge>
+                          )}
+                          {registration.status === 'REJECTED' && (
+                            <Badge variant="destructive">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Rejected
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,16 +6,375 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id                         String                    @id @db.VarChar(128)
+  email                      String?                   @unique
+  username                   String?
+  imageUrl                   String?
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  role                       UserRole                  @default(USER)
+  AdminAction                AdminAction[]
+  institutionsCreated        Institution[]             @relation("InstitutionsCreated")
+  institutionInvitesReceived InstitutionInvite[]       @relation("InvitesReceived")
+  institutionInvitesSent     InstitutionInvite[]       @relation("InvitesSent")
+  institutionMemberships     InstitutionMember?
+  tournamentsFrozen          Tournament[]              @relation("TournamentsFrozen")
+  tournamentParticipations   TournamentParticipation[]
+}
+
+model Tournament {
+  id                      String                              @id @default(dbgenerated("('tourn_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  name                    String
+  description             String?
+  startDate               DateTime // Tournament start date
+  contactInfo             String // Contact information for verification
+  entryFee                Float                               @default(0) // Entry fee amount
+  registrationType        RegistrationType                    @default(OPEN) // Open or approval-based registration
+  createdAt               DateTime                            @default(now())
+  updatedAt               DateTime                            @updatedAt
+  ownerId                 String                              @db.VarChar(128)
+  rosterFreezeAt          DateTime?
+  frozenById              String?                             @db.VarChar(128)
+  isVerified              Boolean                             @default(false)
+  verificationRequested   Boolean                             @default(false)
+  verificationRequestedAt DateTime?
+  verifiedAt              DateTime?
+  verifiedById            String?                             @db.VarChar(128)
+  AdminAction             AdminAction[]
+  rounds                  Round[]
+  frozenBy                User?                               @relation("TournamentsFrozen", fields: [frozenById], references: [id])
+  registeredInstitutions  TournamentInstitutionRegistration[]
+  participations          TournamentParticipation[]
+  teams                   TournamentTeam[]
+}
+
+model Institution {
+  id                      String                              @id @default(dbgenerated("('inst_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  name                    String                              @unique
+  description             String?
+  createdById             String                              @db.VarChar(128)
+  createdAt               DateTime                            @default(now())
+  updatedAt               DateTime                            @updatedAt
+  createdBy               User                                @relation("InstitutionsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  invites                 InstitutionInvite[]
+  members                 InstitutionMember[]
+  tournamentRegistrations TournamentInstitutionRegistration[]
+  participations          TournamentParticipation[]
+  teams                   TournamentTeam[]
+
+  @@index([createdById])
+}
+
+model InstitutionMember {
+  id            String      @id @default(dbgenerated("('imem_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  userId        String      @unique @db.VarChar(128)
+  institutionId String      @db.VarChar(128)
+  isCoach       Boolean     @default(false)
+  joinedAt      DateTime    @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+}
+
+model InstitutionInvite {
+  id            String       @id @default(dbgenerated("('inv_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  institutionId String       @db.VarChar(128)
+  inviterId     String       @db.VarChar(128)
+  inviteeEmail  String       @db.VarChar(256)
+  inviteeId     String?      @db.VarChar(128)
+  isCoach       Boolean      @default(false)
+  status        InviteStatus @default(PENDING)
+  token         String       @unique @default(uuid())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  expiresAt     DateTime
+  respondedAt   DateTime?
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  invitee       User?        @relation("InvitesReceived", fields: [inviteeId], references: [id], onDelete: Cascade)
+  inviter       User         @relation("InvitesSent", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([inviteeEmail])
+  @@index([status])
+}
+
+model TournamentTeam {
+  id                 String                    @id @default(dbgenerated("('team_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  name               String
+  tournamentId       String                    @db.VarChar(128)
+  institutionId      String                    @db.VarChar(128)
+  teamNumber         Int
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  ballotWins         Ballot[]
+  debateParticipants DebateParticipant[]
+  resultLosses       DebateResult[]            @relation("ResultLoser")
+  resultWins         DebateResult[]            @relation("ResultWinner")
+  oppTeam            RoundPairing[]            @relation("oppTeam")
+  propTeam           RoundPairing[]            @relation("propTeam")
+  participations     TournamentParticipation[]
+  institution        Institution               @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  tournament         Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, institutionId, teamNumber])
+  @@index([tournamentId])
+  @@index([institutionId])
+}
+
+model TournamentParticipation {
+  id               String              @id @default(dbgenerated("('part_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  userId           String              @db.VarChar(128)
+  tournamentId     String              @db.VarChar(128)
+  teamId           String?             @db.VarChar(128)
+  institutionId    String?             @db.VarChar(128)
+  role             RoleType
+  status           RegistrationStatus  @default(PENDING)
+  approvedAt       DateTime?
+  approvedById     String?             @db.VarChar(128)
+  rejectedAt       DateTime?
+  rejectedById     String?             @db.VarChar(128)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  judgeAssignments RoundPairingJudge[]
+  institution      Institution?        @relation(fields: [institutionId], references: [id])
+  team             TournamentTeam?     @relation(fields: [teamId], references: [id])
+  tournament       Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tournamentId])
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([institutionId])
+  @@index([status])
+}
+
+model TournamentInstitutionRegistration {
+  id             String             @id @default(dbgenerated("('reg_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  tournamentId   String             @db.VarChar(128)
+  institutionId  String             @db.VarChar(128)
+  registeredAt   DateTime           @default(now())
+  registeredById String             @db.VarChar(128)
+  status         RegistrationStatus @default(PENDING)
+  approvedAt     DateTime?
+  approvedById   String?            @db.VarChar(128)
+  rejectedAt     DateTime?
+  rejectedById   String?            @db.VarChar(128)
+  institution    Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  tournament     Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, institutionId])
+  @@index([tournamentId])
+  @@index([institutionId])
+  @@index([status])
+}
+
+model Round {
+  id            String         @id @default(dbgenerated("('rnd_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  tournamentId  String         @db.VarChar(128)
+  number        Int
+  name          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  motion        String?
+  status        RoundStatus    @default(PLANNING)
+  infoSlide     String?
+  tournament    Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  roundPairings RoundPairing[]
+
+  @@index([tournamentId])
+}
+
+model RoundPairing {
+  id           String              @id @default(dbgenerated("('rpair_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  roundId      String              @db.VarChar(128)
+  propTeamId   String?             @db.VarChar(128)
+  oppTeamId    String?             @db.VarChar(128)
+  scheduledAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  callId       String?             @db.VarChar(256)
+  ballots      Ballot[]
+  participants DebateParticipant[]
+  result       DebateResult?
+  oppTeam      TournamentTeam?     @relation("oppTeam", fields: [oppTeamId], references: [id], onDelete: Cascade)
+  propTeam     TournamentTeam?     @relation("propTeam", fields: [propTeamId], references: [id], onDelete: Cascade)
+  round        Round               @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  judges       RoundPairingJudge[]
+
+  @@index([roundId])
+  @@index([propTeamId])
+  @@index([oppTeamId])
+}
+
+model RoundPairingJudge {
+  id              String                  @id @default(dbgenerated("('rpj_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  pairingId       String                  @db.VarChar(128)
+  participationId String                  @db.VarChar(128)
+  isChair         Boolean                 @default(false)
+  createdAt       DateTime                @default(now())
+  pairing         RoundPairing            @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  participation   TournamentParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  @@unique([pairingId, participationId])
+  @@index([pairingId])
+  @@index([participationId])
+}
+
+model DebateParticipant {
+  id        String            @id @default(dbgenerated("('dpart_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  pairingId String            @db.VarChar(128)
+  userId    String            @db.VarChar(128)
+  teamId    String?           @db.VarChar(128)
+  role      SpeakerRole
+  status    ParticipantStatus @default(RESERVED)
+  joinedAt  DateTime          @default(now())
+  leftAt    DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  pairing   RoundPairing      @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  team      TournamentTeam?   @relation(fields: [teamId], references: [id])
+
+  @@unique([pairingId, teamId, role])
+  @@index([pairingId])
+  @@index([userId])
+  @@index([teamId])
+}
+
+model Ballot {
+  id              String          @id @default(dbgenerated("('ballot_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  pairingId       String          @db.VarChar(128)
+  judgeId         String          @db.VarChar(128)
+  isChair         Boolean         @default(false)
+  status          BallotStatus    @default(NOT_STARTED)
+  winnerTeamId    String?         @db.VarChar(128)
+  propFeedback    String?
+  oppFeedback     String?
+  generalComments String?
+  privateComments String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  submittedAt     DateTime?
+  confirmedAt     DateTime?
+  pairing         RoundPairing    @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  winnerTeam      TournamentTeam? @relation(fields: [winnerTeamId], references: [id])
+  speakerScores   SpeakerScore[]
+
+  @@unique([pairingId, judgeId])
+  @@index([pairingId])
+  @@index([judgeId])
+  @@index([winnerTeamId])
+}
+
+model SpeakerScore {
+  id            String      @id @default(dbgenerated("('score_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  ballotId      String      @db.VarChar(128)
+  userId        String      @db.VarChar(128)
+  teamId        String      @db.VarChar(128)
+  role          SpeakerRole
+  totalScore    Float?
+  contentScore  Float?
+  styleScore    Float?
+  strategyScore Float?
+  feedback      String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  ballot        Ballot      @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+
+  @@unique([ballotId, userId, role])
+  @@index([ballotId])
+  @@index([userId])
+  @@index([teamId])
+}
+
+model DebateResult {
+  id             String         @id @default(dbgenerated("('result_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  pairingId      String         @unique @db.VarChar(128)
+  winnerTeamId   String         @db.VarChar(128)
+  loserTeamId    String         @db.VarChar(128)
+  panelVotesProp Int            @default(0)
+  panelVotesOpp  Int            @default(0)
+  propAvgScore   Float?
+  oppAvgScore    Float?
+  isFinal        Boolean        @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  loserTeam      TournamentTeam @relation("ResultLoser", fields: [loserTeamId], references: [id], onDelete: Cascade)
+  pairing        RoundPairing   @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  winnerTeam     TournamentTeam @relation("ResultWinner", fields: [winnerTeamId], references: [id], onDelete: Cascade)
+
+  @@index([pairingId])
+  @@index([winnerTeamId])
+  @@index([loserTeamId])
+}
+
+model DebateMeeting {
+  id          String                @id @default(dbgenerated("('meet_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  title       String
+  description String?
+  creatorId   String                @db.VarChar(128)
+  callId      String                @db.VarChar(256)
+  status      String                @default("SCHEDULED")
+  scheduledAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  invites     DebateMeetingInvite[]
+
+  @@index([creatorId])
+  @@index([callId])
+}
+
+model DebateMeetingInvite {
+  id           String        @id @default(dbgenerated("('minv_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  meetingId    String        @db.VarChar(128)
+  inviterId    String        @db.VarChar(128)
+  inviteeEmail String        @db.VarChar(256)
+  inviteeId    String?       @db.VarChar(128)
+  role         String
+  status       InviteStatus  @default(PENDING)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  expiresAt    DateTime
+  respondedAt  DateTime?
+  meeting      DebateMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([inviteeEmail])
+  @@index([status])
+}
+
+model AdminAction {
+  id           String     @id @default(dbgenerated("('admin_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  adminId      String     @db.VarChar(128)
+  tournamentId String     @db.VarChar(128)
+  action       String
+  reason       String?
+  createdAt    DateTime   @default(now())
+  User         User       @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  Tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([adminId])
+  @@index([createdAt])
+  @@index([tournamentId])
+}
+
 enum RoleType {
   DEBATER
   JUDGE
 }
 
 enum RoundStatus {
-  PLANNING // draft
-  PUBLISHED // pairings out, debate happening or about to happen
-  FINAL // results locked
-  CANCELLED // round cancelled
+  PLANNING
+  PUBLISHED
+  FINAL
+  CANCELLED
 }
 
 enum SpeakerRole {
@@ -33,17 +386,17 @@ enum SpeakerRole {
 }
 
 enum ParticipantStatus {
-  ACTIVE // Currently in the debate room
-  LEFT // Left the debate room
-  RESERVED // Role reserved but not yet joined
+  ACTIVE
+  LEFT
+  RESERVED
 }
 
 enum BallotStatus {
-  NOT_STARTED // Judge hasn't started filling the ballot
-  DRAFT // Judge is actively filling, auto-saving
-  SUBMITTED // Judge has submitted the ballot
-  CONFIRMED // Admin has reviewed and confirmed
-  VOIDED // Admin has marked as invalid/wrong judge
+  NOT_STARTED
+  DRAFT
+  SUBMITTED
+  CONFIRMED
+  VOIDED
 }
 
 enum InviteStatus {
@@ -53,368 +406,18 @@ enum InviteStatus {
   EXPIRED
 }
 
-model User {
-  id        String   @id @db.VarChar(128) // Clerk user id
-  email     String?  @unique
-  username  String?
-  imageUrl  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Institution relations
-  institutionMemberships InstitutionMember[]
-  institutionsCreated    Institution[]       @relation("InstitutionsCreated")
-  institutionInvitesSent     InstitutionInvite[]     @relation("InvitesSent")
-  institutionInvitesReceived InstitutionInvite[]     @relation("InvitesReceived")
-
-  // Tournament participation
-  tournamentParticipations TournamentParticipation[]
-  tournamentsFrozen        Tournament[]              @relation("TournamentsFrozen")
+enum UserRole {
+  USER
+  ADMIN
 }
 
-model Tournament {
-  id             String    @id @default(dbgenerated("'tourn_' || gen_random_uuid()::text")) @db.VarChar(128)
-  name           String
-  description    String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  ownerId        String    @db.VarChar(128)
-  rosterFreezeAt DateTime?
-  frozenById     String?   @db.VarChar(128)
-  frozenBy       User?     @relation("TournamentsFrozen", fields: [frozenById], references: [id], onDelete: SetNull)
-
-  teams                  TournamentTeam[]
-  participations         TournamentParticipation[]
-  registeredInstitutions TournamentInstitutionRegistration[]
-  rounds                 Round[]
+enum RegistrationType {
+  OPEN
+  APPROVAL
 }
 
-model Institution {
-  id          String   @id @default(dbgenerated("'inst_' || gen_random_uuid()::text")) @db.VarChar(128)
-  name        String   @unique
-  description String?
-  createdById String   @db.VarChar(128)
-  createdBy   User     @relation("InstitutionsCreated", fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  members                 InstitutionMember[]
-  teams                   TournamentTeam[]
-  tournamentRegistrations TournamentInstitutionRegistration[]
-  participations          TournamentParticipation[]
-  invites                 InstitutionInvite[]
-
-  @@index([createdById])
-}
-
-model InstitutionMember {
-  id            String   @id @default(dbgenerated("'imem_' || gen_random_uuid()::text")) @db.VarChar(128)
-  userId        String   @db.VarChar(128)
-  institutionId String   @db.VarChar(128)
-  isCoach       Boolean  @default(false)
-  joinedAt      DateTime @default(now())
-
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-
-  @@unique([userId]) // A user can only be in one institution
-  @@index([institutionId])
-}
-
-model InstitutionInvite {
-  id            String       @id @default(dbgenerated("'inv_' || gen_random_uuid()::text")) @db.VarChar(128)
-  institutionId String       @db.VarChar(128)
-  inviterId     String       @db.VarChar(128)
-  inviteeEmail  String       @db.VarChar(256)
-  inviteeId     String?      @db.VarChar(128) // null if user doesn't exist yet
-  isCoach       Boolean      @default(false)
-  status        InviteStatus @default(PENDING)
-  token         String       @unique @default(uuid())
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  expiresAt     DateTime     // Invitations expire after a certain time
-  respondedAt   DateTime?    // When the invite was accepted/rejected
-
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  inviter     User        @relation("InvitesSent", fields: [inviterId], references: [id], onDelete: Cascade)
-  invitee     User?       @relation("InvitesReceived", fields: [inviteeId], references: [id], onDelete: Cascade)
-
-  @@index([institutionId])
-  @@index([inviterId])
-  @@index([inviteeId])
-  @@index([inviteeEmail])
-  @@index([status])
-}
-
-model TournamentTeam {
-  id            String   @id @default(dbgenerated("'team_' || gen_random_uuid()::text")) @db.VarChar(128)
-  name          String
-  tournamentId  String   @db.VarChar(128)
-  institutionId String   @db.VarChar(128)
-  teamNumber    Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  tournament         Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  institution        Institution               @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  participations     TournamentParticipation[]
-  propTeam           RoundPairing[]            @relation("propTeam")
-  oppTeam            RoundPairing[]            @relation("oppTeam")
-  debateParticipants DebateParticipant[]
-  ballotWins         Ballot[]                  // Ballots where this team won
-  resultWins         DebateResult[]            @relation("ResultWinner")
-  resultLosses       DebateResult[]            @relation("ResultLoser")
-
-  @@unique([tournamentId, institutionId, teamNumber])
-  @@index([tournamentId])
-  @@index([institutionId])
-}
-
-model TournamentParticipation {
-  id            String   @id @default(dbgenerated("'part_' || gen_random_uuid()::text")) @db.VarChar(128)
-  userId        String   @db.VarChar(128)
-  tournamentId  String   @db.VarChar(128)
-  teamId        String?  @db.VarChar(128)
-  institutionId String?  @db.VarChar(128)
-  role          RoleType
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tournament       Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  team             TournamentTeam?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  institution      Institution?        @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  judgeAssignments RoundPairingJudge[]
-
-  @@unique([userId, tournamentId]) // Single appearance rule
-  @@index([tournamentId])
-  @@index([teamId])
-  @@index([institutionId])
-}
-
-model TournamentInstitutionRegistration {
-  id             String   @id @default(dbgenerated("'reg_' || gen_random_uuid()::text")) @db.VarChar(128)
-  tournamentId   String   @db.VarChar(128)
-  institutionId  String   @db.VarChar(128)
-  registeredAt   DateTime @default(now())
-  registeredById String   @db.VarChar(128)
-
-  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-
-  @@unique([tournamentId, institutionId])
-  @@index([tournamentId])
-  @@index([institutionId])
-}
-
-model Round {
-  id           String      @id @default(dbgenerated("'rnd_' || gen_random_uuid()::text")) @db.VarChar(128)
-  tournamentId String      @db.VarChar(128)
-  number       Int
-  name         String? // e.g., "Preliminary 1", "Quarterfinal", "Finals"
-  motion       String? // The debate motion/topic
-  infoSlide    String? // Description/context for the motion
-  status       RoundStatus @default(PLANNING)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  tournament    Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  roundPairings RoundPairing[]
-
-  @@index([tournamentId])
-}
-
-model RoundPairing {
-  id          String    @id @default(dbgenerated("'rpair_' || gen_random_uuid()::text")) @db.VarChar(128)
-  roundId     String    @db.VarChar(128)
-  propTeamId  String?   @db.VarChar(128)
-  oppTeamId   String?   @db.VarChar(128)
-  callId      String?   @db.VarChar(256) // Stream video call ID
-  scheduledAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  round        Round               @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  propTeam     TournamentTeam?     @relation("propTeam", fields: [propTeamId], references: [id], onDelete: Cascade)
-  oppTeam      TournamentTeam?     @relation("oppTeam", fields: [oppTeamId], references: [id], onDelete: Cascade)
-  judges       RoundPairingJudge[]
-  participants DebateParticipant[]
-  ballots      Ballot[]
-  result       DebateResult?
-
-  @@index([roundId])
-  @@index([propTeamId])
-  @@index([oppTeamId])
-}
-
-model RoundPairingJudge {
-  id              String   @id @default(dbgenerated("'rpj_' || gen_random_uuid()::text")) @db.VarChar(128)
-  pairingId       String   @db.VarChar(128)
-  participationId String   @db.VarChar(128)
-  isChair         Boolean  @default(false)
-  createdAt       DateTime @default(now())
-
-  pairing       RoundPairing            @relation(fields: [pairingId], references: [id], onDelete: Cascade)
-  participation TournamentParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-
-  @@unique([pairingId, participationId])
-  @@index([pairingId])
-  @@index([participationId])
-}
-
-model DebateParticipant {
-  id        String            @id @default(dbgenerated("'dpart_' || gen_random_uuid()::text")) @db.VarChar(128)
-  pairingId String            @db.VarChar(128)
-  userId    String            @db.VarChar(128)
-  teamId    String?           @db.VarChar(128) // null for judges
-  role      SpeakerRole
-  status    ParticipantStatus @default(RESERVED)
-  joinedAt  DateTime          @default(now())
-  leftAt    DateTime?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  pairing RoundPairing    @relation(fields: [pairingId], references: [id], onDelete: Cascade)
-  team    TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
-
-  // Removed @@unique([pairingId, userId]) to allow users to have both a main role and REPLY_SPEAKER role
-  @@unique([pairingId, teamId, role]) // A role can only be taken once per team (null teamId allowed for multiple judges)
-  @@index([pairingId])
-  @@index([userId])
-  @@index([teamId])
-}
-
-model Ballot {
-  id        String       @id @default(dbgenerated("'ballot_' || gen_random_uuid()::text")) @db.VarChar(128)
-  pairingId String       @db.VarChar(128)
-  judgeId   String       @db.VarChar(128) // User ID of the judge
-  isChair   Boolean      @default(false)
-  status    BallotStatus @default(NOT_STARTED)
-
-  // Winner selection
-  winnerTeamId String? @db.VarChar(128) // ID of the winning team
-
-  // Team feedback
-  propFeedback String? @db.Text // Feedback for Proposition team
-  oppFeedback  String? @db.Text // Feedback for Opposition team
-
-  // Optional comments
-  generalComments String? @db.Text // General comments about the debate
-  privateComments String? @db.Text // Private comments only for tab/admin
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  submittedAt DateTime? // When the judge submitted the ballot
-  confirmedAt DateTime? // When admin confirmed the ballot
-
-  pairing       RoundPairing    @relation(fields: [pairingId], references: [id], onDelete: Cascade)
-  winnerTeam    TournamentTeam? @relation(fields: [winnerTeamId], references: [id], onDelete: SetNull)
-  speakerScores SpeakerScore[]
-
-  @@unique([pairingId, judgeId]) // One ballot per judge per debate
-  @@index([pairingId])
-  @@index([judgeId])
-  @@index([winnerTeamId])
-}
-
-model SpeakerScore {
-  id       String @id @default(dbgenerated("'score_' || gen_random_uuid()::text")) @db.VarChar(128)
-  ballotId String @db.VarChar(128)
-  userId   String @db.VarChar(128) // The speaker being scored
-  teamId   String @db.VarChar(128) // The team the speaker is on
-  role     SpeakerRole // The role they had in the debate
-
-  // Scoring
-  totalScore Float? // Total score (e.g., 60-80 in British Parliamentary)
-
-  // Optional: breakdown by criteria (can add later for more sophisticated scoring)
-  contentScore  Float? // Score for content/arguments
-  styleScore    Float? // Score for style/delivery
-  strategyScore Float? // Score for strategy
-
-  // Speaker-specific feedback
-  feedback String? @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  ballot Ballot @relation(fields: [ballotId], references: [id], onDelete: Cascade)
-
-  @@unique([ballotId, userId, role]) // One score per speaker per role per ballot
-  @@index([ballotId])
-  @@index([userId])
-  @@index([teamId])
-}
-
-model DebateResult {
-  id        String  @id @default(dbgenerated("'result_' || gen_random_uuid()::text")) @db.VarChar(128)
-  pairingId String  @unique @db.VarChar(128)
-  
-  // Final result
-  winnerTeamId String  @db.VarChar(128)
-  loserTeamId  String  @db.VarChar(128)
-  
-  // Panel information
-  panelVotesProp Int @default(0) // Number of judges who voted for Prop
-  panelVotesOpp  Int @default(0) // Number of judges who voted for Opp
-  
-  // Average scores (optional, for speaker tab)
-  propAvgScore Float? // Average score for Prop team
-  oppAvgScore  Float? // Average score for Opp team
-  
-  // Status
-  isFinal   Boolean @default(false) // Whether this result is locked
-  publishedAt DateTime? // When results were published to teams
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  pairing    RoundPairing   @relation(fields: [pairingId], references: [id], onDelete: Cascade)
-  winnerTeam TournamentTeam @relation("ResultWinner", fields: [winnerTeamId], references: [id], onDelete: Cascade)
-  loserTeam  TournamentTeam @relation("ResultLoser", fields: [loserTeamId], references: [id], onDelete: Cascade)
-
-  @@index([pairingId])
-  @@index([winnerTeamId])
-  @@index([loserTeamId])
-}
-
-// Standalone debate meetings (not part of tournament rounds)
-model DebateMeeting {
-  id          String   @id @default(dbgenerated("'meet_' || gen_random_uuid()::text")) @db.VarChar(128)
-  title       String
-  description String?  @db.Text
-  creatorId   String   @db.VarChar(128)
-  callId      String   @db.VarChar(256) // Stream video call ID
-  status      String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
-  scheduledAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  invites DebateMeetingInvite[]
-
-  @@index([creatorId])
-  @@index([callId])
-}
-
-// Invitations to standalone debate meetings
-model DebateMeetingInvite {
-  id           String       @id @default(dbgenerated("'minv_' || gen_random_uuid()::text")) @db.VarChar(128)
-  meetingId    String       @db.VarChar(128)
-  inviterId    String       @db.VarChar(128)
-  inviteeEmail String       @db.VarChar(256)
-  inviteeId    String?      @db.VarChar(128) // null if user doesn't exist yet
-  role         String       // DEBATER or JUDGE
-  status       InviteStatus @default(PENDING)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  expiresAt    DateTime     // Invitations expire after a certain time
-  respondedAt  DateTime?    // When the invite was accepted/rejected
-
-  meeting DebateMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-
-  @@index([meetingId])
-  @@index([inviterId])
-  @@index([inviteeId])
-  @@index([inviteeEmail])
-  @@index([status])
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

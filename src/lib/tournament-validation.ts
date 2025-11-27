@@ -138,6 +138,27 @@ export async function isInstitutionRegisteredForTournament(
 }
 
 /**
+ * Check if an institution registration is approved
+ */
+export async function isInstitutionRegistrationApproved(
+  institutionId: string,
+  tournamentId: string
+): Promise<boolean> {
+  const registration = await prisma.tournamentInstitutionRegistration.findUnique({
+    where: {
+      tournamentId_institutionId: {
+        tournamentId,
+        institutionId,
+      },
+    },
+    select: {
+      status: true,
+    },
+  });
+  return registration?.status === 'APPROVED';
+}
+
+/**
  * Validate that modifications can be made (roster not frozen or user is admin)
  */
 export async function canModifyRoster(

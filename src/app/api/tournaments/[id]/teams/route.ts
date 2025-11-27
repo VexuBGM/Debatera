@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
-import { isCoach, getUserInstitutionId, canModifyRoster, isInstitutionRegisteredForTournament } from '@/lib/tournament-validation';
+import { isCoach, getUserInstitutionId, canModifyRoster, isInstitutionRegisteredForTournament, isInstitutionRegistrationApproved } from '@/lib/tournament-validation';
 
 export const runtime = 'nodejs';
 
@@ -61,6 +61,19 @@ export async function POST(
     if (!institutionRegistered) {
       return NextResponse.json(
         { error: 'Institution must be registered for this tournament first' },
+        { status: 403 }
+      );
+    }
+
+    // Check if institution registration is approved
+    const institutionApproved = await isInstitutionRegistrationApproved(
+      parsed.institutionId,
+      tournamentId
+    );
+
+    if (!institutionApproved) {
+      return NextResponse.json(
+        { error: 'Your institution registration is pending approval. Please wait for tournament owner to approve before creating teams.' },
         { status: 403 }
       );
     }

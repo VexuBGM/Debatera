@@ -10,6 +10,10 @@ export const runtime = 'nodejs';
 const CreateTournamentSchema = z.object({
   name: z.string().min(1, 'Name is required').max(120),
   description: z.string().max(2000).optional().or(z.literal('')),
+  startDate: z.string().datetime({ message: 'Start date is required' }),
+  contactInfo: z.string().min(1, 'Contact information is required').max(500),
+  entryFee: z.number().min(0, 'Entry fee must be non-negative').default(0),
+  registrationType: z.enum(['OPEN', 'APPROVAL']).default('OPEN'),
   rosterFreezeAt: z.string().datetime().optional(),
 });
 
@@ -28,6 +32,10 @@ export async function POST(req: Request) {
       data: {
         name: parsed.name,
         description: parsed.description || null,
+        startDate: new Date(parsed.startDate),
+        contactInfo: parsed.contactInfo,
+        entryFee: parsed.entryFee,
+        registrationType: parsed.registrationType,
         ownerId: userId,
         rosterFreezeAt: parsed.rosterFreezeAt ? new Date(parsed.rosterFreezeAt) : null,
         frozenById: parsed.rosterFreezeAt ? userId : null,

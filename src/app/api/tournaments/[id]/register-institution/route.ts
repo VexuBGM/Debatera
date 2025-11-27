@@ -75,12 +75,20 @@ export async function POST(
       );
     }
 
+    // Determine initial status based on tournament registration type
+    const initialStatus = tournament.registrationType === 'OPEN' ? 'APPROVED' : 'PENDING';
+    const approvalData = tournament.registrationType === 'OPEN' 
+      ? { approvedAt: new Date(), approvedById: tournament.ownerId }
+      : {};
+
     // Create the registration
     const registration = await prisma.tournamentInstitutionRegistration.create({
       data: {
         tournamentId,
         institutionId,
         registeredById: currentUserId,
+        status: initialStatus,
+        ...approvalData,
       },
       include: {
         institution: {
@@ -94,12 +102,18 @@ export async function POST(
           select: {
             id: true,
             name: true,
+            registrationType: true,
           },
         },
       },
     });
 
-    return NextResponse.json(registration, { status: 201 });
+    return NextResponse.json({
+      ...registration,
+      message: tournament.registrationType === 'OPEN' 
+        ? 'Institution registered successfully'
+        : 'Registration submitted for approval. You will be notified once it is approved.',
+    }, { status: 201 });
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

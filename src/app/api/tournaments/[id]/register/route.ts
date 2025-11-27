@@ -9,6 +9,7 @@ import {
   isUserInTournament,
   canModifyRoster,
   isInstitutionRegisteredForTournament,
+  isInstitutionRegistrationApproved,
 } from '@/lib/tournament-validation';
 import { RoleType } from '@prisma/client';
 
@@ -86,6 +87,19 @@ export async function POST(
       );
     }
 
+    // Check if institution registration is approved
+    const institutionApproved = await isInstitutionRegistrationApproved(
+      institutionId,
+      tournamentId
+    );
+
+    if (!institutionApproved) {
+      return NextResponse.json(
+        { error: 'Your institution registration is pending approval. Please wait for tournament owner to approve.' },
+        { status: 403 }
+      );
+    }
+
     // Validate all users before creating any participations
     const errors: { userId: string; error: string }[] = [];
     const validRegistrations: typeof parsed.registrations = [];
@@ -155,6 +169,12 @@ export async function POST(
       validRegistrations.push(registration);
     }
 
+    // Determine initial status based on tournament registration type
+    const initialStatus = tournament.registrationType === 'OPEN' ? 'APPROVED' : 'PENDING';
+    const approvalData = tournament.registrationType === 'OPEN' 
+      ? { approvedAt: new Date(), approvedById: tournament.ownerId }
+      : {};
+
     // Create all valid participations
     const created = await Promise.all(
       validRegistrations.map((registration) =>
@@ -165,6 +185,8 @@ export async function POST(
             teamId: registration.teamId,
             institutionId: institutionId,
             role: registration.role,
+            status: initialStatus,
+            ...approvalData,
           },
           include: {
             user: {
