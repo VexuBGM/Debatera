@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo } from "react"
+import React, { useEffect, useMemo, useCallback } from "react"
 import {
   CallingState,
   ParticipantView,
@@ -164,19 +164,50 @@ const MeetingRoom = ({
   userParticipant,
   pairingId,
   isStandaloneMeeting = false,
+  isJudge: currentUserIsJudge = false,
 }: {
   hideControls?: boolean;
   debateInfo?: DebateInfo | null;
   userParticipant?: Participant | null;
   pairingId?: string;
   isStandaloneMeeting?: boolean;
+  isJudge?: boolean;
 }) => {
-  const { useParticipants, useDominantSpeaker, useCallCallingState } = useCallStateHooks()
+  const {
+    useParticipants,
+    useDominantSpeaker,
+    useCallCallingState,
+    useCallCustomData,
+  } = useCallStateHooks()
+
   const participants = useParticipants()
   const dominant = useDominantSpeaker()
   const callingState = useCallCallingState()
+  const customData = useCallCustomData() as { currentSpeakerUserId?: string } | undefined
   const call = useCall()
   const router = useRouter()
+
+  const canControlCurrentSpeaker = currentUserIsJudge
+
+  // Shared setter for current speaker (judge clicks tiles)
+  const setCurrentSpeaker = useCallback(
+    async (userId: string | null) => {
+      if (!call) return
+      const currentCustom = (call.state.custom || {}) as Record<string, any>
+
+      try {
+        await call.update({
+          custom: {
+            ...currentCustom,
+            currentSpeakerUserId: userId || undefined, // undefined clears it
+          },
+        })
+      } catch (err) {
+        console.error("Failed to update current speaker", err)
+      }
+    },
+    [call]
+  )
 
   // Handle updating participant status when user leaves
   useEffect(() => {
@@ -283,10 +314,21 @@ const MeetingRoom = ({
     }
   }, [participants, debateInfo, isStandaloneMeeting])
 
+  // 🔴 Shared current speaker logic
   const centerParticipant = useMemo(() => {
+    // 1) Shared explicit current speaker (same for everyone)
+    const sharedId = customData?.currentSpeakerUserId
+    if (sharedId) {
+      const shared = participants.find((p) => p.userId === sharedId)
+      if (shared && (isDebater(shared) || isJudge(shared))) return shared
+    }
+
+    // 2) Fallback: local dominant speaker (used only if shared is not set)
     if (dominant && (isDebater(dominant) || isJudge(dominant))) return dominant
+
+    // 3) Last fallback: first debater we found
     return anyDebater
-  }, [dominant, anyDebater])
+  }, [participants, customData?.currentSpeakerUserId, dominant, anyDebater])
 
   if (callingState === CallingState.JOINING) return <Loader />
 
@@ -373,7 +415,7 @@ const MeetingRoom = ({
                   >
                     <div className="text-center px-2">
                       <p className="text-[0.7rem] uppercase tracking-wide text-blue-300">
-                        Currently speaking
+                        CURRENTLY SPEAKING
                       </p>
                       <p className="text-sm font-semibold text-white">
                         {roleLabel} — Proposition
@@ -405,8 +447,12 @@ const MeetingRoom = ({
               return (
                 <div
                   key={p.userId ?? p.sessionId ?? `prop-${i}`}
+                  onClick={
+                    canControlCurrentSpeaker ? () => setCurrentSpeaker(p.userId) : undefined
+                  }
                   className={cn(
                     "flex-1 rounded-lg border border-blue-600/50 overflow-hidden relative",
+                    canControlCurrentSpeaker && "cursor-pointer hover:border-blue-400",
                     centerParticipant?.sessionId === p.sessionId && "ring-2 ring-blue-400"
                   )}
                 >
@@ -544,7 +590,7 @@ const MeetingRoom = ({
                   >
                     <div className="text-center px-2">
                       <p className="text-[0.7rem] uppercase tracking-wide text-red-300">
-                        Currently speaking
+                        CURRENTLY SPEAKING
                       </p>
                       <p className="text-sm font-semibold text-white">
                         {roleLabel} — Opposition
@@ -576,8 +622,12 @@ const MeetingRoom = ({
               return (
                 <div
                   key={p.userId ?? p.sessionId ?? `opp-${i}`}
+                  onClick={
+                    canControlCurrentSpeaker ? () => setCurrentSpeaker(p.userId) : undefined
+                  }
                   className={cn(
                     "flex-1 rounded-lg border border-red-600/50 overflow-hidden relative",
+                    canControlCurrentSpeaker && "cursor-pointer hover:border-red-400",
                     centerParticipant?.sessionId === p.sessionId && "ring-2 ring-red-400"
                   )}
                 >

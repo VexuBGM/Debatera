@@ -183,8 +183,7 @@ const Meeting = () => {
     }
   }
 
-  const handleRoleSelected = (roles: string[], callId: string) => {
-    setCallId(callId);
+  const handleRoleSelected = () => {
     setShowRoleSelection(false);
     // Refresh debate info to get updated participant list
     fetchDebateInfo();
@@ -315,7 +314,13 @@ const Meeting = () => {
                 }
               />
             ) : (
-              <MeetingRoom debateInfo={debateInfo} userParticipant={userParticipant} pairingId={id} />
+              <MeetingRoom
+                debateInfo={debateInfo}
+                userParticipant={userParticipant}
+                pairingId={id}
+                isJudge={isJudge}
+              />
+
             )}
           </StreamTheme>
         </StreamCall>
