@@ -51,7 +51,7 @@ const sections: Section[] = [
   {
     title: 'Admin',
     items: [
-      { label: 'Verify Tournaments', href: '/admin/verify', icon: ShieldCheck, count: 3 }, // Queue of submitted tournaments awaiting verification. // Checklist: organizer identity, ruleset, schedule, anti-abuse. Approve/Reject with notes.
+      { label: 'Verify Tournaments', href: '/admin/verify', icon: ShieldCheck }//, count: 3 }, // Queue of submitted tournaments awaiting verification. // Checklist: organizer identity, ruleset, schedule, anti-abuse. Approve/Reject with notes.
 //      { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 }, // Platform metrics: active users, debate minutes, region usage, average judges per round, reliability. // Tournament-level analytics for organizers.
 //      { label: 'Moderation', href: '/admin/moderation', icon: ShieldAlert }, //  Reports, bans/timeouts, room audit logs, permission overrides. // Reported content: debates, messages, users. // Actions: warn, suspend, ban; note history; filter by type, date, status.
     ],

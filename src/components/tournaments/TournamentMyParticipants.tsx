@@ -341,7 +341,7 @@ export default function TournamentMyParticipants({
                     return (
                       <TableRow 
                         key={member.id}
-                        className={isRegistered ? 'bg-cyan-50 dark:bg-cyan-950/20' : ''}
+                        className={isRegistered ? 'bg-gray-800 dark:bg-cyan-950/20' : ''}
                       >
                         <TableCell>
                           <input
