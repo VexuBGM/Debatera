@@ -1,208 +1,77 @@
 # Debatera
 
-A comprehensive debate hosting and organization platform with integrated feedback system.
+**Платформа за онлайн състезания по дебати**
+Debatera обединява целия процес на провеждане на онлайн дебати – организация на турнири, разпределяне на отбори и съдии, видео разговори, вграден таймер, POI логика и обратна връзка. Платформата премахва нуждата от отделни приложения като Tabbycat, SpeechWire, Discord и външни таймери.
 
-## 🚀 Production Ready
+---
 
-This project is production-ready with enterprise-grade features:
-- ✅ Security headers and input sanitization
-- ✅ Rate limiting and CORS configuration
-- ✅ Environment validation and type safety
-- ✅ Structured logging and error monitoring setup
-- ✅ Performance optimization and compression
-- ✅ Comprehensive deployment documentation
+## Основни функционалности
 
-**[📋 View Production Checklist](./PRODUCTION_CHECKLIST.md)** | **[🚀 Deployment Guide](./DEPLOYMENT.md)** | **[📊 Production Summary](./PRODUCTION_READY.md)**
+* Хостване на дебати с видео разговори и подредба според ролите.
+* Вграден таймер с персонализирани сигнали и управление на Points of Information.
+* Организация на турнири с автоматично разпределяне на отбори и съдии.
+* Verified турнири за гарантиране на реални събития.
+* Институции (училища, университети, клубове) за централизирано записване на участници.
+* Система за писмен фийдбек от съдии след дебата.
+* Частни канали за комуникация в отборите и споделяне на бележки.
 
-## Features
+---
 
-- **User Authentication**: Powered by Clerk with role-based access control
-- **Tournament Management**: Create and manage debate tournaments (verified by admins)
-- **Team Organization**: Create teams and manage team memberships
-- **Debate Hosting**: 1v1 team format debates with real-time capabilities
-- **Call-Level Roles**: Per-debate participant roles (Debater, Judge, Spectator)
-- **Judge Feedback System**: Structured feedback and voting from judges
-- **Video Integration**: Real-time video calls via Stream
+## Роли в платформата
 
-## Tech Stack
+**Участник** – участва в дебати и вижда историята си.
+**Съдия** – създава дебати, определя победител и дава обратна връзка.
+**Зрител** – гледа дебата и може да използва отделен чат.
+**Организатор** – създава турнири (подлежат на администраторско потвърждение).
+**Админ** – управлява статистики, премахва турнири, одобрява verified събития и блокира потребители.
 
-- **Frontend**: Next.js 15 with React 19
-- **Authentication**: Clerk
-- **Database**: PostgreSQL with Prisma ORM
-- **Video**: Stream SDK
-- **Styling**: Tailwind CSS
+---
 
-## Getting Started
 
-### Prerequisites
 
-- Node.js 18+
-- PostgreSQL 12+
-- npm or pnpm
+## Как се стартира приложението
 
-### Installation
+### 1. Инсталиране на зависимостите
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/VexuBGM/Debatera.git
-   cd Debatera
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Fill in your environment variables:
-   - `DATABASE_URL`: PostgreSQL connection string
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Clerk public key
-   - `CLERK_SECRET_KEY`: Clerk secret key
-   - `CLERK_WEBHOOK_SECRET`: Clerk webhook secret
-   - `NEXT_PUBLIC_STREAM_API_KEY`: Stream API key
-   - `STREAM_SECRET_KEY`: Stream secret key
-
-4. Set up the database:
-   ```bash
-   # Generate Prisma client
-   npx prisma generate
-   
-   # Run migrations
-   npx prisma migrate dev
-   
-   # Seed the database
-   npx prisma db seed
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-6. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## Database Setup
-
-For detailed database setup instructions, see [DATABASE.md](./DATABASE.md).
-
-Quick start:
 ```bash
-# Validate the database layer
-./validate-db-layer.sh
-
-# View database in Prisma Studio
-npx prisma studio
+npm install
 ```
 
-## API Documentation
+### 2. Настройка на променливи в `.env`
 
-The platform provides RESTful APIs for all core features. See [API_TESTING.md](./API_TESTING.md) for detailed endpoint documentation and testing examples.
+Добавете необходимите ключове за:
 
-### API Overview
+* база данни
+* Clerk
+* Stream
+* други услуги, използвани от проекта
 
-- **Tournaments**: Create, list, and verify tournaments
-- **Teams**: Create teams and manage memberships
-- **Debates**: Create debates, manage participants, collect feedback
-- **Roles**: Per-debate participant roles (DEBATER, JUDGE, SPECTATOR)
-- **Feedback**: Judge feedback submission and final decision setting
+(Оставям го кратко, но при нужда мога да направя примерен .env template.)
 
-## Project Structure
+### 3. Стартиране в development режим
 
-```
-/prisma
-  ├── schema.prisma       # Database schema
-  ├── seed.ts            # Seed data script
-  └── migrations/        # Database migrations
-
-/src
-  ├── app/
-  │   ├── (auth)/        # Authentication pages
-  │   ├── (main)/        # Main application pages
-  │   └── api/           # API route handlers
-  │       ├── tournaments/
-  │       ├── teams/
-  │       └── debates/
-  ├── components/        # React components
-  ├── lib/              # Utility functions
-  │   ├── prisma.ts     # Prisma client singleton
-  │   ├── auth.ts       # Authentication helpers
-  │   └── ensureUser.ts # User synchronization
-  └── providers/        # React context providers
-```
-
-## User Roles
-
-### App-Level Roles
-- **USER**: Regular users (default)
-- **ADMIN**: Platform administrators (can verify tournaments)
-
-### Call-Level Roles (Per Debate)
-- **DEBATER**: Participates in the debate (has side and speaking order)
-- **JUDGE**: Evaluates the debate and provides feedback
-- **SPECTATOR**: Watches the debate
-
-## Development
-
-### Linting
 ```bash
-npm run lint
+npm run dev
 ```
 
-### Building
+Приложението ще се стартира на:
+
+```
+http://localhost:3000
+```
+
+### 4. Build за production
+
 ```bash
 npm run build
+npm start
 ```
 
-### Database Commands
-```bash
-# Reset database (WARNING: deletes all data)
-npx prisma migrate reset
+## Защо Debatera
 
-# View/edit database
-npx prisma studio
+Платформата комбинира всички ключови процеси в едно решение – от организацията до провеждането на дебатите. Това намалява сложността, елиминира грешките между отделни системи и улеснява както организаторите, така и участниците.
 
-# Generate Prisma client after schema changes
-npx prisma generate
-```
 
-## Validation
 
-Run the validation script to ensure the database layer is properly set up:
 
-```bash
-./validate-db-layer.sh
-```
-
-This checks:
-- Prisma schema validity
-- Migration files
-- API route handlers
-- Authentication helpers
-- TypeScript compilation
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is private and proprietary.
-
-## Support
-
-For issues and questions, please open an issue in the GitHub repository.
-
-# dev (clerk webhook)
-winget install Cloudflare.cloudflared 
-cloudflared login
-cloudflared tunnel --url http://localhost:3000
-
-then clerk webhook
+Ако искаш готина по-дълга версия за GitHub (с инсталация, структура, технологии или screenshot-и), мога да я добавя.
