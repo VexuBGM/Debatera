@@ -101,33 +101,14 @@ const Meeting = () => {
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [userTeamId, setUserTeamId] = useState<string>('');
   const [isJudge, setIsJudge] = useState(false);
-  const [checkingMeetingType, setCheckingMeetingType] = useState(true);
   
   const { call, isCallLoading } = useGetCallByID(callId);
 
-  // Check if this ID is a meeting or pairing, and redirect if it's a meeting
   useEffect(() => {
-    if (!id || !isLoaded) return;
-
-    const checkMeetingType = async () => {
-      // Check if this looks like a meeting ID (starts with 'meet_')
-      if (id.startsWith('meet_')) {
-        router.replace(`/debate/meeting/${id}`);
-        return;
-      }
-      
-      // Otherwise, continue with pairing logic
-      setCheckingMeetingType(false);
-    };
-
-    checkMeetingType();
-  }, [id, isLoaded, router]);
-
-  useEffect(() => {
-    if (id && user && !checkingMeetingType) {
+    if (id && user) {
       fetchDebateInfo();
     }
-  }, [id, user, checkingMeetingType]);
+  }, [id, user]);
 
   async function fetchDebateInfo() {
     if (!id) return;

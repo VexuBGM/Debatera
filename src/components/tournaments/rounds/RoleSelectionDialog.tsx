@@ -40,7 +40,6 @@ interface RoleSelectionDialogProps {
   onClose: () => void;
   pairingId?: string;
   userTeamId?: string;
-  isStandaloneMeeting?: boolean;
   onRoleSelected?: () => void;
 }
 
@@ -55,12 +54,11 @@ export function RoleSelectionDialog({
   onClose,
   pairingId,
   userTeamId,
-  isStandaloneMeeting = false,
   onRoleSelected,
 }: RoleSelectionDialogProps) {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(!isStandaloneMeeting);
+  const [loading, setLoading] = useState(true);
   const [reserving, setReserving] = useState(false);
   const [selectedMainRole, setSelectedMainRole] = useState<string | null>(null);
   const [includeReply, setIncludeReply] = useState(false);
@@ -72,9 +70,9 @@ export function RoleSelectionDialog({
   } | null>(null);
 
   useEffect(() => {
-    if (!open || isStandaloneMeeting) return;
+    if (!open) return;
     fetchParticipants();
-  }, [open, pairingId, isStandaloneMeeting]);
+  }, [open, pairingId]);
 
   async function fetchParticipants() {
     setLoading(true);
@@ -103,13 +101,6 @@ export function RoleSelectionDialog({
 
     setReserving(true);
     try {
-      // For standalone meetings, just call the callback
-      if (isStandaloneMeeting) {
-        toast.success('Role selected successfully');
-        onRoleSelected?.();
-        return;
-      }
-
       const roles = includeReply ? [selectedMainRole, 'REPLY_SPEAKER'] : [selectedMainRole];
 
       const response = await fetch(`/api/debates/${pairingId}/reserve-role`, {
@@ -149,9 +140,7 @@ export function RoleSelectionDialog({
 
   // --- Derived tournament state (no Stream hooks) ---
 
-  const myTeamParticipants: Participant[] = isStandaloneMeeting
-    ? []
-    : participants
+  const myTeamParticipants: Participant[] = participants
     ? participants.propTeam.id === userTeamId
       ? participants.propTeam.participants
       : participants.oppTeam.id === userTeamId
@@ -169,7 +158,7 @@ export function RoleSelectionDialog({
     myTeamParticipants.filter((p) => p.role !== 'JUDGE').map((p) => p.userId),
   );
 
-  const teamFull = !isStandaloneMeeting && uniqueDebaters.size >= 3;
+  const teamFull = uniqueDebaters.size >= 3;
 
   const replyRoleTaken = myTeamParticipants.some((p) => p.role === 'REPLY_SPEAKER');
   const replyRoleTaker = myTeamParticipants.find((p) => p.role === 'REPLY_SPEAKER');
@@ -192,9 +181,7 @@ export function RoleSelectionDialog({
         <DialogHeader>
           <DialogTitle>Choose Your Role</DialogTitle>
           <DialogDescription>
-            {isStandaloneMeeting
-              ? 'Select your speaking role for this debate.'
-              : 'Select your role for this debate. Only 3 debaters per team can join.'}
+            Select your role for this debate. Only 3 debaters per team can join.
           </DialogDescription>
         </DialogHeader>
 

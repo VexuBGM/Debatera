@@ -61,39 +61,9 @@ export async function GET() {
       },
     });
 
-    // Fetch pending debate meeting invitations
-    const meetingInvites = await prisma.debateMeetingInvite.findMany({
-      where: {
-        OR: [
-          { inviteeEmail: user.email },
-          { inviteeId: userId },
-        ],
-        status: 'PENDING',
-        expiresAt: {
-          gt: new Date(), // Only get non-expired invitations
-        },
-      },
-      include: {
-        meeting: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            creatorId: true,
-            callId: true,
-            scheduledAt: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
     return NextResponse.json({
       invitations,
-      meetingInvites,
-      unreadCount: invitations.length + meetingInvites.length,
+      unreadCount: invitations.length,
     });
   } catch (error: any) {
     console.error('Error fetching notifications:', error);

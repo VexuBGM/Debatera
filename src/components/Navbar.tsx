@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import CreateMeetingButton from './CreateMeetingButton';
 import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
@@ -42,24 +41,6 @@ interface InstitutionInvite {
   };
 }
 
-interface DebateMeetingInvite {
-  id: string;
-  meetingId: string;
-  inviterId: string;
-  inviteeEmail: string;
-  role: string;
-  createdAt: string;
-  expiresAt: string;
-  meeting: {
-    id: string;
-    title: string;
-    description: string | null;
-    creatorId: string;
-    callId: string;
-    scheduledAt: string | null;
-  };
-}
-
 interface TopNavProps {
   onMenuClick?: () => void;
 }
@@ -69,7 +50,6 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
   const router = useRouter();
   const { userId } = useAuth();
   const [invitations, setInvitations] = useState<InstitutionInvite[]>([]);
-  const [meetingInvites, setMeetingInvites] = useState<DebateMeetingInvite[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
@@ -82,7 +62,6 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
       if (response.ok) {
         const data = await response.json();
         setInvitations(data.invitations || []);
-        setMeetingInvites(data.meetingInvites || []);
         setUnreadCount(data.unreadCount || 0);
       }
     } catch (error) {
@@ -151,53 +130,6 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
       }
 
       toast.success('Invitation rejected');
-      fetchNotifications(); // Refresh notifications
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setProcessingInviteId(null);
-    }
-  };
-
-  const handleAcceptMeetingInvite = async (inviteId: string) => {
-    setProcessingInviteId(inviteId);
-    try {
-      const response = await fetch(`/api/meetings/invites/${inviteId}/accept`, {
-        method: 'POST',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to accept invitation');
-      }
-
-      toast.success(`Accepted invitation to "${data.meeting.title}"!`);
-      fetchNotifications(); // Refresh notifications
-      
-      // Redirect to the meeting
-      router.push(`/debate/meeting/${data.meeting.id}`);
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setProcessingInviteId(null);
-    }
-  };
-
-  const handleRejectMeetingInvite = async (inviteId: string) => {
-    setProcessingInviteId(inviteId);
-    try {
-      const response = await fetch(`/api/meetings/invites/${inviteId}/reject`, {
-        method: 'POST',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to reject invitation');
-      }
-
-      toast.success('Meeting invitation rejected');
       fetchNotifications(); // Refresh notifications
     } catch (error: any) {
       toast.error(error.message);
@@ -276,8 +208,6 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
               </Link>
             </Button>
 
-            <CreateMeetingButton />
-
             {/* Notifications - Invites, judge assignments, round pairings, schedule changes, feedback received, moderation pings. */}
             <SignedIn>
               <DropdownMenu>
@@ -309,68 +239,12 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
-                  ) : invitations.length === 0 && meetingInvites.length === 0 ? (
+                  ) : invitations.length === 0 ? (
                     <div className="py-6 sm:py-8 text-center text-xs sm:text-sm text-muted-foreground">
                       No new notifications
                     </div>
                   ) : (
                     <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
-                      {meetingInvites.map((invite) => (
-                        <div
-                          key={invite.id}
-                          className="border-b p-2 sm:p-3 last:border-b-0"
-                        >
-                          <div className="mb-2">
-                            <p className="text-xs sm:text-sm font-medium">
-                              Debate Meeting Invitation
-                            </p>
-                            <p className="text-[10px] sm:text-xs text-muted-foreground">
-                              You have been invited to join{' '}
-                              <span className="font-semibold">{invite.meeting.title}</span>
-                              {' '}as a {invite.role.toLowerCase()}
-                            </p>
-                            {invite.meeting.description && (
-                              <p className="mt-1 text-xs text-muted-foreground italic">
-                                {invite.meeting.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="flex-1 bg-green-600 hover:bg-green-700"
-                              onClick={() => handleAcceptMeetingInvite(invite.id)}
-                              disabled={processingInviteId === invite.id}
-                            >
-                              {processingInviteId === invite.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Check className="mr-1 h-4 w-4" />
-                                  Accept
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() => handleRejectMeetingInvite(invite.id)}
-                              disabled={processingInviteId === invite.id}
-                            >
-                              {processingInviteId === invite.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <X className="mr-1 h-4 w-4" />
-                                  Reject
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
                       {invitations.map((invite) => (
                         <div
                           key={invite.id}

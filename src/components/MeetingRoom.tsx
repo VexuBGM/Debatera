@@ -69,11 +69,11 @@ const getTeam = (p: any): Team => {
   const userRole = norm(p?.user?.role)
   const customTeam = norm(p?.user?.custom?.team)
 
-  // main role from RoleChangeButton: 'judge' / 'debater' / 'spectator'
+  // Check main role from Stream
   if (roles.includes("judge") || userRole === "judge") return "judge"
   if (roles.includes("spectator") || userRole === "spectator") return "spectator"
 
-  // side from RoleChangeButton custom.team
+  // Check team side from Stream metadata
   if (customTeam === "prop" || customTeam === "proposition") return "prop"
   if (customTeam === "opp" || customTeam === "opposition") return "opp"
 
@@ -85,16 +85,13 @@ const isSpectator = (p: any) => getTeam(p) === "spectator"
 const isDebater = (p: any) => !isJudge(p) && !isSpectator(p)
 
 /**
- * Get the debate role key for a Stream participant.
- * - In tournament debates: from debateInfo (DB).
- * - In standalone meetings: from participant.user.custom.debaterRole set by RoleChangeButton.
+ * Get the debate role key for a Stream participant from debateInfo (DB).
  */
 const getParticipantRoleKey = (
   streamParticipant: any,
-  debateInfo: DebateInfo | null | undefined,
-  isStandaloneMeeting: boolean
+  debateInfo: DebateInfo | null | undefined
 ): string | null => {
-  // 1) DB-based roles when debateInfo is present
+  // DB-based roles when debateInfo is present
   if (debateInfo && streamParticipant?.userId) {
     const allDbParticipants = [
       ...debateInfo.propTeam.participants,
@@ -105,25 +102,16 @@ const getParticipantRoleKey = (
     if (match?.role) return match.role
   }
 
-  // 2) Standalone meetings – use custom.debaterRole from RoleChangeButton
-  if (isStandaloneMeeting) {
-    const metaRole = streamParticipant?.user?.custom?.debaterRole
-    if (!metaRole) return null
-    const key = metaRole.toString().trim().toUpperCase()
-    return ROLE_ORDER[key] !== undefined ? key : null
-  }
-
   return null
 }
 
 const roleSort = (
   a: any,
   b: any,
-  debateInfo: DebateInfo | null | undefined,
-  isStandaloneMeeting: boolean
+  debateInfo: DebateInfo | null | undefined
 ) => {
-  const rA = getParticipantRoleKey(a, debateInfo, isStandaloneMeeting)
-  const rB = getParticipantRoleKey(b, debateInfo, isStandaloneMeeting)
+  const rA = getParticipantRoleKey(a, debateInfo)
+  const rB = getParticipantRoleKey(b, debateInfo)
   const oA = rA ? ROLE_ORDER[rA] ?? 999 : 999
   const oB = rB ? ROLE_ORDER[rB] ?? 999 : 999
   return oA - oB
@@ -132,11 +120,10 @@ const roleSort = (
 const getRoleLabelForParticipant = (
   streamParticipant: any,
   debateInfo: DebateInfo | null | undefined,
-  isStandaloneMeeting: boolean,
   teamSide: "prop" | "opp",
   fallbackIndex: number
 ): string => {
-  // 1) DB-based label
+  // DB-based label
   if (debateInfo && streamParticipant?.userId) {
     const teamParticipants =
       teamSide === "prop"
@@ -150,11 +137,7 @@ const getRoleLabelForParticipant = (
     }
   }
 
-  // 2) Standalone metadata-based label
-  const key = getParticipantRoleKey(streamParticipant, debateInfo, isStandaloneMeeting)
-  if (key) return ROLE_LABELS[key] || key
-
-  // 3) Generic fallback
+  // Generic fallback
   return `Speaker ${fallbackIndex + 1}`
 }
 
@@ -163,14 +146,12 @@ const MeetingRoom = ({
   debateInfo,
   userParticipant,
   pairingId,
-  isStandaloneMeeting = false,
   isJudge: currentUserIsJudge = false,
 }: {
   hideControls?: boolean;
   debateInfo?: DebateInfo | null;
   userParticipant?: Participant | null;
   pairingId?: string;
-  isStandaloneMeeting?: boolean;
   isJudge?: boolean;
 }) => {
   const {
@@ -272,33 +253,14 @@ const MeetingRoom = ({
       }
 
       // Sort each team by their speaking role (1st / 2nd / 3rd / Reply)
-      propStreamParticipants.sort((a, b) => roleSort(a, b, debateInfo, isStandaloneMeeting))
-      oppStreamParticipants.sort((a, b) => roleSort(a, b, debateInfo, isStandaloneMeeting))
+      propStreamParticipants.sort((a, b) => roleSort(a, b, debateInfo))
+      oppStreamParticipants.sort((a, b) => roleSort(a, b, debateInfo))
 
       propArr = [...propStreamParticipants]
       oppArr = [...oppStreamParticipants]
 
       unknownStreamParticipants.forEach((p) => {
         if (propArr.length <= oppArr.length) propArr.push(p)
-        else oppArr.push(p)
-      })
-    } else {
-      // Standalone meeting – team & role from Stream metadata (RoleChangeButton)
-      const propExplicit = debaters.filter((p) => getTeam(p) === "prop")
-      const oppExplicit = debaters.filter((p) => getTeam(p) === "opp")
-      const unknowns = debaters.filter((p) => getTeam(p) === "unknown")
-
-      propExplicit.sort((a, b) => roleSort(a, b, debateInfo ?? null, isStandaloneMeeting))
-      oppExplicit.sort((a, b) => roleSort(a, b, debateInfo ?? null, isStandaloneMeeting))
-
-      propArr = [...propExplicit]
-      oppArr = [...oppExplicit]
-
-      unknowns.forEach((p) => {
-        const team = getTeam(p)
-        if (team === "prop") propArr.push(p)
-        else if (team === "opp") oppArr.push(p)
-        else if (propArr.length <= oppArr.length) propArr.push(p)
         else oppArr.push(p)
       })
     }
@@ -312,7 +274,7 @@ const MeetingRoom = ({
       judges: judgeList,
       anyDebater: [...propArr, ...oppArr][0],
     }
-  }, [participants, debateInfo, isStandaloneMeeting])
+  }, [participants, debateInfo])
 
   // 🔴 Shared current speaker logic
   const centerParticipant = useMemo(() => {
@@ -361,7 +323,6 @@ const MeetingRoom = ({
         <div className="flex items-center gap-3">
           {!hideControls && (
             <CustomCallControls
-              showRoleChange={isStandaloneMeeting}
               onLeave={async () => {
                 if (pairingId) {
                   try {
@@ -404,7 +365,6 @@ const MeetingRoom = ({
                 const roleLabel = getRoleLabelForParticipant(
                   p,
                   debateInfo ?? null,
-                  isStandaloneMeeting,
                   "prop",
                   i
                 )
@@ -440,7 +400,6 @@ const MeetingRoom = ({
               const roleLabel = getRoleLabelForParticipant(
                 p,
                 debateInfo ?? null,
-                isStandaloneMeeting,
                 "prop",
                 i
               )
@@ -501,8 +460,7 @@ const MeetingRoom = ({
                           : "Judge"
                       const roleKey = getParticipantRoleKey(
                         centerParticipant,
-                        debateInfo ?? null,
-                        isStandaloneMeeting
+                        debateInfo ?? null
                       )
                       const roleLabel =
                         (roleKey && ROLE_LABELS[roleKey]) || roleKey || "Speaker"
@@ -538,7 +496,7 @@ const MeetingRoom = ({
                       !centerParticipant ||
                       judge.sessionId !== centerParticipant.sessionId
                   )
-                  .sort((a, b) => roleSort(a, b, debateInfo ?? null, isStandaloneMeeting))
+                  .sort((a, b) => roleSort(a, b, debateInfo ?? null))
                   .map((judge) => (
                     <div
                       key={judge.userId ?? judge.sessionId}
@@ -580,7 +538,6 @@ const MeetingRoom = ({
                 const roleLabel = getRoleLabelForParticipant(
                   p,
                   debateInfo ?? null,
-                  isStandaloneMeeting,
                   "opp",
                   i
                 )
@@ -615,7 +572,6 @@ const MeetingRoom = ({
               const roleLabel = getRoleLabelForParticipant(
                 p,
                 debateInfo ?? null,
-                isStandaloneMeeting,
                 "opp",
                 i
               )

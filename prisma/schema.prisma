@@ -312,43 +312,6 @@ model DebateResult {
   @@index([loserTeamId])
 }
 
-model DebateMeeting {
-  id          String                @id @default(dbgenerated("('meet_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  title       String
-  description String?
-  creatorId   String                @db.VarChar(128)
-  callId      String                @db.VarChar(256)
-  status      String                @default("SCHEDULED")
-  scheduledAt DateTime?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  invites     DebateMeetingInvite[]
-
-  @@index([creatorId])
-  @@index([callId])
-}
-
-model DebateMeetingInvite {
-  id           String        @id @default(dbgenerated("('minv_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  meetingId    String        @db.VarChar(128)
-  inviterId    String        @db.VarChar(128)
-  inviteeEmail String        @db.VarChar(256)
-  inviteeId    String?       @db.VarChar(128)
-  role         String
-  status       InviteStatus  @default(PENDING)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  expiresAt    DateTime
-  respondedAt  DateTime?
-  meeting      DebateMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-
-  @@index([meetingId])
-  @@index([inviterId])
-  @@index([inviteeId])
-  @@index([inviteeEmail])
-  @@index([status])
-}
-
 model AdminAction {
   id           String     @id @default(dbgenerated("('admin_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
   adminId      String     @db.VarChar(128)
