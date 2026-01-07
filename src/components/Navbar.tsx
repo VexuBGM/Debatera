@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +47,6 @@ interface TopNavProps {
 
 export default function TopNav({ onMenuClick }: TopNavProps = {}) {
   const pathname = usePathname();
-  const router = useRouter();
   const { userId } = useAuth();
   const [invitations, setInvitations] = useState<InstitutionInvite[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);

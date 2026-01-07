@@ -170,7 +170,6 @@ const Meeting = () => {
     fetchDebateInfo();
   };
 
-  if (checkingMeetingType) return <Loader />;
   if (!isLoaded || isCallLoading || loadingDebateInfo) return <Loader />;
 
   // User is not a participant - show access denied
