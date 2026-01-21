@@ -597,3 +597,54 @@ export async function promoteMemberToAdmin(
 
   return { success: true };
 }
+
+// ============================================================================
+// INSTITUTION DELETION
+// ============================================================================
+
+/**
+ * Delete an institution (admin only).
+ * Requires the institution name to be provided for confirmation.
+ */
+export async function deleteInstitution(
+  institutionId: string,
+  confirmationName: string
+): Promise<SimpleResult> {
+  const currentUser = await ensureLocalUserFromClerk();
+  if (!currentUser) {
+    return { success: false, error: 'Not authenticated' };
+  }
+
+  // Get the institution
+  const institution = await prisma.institution.findUnique({
+    where: { id: institutionId },
+    select: { id: true, name: true },
+  });
+
+  if (!institution) {
+    return { success: false, error: 'Institution not found' };
+  }
+
+  // Verify the confirmation name matches
+  if (confirmationName.trim().toLowerCase() !== institution.name.toLowerCase()) {
+    return { success: false, error: 'Institution name does not match' };
+  }
+
+  // Check if current user is admin of the institution
+  const membership = await prisma.institutionMember.findUnique({
+    where: {
+      institutionId_userId: { institutionId, userId: currentUser.id },
+    },
+  });
+
+  if (!membership || membership.role !== InstitutionRole.ADMIN) {
+    return { success: false, error: 'Only institution admins can delete the institution' };
+  }
+
+  // Delete the institution (cascade will handle members, invitations, etc.)
+  await prisma.institution.delete({
+    where: { id: institutionId },
+  });
+
+  return { success: true };
+}

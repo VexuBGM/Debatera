@@ -65,6 +65,7 @@ import {
   leaveInstitution,
   removeMember,
   promoteMemberToAdmin,
+  deleteInstitution,
 } from '@/actions/invitation.actions';
 
 interface InstitutionMember {
@@ -118,6 +119,9 @@ export default function InstitutionDetailPage() {
   const [isInviting, setIsInviting] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [processingMemberId, setProcessingMemberId] = useState<string | null>(null);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
 
@@ -262,6 +266,27 @@ export default function InstitutionDetailPage() {
     }
   };
 
+  const handleDeleteInstitution = async () => {
+    if (!deleteConfirmName.trim()) {
+      toast.error('Please type the institution name to confirm');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteInstitution(institutionId, deleteConfirmName);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      toast.success('Institution deleted successfully');
+      router.push('/institutions');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete institution');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
@@ -338,6 +363,61 @@ export default function InstitutionDetailPage() {
                           <LogOut className="mr-2 h-4 w-4" />
                         )}
                         Leave Institution
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+              {isAdmin && (
+                <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+                  setShowDeleteDialog(open);
+                  if (!open) setDeleteConfirmName('');
+                }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-500/10">
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Delete
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Institution</DialogTitle>
+                      <DialogDescription>
+                        This action cannot be undone. This will permanently delete the institution,
+                        all memberships, and pending invitations.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Label htmlFor="confirmName" className="text-sm font-medium">
+                        Type <span className="font-bold text-foreground">{institution.name}</span> to confirm:
+                      </Label>
+                      <Input
+                        id="confirmName"
+                        value={deleteConfirmName}
+                        onChange={(e) => setDeleteConfirmName(e.target.value)}
+                        placeholder="Enter institution name"
+                        className="mt-2"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => {
+                        setShowDeleteDialog(false);
+                        setDeleteConfirmName('');
+                      }}>
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteInstitution}
+                        disabled={isDeleting || deleteConfirmName.trim().toLowerCase() !== institution.name.toLowerCase()}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete Institution
                       </Button>
                     </DialogFooter>
                   </DialogContent>
