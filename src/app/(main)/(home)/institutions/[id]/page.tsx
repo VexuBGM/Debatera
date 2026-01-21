@@ -1,27 +1,77 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Building2, Users, Trophy, ArrowLeft, Plus, Loader2, Shield, User, Calendar } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Building2,
+  Users,
+  ArrowLeft,
+  Shield,
+  User,
+  UserPlus,
+  MoreHorizontal,
+  LogOut,
+  Trash2,
+  Crown,
+  Mail,
+  Clock,
+  X,
+  Loader2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import {
+  createInstitutionInvitation,
+  getInstitutionPendingInvitations,
+  revokeInstitutionInvite,
+  leaveInstitution,
+  removeMember,
+  promoteMemberToAdmin,
+} from '@/actions/invitation.actions';
 
 interface InstitutionMember {
   id: string;
   userId: string;
-  isCoach: boolean;
-  joinedAt: string;
+  role: 'ADMIN' | 'MEMBER';
+  createdAt: string;
   user: {
     id: string;
     username: string | null;
@@ -30,56 +80,50 @@ interface InstitutionMember {
   };
 }
 
-interface TournamentTeam {
+interface PendingInvitation {
   id: string;
-  name: string;
-  teamNumber: number;
+  role: 'ADMIN' | 'MEMBER';
+  status: string;
   createdAt: string;
-  tournament: {
+  invitedUser: {
     id: string;
-    name: string;
+    email: string | null;
+    username: string | null;
+    imageUrl: string | null;
+  };
+  createdBy: {
+    id: string;
+    email: string | null;
+    username: string | null;
   };
 }
 
 interface Institution {
   id: string;
   name: string;
-  description: string | null;
   createdAt: string;
-  createdBy: {
-    id: string;
-    username: string | null;
-    email: string | null;
-  };
   members: InstitutionMember[];
-  teams: TournamentTeam[];
-  _count: {
-    members: number;
-    teams: number;
-  };
+  registrations?: { id: string }[];
 }
 
 export default function InstitutionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { userId } = useAuth();
-  const { user } = useUser();
   const [institution, setInstitution] = useState<Institution | null>(null);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
-  const [isAddingMember, setIsAddingMember] = useState(false);
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [newMemberIsCoach, setNewMemberIsCoach] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [inviteIdentifier, setInviteIdentifier] = useState('');
+  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'MEMBER'>('MEMBER');
+  const [isInviting, setIsInviting] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [processingMemberId, setProcessingMemberId] = useState<string | null>(null);
+  const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
 
   const institutionId = params.id as string;
 
-  useEffect(() => {
-    fetchInstitution();
-  }, [institutionId]);
-
-  const fetchInstitution = async () => {
+  const fetchInstitution = useCallback(async () => {
     try {
       const response = await fetch(`/api/institutions/${institutionId}`);
       if (!response.ok) {
@@ -92,94 +136,131 @@ export default function InstitutionDetailPage() {
       }
       const data = await response.json();
       setInstitution(data);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [institutionId, router]);
 
-  const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsAddingMember(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/institutions/${institutionId}/members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: newMemberEmail,
-          isCoach: newMemberIsCoach,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send invitation');
-      }
-
-      toast.success('Invitation sent successfully! The user will be notified.');
-      setIsAddMemberOpen(false);
-      setNewMemberEmail('');
-      setNewMemberIsCoach(false);
-      fetchInstitution();
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
-    } finally {
-      setIsAddingMember(false);
+  const fetchPendingInvitations = useCallback(async () => {
+    if (!institutionId) return;
+    const result = await getInstitutionPendingInvitations(institutionId);
+    if (result.success) {
+      setPendingInvitations(result.invitations as PendingInvitation[]);
     }
-  };
+  }, [institutionId]);
 
-  const handleRemoveMember = async (memberUserId: string, isSelf: boolean) => {
-    const confirmMessage = isSelf
-      ? 'Are you sure you want to leave this institution?'
-      : 'Are you sure you want to remove this member from the institution?';
-
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    setRemovingMemberId(memberUserId);
-
-    try {
-      const response = await fetch(`/api/institutions/${institutionId}/members`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: memberUserId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to remove member');
-      }
-
-      toast.success(data.message);
-
-      // If user left themselves, redirect to institutions page
-      if (isSelf) {
-        router.push('/institutions');
-      } else {
-        fetchInstitution();
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setRemovingMemberId(null);
-    }
-  };
-
-  const isCoach = institution?.members.find(
-    (m) => m.userId === userId && m.isCoach
+  const isAdmin = institution?.members.find(
+    (m) => m.userId === userId && m.role === 'ADMIN'
   );
 
   const isMember = institution?.members.find((m) => m.userId === userId);
-  const isCreator = institution?.createdBy.id === userId;
+
+  useEffect(() => {
+    fetchInstitution();
+  }, [fetchInstitution]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchPendingInvitations();
+    }
+  }, [isAdmin, fetchPendingInvitations]);
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteIdentifier.trim()) {
+      toast.error('Please enter an email or username');
+      return;
+    }
+
+    setIsInviting(true);
+    try {
+      const result = await createInstitutionInvitation(
+        institutionId,
+        inviteIdentifier.trim(),
+        inviteRole
+      );
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      toast.success('Invitation sent successfully!');
+      setInviteIdentifier('');
+      setInviteRole('MEMBER');
+      fetchPendingInvitations();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to send invitation');
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleRevokeInvite = async (invitationId: string) => {
+    setProcessingInviteId(invitationId);
+    try {
+      const result = await revokeInstitutionInvite(invitationId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      toast.success('Invitation revoked');
+      fetchPendingInvitations();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to revoke invitation');
+    } finally {
+      setProcessingInviteId(null);
+    }
+  };
+
+  const handleLeave = async () => {
+    setIsLeaving(true);
+    try {
+      const result = await leaveInstitution(institutionId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      toast.success('You have left the institution');
+      router.push('/institutions');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to leave institution');
+    } finally {
+      setIsLeaving(false);
+      setShowLeaveDialog(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    setProcessingMemberId(memberId);
+    try {
+      const result = await removeMember(institutionId, memberId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      toast.success('Member removed');
+      fetchInstitution();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove member');
+    } finally {
+      setProcessingMemberId(null);
+    }
+  };
+
+  const handlePromoteMember = async (memberId: string) => {
+    setProcessingMemberId(memberId);
+    try {
+      const result = await promoteMemberToAdmin(institutionId, memberId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      toast.success('Member promoted to admin');
+      fetchInstitution();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to promote member');
+    } finally {
+      setProcessingMemberId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -187,11 +268,6 @@ export default function InstitutionDetailPage() {
         <Skeleton className="h-6 sm:h-8 w-32 sm:w-48 mb-3 sm:mb-4" />
         <Skeleton className="h-8 sm:h-12 w-64 sm:w-96 mb-2" />
         <Skeleton className="h-4 sm:h-6 w-full max-w-2xl mb-6 sm:mb-8" />
-        <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 mb-6 sm:mb-8">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
       </div>
     );
   }
@@ -202,325 +278,313 @@ export default function InstitutionDetailPage() {
 
   return (
     <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
-      <div className="mb-4 sm:mb-6">
+      {/* Header */}
+      <div className="mb-6 sm:mb-8">
         <Link href="/institutions">
-          <Button variant="ghost" size="sm" className="mb-3 sm:mb-4 text-xs sm:text-sm">
-            <ArrowLeft className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            Back to Institutions
+          <Button variant="ghost" size="sm" className="mb-3 sm:mb-4 -ml-2 sm:-ml-3 h-8 sm:h-9 text-sm">
+            <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            All Institutions
           </Button>
         </Link>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 sm:gap-3 mb-2">
               <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-cyan-500 shrink-0" />
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold wrap-break-word">{institution.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold truncate">{institution.name}</h1>
             </div>
-            {institution.description && (
-              <p className="text-sm sm:text-base text-muted-foreground max-w-3xl">
-                {institution.description}
-              </p>
-            )}
-            <p className="text-sm text-muted-foreground mt-2">
-              Created by {institution.createdBy.username || institution.createdBy.email} on{' '}
-              {new Date(institution.createdAt).toLocaleDateString()}
-            </p>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {isMember && (
+                <Badge variant="outline" className="text-xs sm:text-sm">
+                  {isAdmin ? (
+                    <>
+                      <Shield className="mr-1 h-3 w-3" /> Admin
+                    </>
+                  ) : (
+                    <>
+                      <User className="mr-1 h-3 w-3" /> Member
+                    </>
+                  )}
+                </Badge>
+              )}
+              {isMember && (
+                <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
+                      <LogOut className="mr-1 h-3 w-3" />
+                      Leave
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Leave Institution</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to leave {institution.name}? You will need to be
+                        invited again to rejoin.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleLeave}
+                        disabled={isLeaving}
+                      >
+                        {isLeaving ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <LogOut className="mr-2 h-4 w-4" />
+                        )}
+                        Leave Institution
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 mb-6 sm:mb-8">
+      {/* Stats */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 mb-6 sm:mb-8">
         <Card>
-          <CardHeader className="pb-2 sm:pb-3">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Total Members
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-1.5 sm:gap-2">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs sm:text-sm">Members</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
               <Users className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />
-              <span className="text-xl sm:text-2xl font-bold">{institution._count.members}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2 sm:pb-3">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Tournament Teams
+              {institution.members.length}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-cyan-500" />
-              <span className="text-2xl font-bold">{institution._count.teams}</span>
-            </div>
-          </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Your Role
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs sm:text-sm">Tournament Registrations</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">
+              {institution.registrations?.length ?? 0}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              {isCoach ? (
-                <>
-                  <Shield className="h-5 w-5 text-cyan-500" />
-                  <span className="text-2xl font-bold">Coach</span>
-                </>
-              ) : institution.members.find((m) => m.userId === userId) ? (
-                <>
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">Member</span>
-                </>
-              ) : (
-                <>
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-lg font-medium text-muted-foreground">Not a member</span>
-                </>
-              )}
-            </div>
-          </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="members" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="teams">Teams</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="members">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Members</CardTitle>
-                  <CardDescription>
-                    Manage institution members and coaches
-                  </CardDescription>
-                </div>
-                {isCoach && (
-                  <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="bg-cyan-500 hover:bg-cyan-600">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Member
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Invite Member</DialogTitle>
-                        <DialogDescription>
-                          Send an invitation to join your institution. The user will receive a notification and must accept.
-                        </DialogDescription>
-                      </DialogHeader>
-                      {error && (
-                        <Alert variant="destructive">
-                          <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                      )}
-                      <form onSubmit={handleAddMember} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="userId">
-                            Email <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="userId"
-                            value={newMemberEmail}
-                            onChange={(e) => setNewMemberEmail(e.target.value)}
-                            placeholder="example@gmail.com"
-                            required
-                            disabled={isAddingMember}
-                          />
-                          <p className="text-sm text-muted-foreground">
-                            The email of the user to add as a member.
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id="isCoach"
-                            checked={newMemberIsCoach}
-                            onChange={(e) => setNewMemberIsCoach(e.target.checked)}
-                            disabled={isAddingMember}
-                            className="rounded border-gray-300"
-                          />
-                          <Label htmlFor="isCoach" className="cursor-pointer">
-                            Make this user a coach
-                          </Label>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button
-                            type="submit"
-                            disabled={isAddingMember || !newMemberEmail.trim()}
-                            className="bg-cyan-500 hover:bg-cyan-600"
-                          >
-                            {isAddingMember ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Sending...
-                              </>
-                            ) : (
-                              'Send Invitation'
-                            )}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setIsAddMemberOpen(false);
-                              setError(null);
-                            }}
-                            disabled={isAddingMember}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                )}
+      {/* Admin Section: Invite Members */}
+      {isAdmin && (
+        <Card className="mb-6 sm:mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-cyan-500" />
+              Invite Members
+            </CardTitle>
+            <CardDescription>
+              Invite new members by their email address or username
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Label htmlFor="identifier" className="sr-only">
+                  Email or Username
+                </Label>
+                <Input
+                  id="identifier"
+                  placeholder="Enter email or username..."
+                  value={inviteIdentifier}
+                  onChange={(e) => setInviteIdentifier(e.target.value)}
+                  className="w-full"
+                />
               </div>
-            </CardHeader>
-            <CardContent>
+              <div className="w-full sm:w-40">
+                <Label htmlFor="role" className="sr-only">
+                  Role
+                </Label>
+                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as 'ADMIN' | 'MEMBER')}>
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MEMBER">Member</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={isInviting} className="bg-cyan-500 hover:bg-cyan-600">
+                {isInviting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="mr-2 h-4 w-4" />
+                )}
+                Send Invite
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Admin Section: Pending Invitations */}
+      {isAdmin && pendingInvitations.length > 0 && (
+        <Card className="mb-6 sm:mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+              <Clock className="h-5 w-5 text-yellow-500" />
+              Pending Invitations
+            </CardTitle>
+            <CardDescription>
+              {pendingInvitations.length} pending invitation
+              {pendingInvitations.length !== 1 ? 's' : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {pendingInvitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                      <Mail className="h-4 w-4 text-yellow-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {invitation.invitedUser.username || invitation.invitedUser.email || 'Unknown user'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Invited as {invitation.role.toLowerCase()} •{' '}
+                        {new Date(invitation.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRevokeInvite(invitation.id)}
+                    disabled={processingInviteId === invitation.id}
+                    className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                  >
+                    {processingInviteId === invitation.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <X className="mr-1 h-4 w-4" />
+                        Revoke
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Members Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg sm:text-xl">Members</CardTitle>
+          <CardDescription>
+            {institution.members.length} member{institution.members.length !== 1 ? 's' : ''} in this institution
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {institution.members.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No members yet.</p>
+          ) : (
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-xs sm:text-sm">User</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Role</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Joined</TableHead>
+                    {isAdmin && <TableHead className="text-xs sm:text-sm w-10"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {institution.members.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No members yet
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    institution.members.map((member) => {
-                      const isSelf = member.userId === userId;
-                      const canRemove = isSelf || (isCoach && member.userId !== institution.createdBy.id);
-                      const isRemovingThis = removingMemberId === member.userId;
-
-                      return (
-                        <TableRow key={member.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {member.user.username || member.user.email || 'Unknown User'}
-                                {isSelf && <span className="text-cyan-500 ml-2">(You)</span>}
-                                {member.userId === institution.createdBy.id && (
-                                  <Badge variant="outline" className="ml-2">Creator</Badge>
-                                )}
-                              </div>
-                              {member.user.email && member.user.username && (
-                                <div className="text-sm text-muted-foreground">
-                                  {member.user.email}
-                                </div>
-                              )}
+                  {institution.members.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="text-xs sm:text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                            {(member.user?.username || member.user?.email || '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium truncate max-w-[120px] sm:max-w-none">
+                              {member.user?.username || member.user?.email || 'Unknown'}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {member.isCoach ? (
-                              <Badge className="bg-cyan-500">Coach</Badge>
-                            ) : (
-                              <Badge variant="outline">Member</Badge>
+                            {member.userId === userId && (
+                              <span className="text-[10px] sm:text-xs text-muted-foreground">(You)</span>
                             )}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(member.joinedAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {canRemove ? (
-                              <Button
-                                variant={isSelf ? "outline" : "destructive"}
-                                size="sm"
-                                onClick={() => handleRemoveMember(member.userId, isSelf)}
-                                disabled={isRemovingThis}
-                              >
-                                {isRemovingThis ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    {isSelf ? 'Leaving...' : 'Removing...'}
-                                  </>
-                                ) : (
-                                  isSelf ? 'Leave' : 'Remove'
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={member.role === 'ADMIN' ? 'default' : 'secondary'}
+                          className="text-[10px] sm:text-xs"
+                        >
+                          {member.role === 'ADMIN' ? (
+                            <>
+                              <Shield className="mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                              Admin
+                            </>
+                          ) : (
+                            'Member'
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-muted-foreground">
+                        {new Date(member.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          {member.userId !== userId && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  disabled={processingMemberId === member.id}
+                                >
+                                  {processingMemberId === member.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {member.role !== 'ADMIN' && (
+                                  <DropdownMenuItem
+                                    onClick={() => handlePromoteMember(member.id)}
+                                  >
+                                    <Crown className="mr-2 h-4 w-4" />
+                                    Promote to Admin
+                                  </DropdownMenuItem>
                                 )}
-                              </Button>
-                            ) : member.userId === institution.createdBy.id ? (
-                              <span className="text-xs text-muted-foreground">Cannot remove creator</span>
-                            ) : null}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleRemoveMember(member.id)}
+                                  className="text-red-500 focus:text-red-500"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Remove Member
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="teams">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tournament Teams</CardTitle>
-              <CardDescription>
-                Teams representing this institution in tournaments
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {institution.teams.length === 0 ? (
-                <div className="text-center py-12">
-                  <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Teams are created when registering for tournaments
-                  </p>
-                  <Link href="/tournaments">
-                    <Button>Browse Tournaments</Button>
-                  </Link>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Team Name</TableHead>
-                      <TableHead>Tournament</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {institution.teams.map((team) => (
-                      <TableRow key={team.id}>
-                        <TableCell className="font-medium">{team.name}</TableCell>
-                        <TableCell>{team.tournament.name}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(team.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <Link href={`/tournament-teams/${team.id}`}>
-                            <Button variant="ghost" size="sm">
-                              View
-                            </Button>
-                          </Link>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

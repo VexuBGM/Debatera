@@ -1,75 +1,123 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
+import prisma from '@/lib/prisma';
+import { ensureUserInDB } from '@/lib/ensureUser';
 
 export const runtime = 'nodejs';
 
 /**
  * GET /api/notifications
- * Fetch all pending invitations and notifications for the current user
+ * Fetch notifications for the current user.
+ * Query params:
+ * - unreadOnly: 'true' to only fetch unread notifications
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  await ensureUserInDB();
+
+  const { searchParams } = new URL(req.url);
+  const unreadOnly = searchParams.get('unreadOnly') === 'true';
+
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: {
+        userId,
+        ...(unreadOnly ? { isRead: false } : {}),
+      },
+      orderBy: [
+        { isRead: 'asc' }, // Unread first
+        { createdAt: 'desc' },
+      ],
+      take: 50,
+    });
+
+    // For institution invite notifications, fetch additional data
+    const enrichedNotifications = await Promise.all(
+      notifications.map(async (notification) => {
+        if (notification.type === 'INSTITUTION_INVITE' && notification.entityId) {
+          const invitation = await prisma.institutionInvitation.findUnique({
+            where: { id: notification.entityId },
+            include: {
+              institution: {
+                select: { id: true, name: true },
+              },
+              createdBy: {
+                select: { id: true, username: true, email: true, imageUrl: true },
+              },
+            },
+          });
+
+          return {
+            ...notification,
+            invitation: invitation
+              ? {
+                  id: invitation.id,
+                  role: invitation.role,
+                  status: invitation.status,
+                  institution: invitation.institution,
+                  createdBy: invitation.createdBy,
+                }
+              : null,
+          };
+        }
+        return notification;
+      })
+    );
+
+    // Get unread count
+    const unreadCount = await prisma.notification.count({
+      where: {
+        userId,
+        isRead: false,
+      },
+    });
+
+    return NextResponse.json({
+      notifications: enrichedNotifications,
+      unreadCount,
+    });
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/notifications
+ * Mark notifications as read.
+ * Body: { notificationIds?: string[], markAllRead?: boolean }
+ */
+export async function PATCH(req: Request) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    // Get user's email for matching invitations
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true },
-    });
+    const { notificationIds, markAllRead } = await req.json();
 
-    if (!user || !user.email) {
-      return NextResponse.json({ 
-        invitations: [] 
+    if (markAllRead) {
+      await prisma.notification.updateMany({
+        where: { userId },
+        data: { isRead: true },
+      });
+    } else if (notificationIds && Array.isArray(notificationIds)) {
+      await prisma.notification.updateMany({
+        where: {
+          id: { in: notificationIds },
+          userId, // Ensure user owns these notifications
+        },
+        data: { isRead: true },
       });
     }
 
-    // Fetch pending institution invitations
-    const invitations = await prisma.institutionInvite.findMany({
-      where: {
-        OR: [
-          { inviteeEmail: user.email },
-          { inviteeId: userId },
-        ],
-        status: 'PENDING',
-        expiresAt: {
-          gt: new Date(), // Only get non-expired invitations
-        },
-      },
-      include: {
-        institution: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        inviter: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            imageUrl: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    return NextResponse.json({
-      invitations,
-      unreadCount: invitations.length,
-    });
-  } catch (error: any) {
-    console.error('Error fetching notifications:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch notifications' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Error updating notifications:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

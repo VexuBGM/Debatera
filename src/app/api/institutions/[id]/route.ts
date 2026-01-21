@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { auth } from '@clerk/nextjs/server';
+import { getInstitution } from '@/lib/services/mvp';
 
 export const runtime = 'nodejs';
 
@@ -15,53 +14,7 @@ export async function GET(
   try {
     const { id } = await params;
     
-    const institution = await prisma.institution.findUnique({
-      where: { id },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            imageUrl: true,
-          },
-        },
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                email: true,
-                imageUrl: true,
-              },
-            },
-          },
-          orderBy: {
-            joinedAt: 'asc',
-          },
-        },
-        teams: {
-          include: {
-            tournament: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-        _count: {
-          select: {
-            members: true,
-            teams: true,
-          },
-        },
-      },
-    });
+    const institution = await getInstitution(id);
 
     if (!institution) {
       return NextResponse.json({ error: 'Institution not found' }, { status: 404 });
@@ -73,3 +26,4 @@ export async function GET(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+

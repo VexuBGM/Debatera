@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Building2, Plus, Search, Users, Trophy } from 'lucide-react';
+import { Building2, Plus, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Institution {
@@ -17,7 +16,7 @@ interface Institution {
   createdAt: string;
   _count: {
     members: number;
-    teams: number;
+    registrations: number;
   };
 }
 
@@ -36,8 +35,8 @@ export default function InstitutionsPage() {
       if (!response.ok) throw new Error('Failed to fetch institutions');
       const data = await response.json();
       setInstitutions(data);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load');
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +56,7 @@ export default function InstitutionsPage() {
               <h1 className="text-3xl font-bold">Institutions</h1>
             </div>
             <p className="text-muted-foreground">
-              Browse institutions or create your own to manage teams and tournaments.
+              Browse institutions or create your own to join tournaments.
             </p>
           </div>
           <Link href="/institutions/new" className="w-full sm:w-auto">
@@ -119,22 +118,18 @@ export default function InstitutionsPage() {
             <Link key={institution.id} href={`/institutions/${institution.id}`}>
               <Card className="h-full hover:border-cyan-500/50 transition-colors cursor-pointer">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-start justify-between text-base sm:text-lg">
-                    <span className="line-clamp-1">{institution.name}</span>
+                  <CardTitle className="text-base sm:text-lg line-clamp-1">
+                    {institution.name}
                   </CardTitle>
                   <CardDescription className="line-clamp-2 min-h-8 sm:min-h-10 text-xs sm:text-sm">
                     {institution.description || 'No description provided'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                  <div className="flex gap-4 text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       <span>{institution._count.members} members</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      <span>{institution._count.teams} teams</span>
                     </div>
                   </div>
                   <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-muted-foreground">

@@ -1,25 +1,26 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
 import {
-  isCoach,
-  getUserInstitutionId,
-  canModifyRoster,
-  isInstitutionRegisteredForTournament,
-} from '@/lib/tournament-validation';
+  registerInstitution,
+  unregisterInstitution,
+  getRegistration,
+  isInstitutionAdmin,
+  getUserInstitutions,
+  getTournament,
+} from '@/lib/services/mvp';
 
 export const runtime = 'nodejs';
 
 /**
  * POST /api/tournaments/[id]/register-institution
- * Register an institution for a tournament (coaches only)
+ * Register an institution for a tournament (admins only)
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: currentUserId } = await auth();
-  if (!currentUserId) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -27,94 +28,49 @@ export async function POST(
     const { id: tournamentId } = await params;
 
     // Check if tournament exists
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-    });
-
+    const tournament = await getTournament(tournamentId);
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    // Check roster freeze - block registration if frozen
-    const modifyCheck = await canModifyRoster(currentUserId, tournamentId);
-    if (!modifyCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Registration is closed. Tournament roster is frozen.' },
-        { status: 423 }
-      );
-    }
-
-    // Get current user's institution
-    const institutionId = await getUserInstitutionId(currentUserId);
-    if (!institutionId) {
+    // Get user's institution memberships
+    const memberships = await getUserInstitutions(userId);
+    if (memberships.length === 0) {
       return NextResponse.json(
         { error: 'You must be a member of an institution to register' },
         { status: 400 }
       );
     }
 
-    // Check if current user is a coach
-    const isUserCoach = await isCoach(currentUserId, institutionId);
-    if (!isUserCoach) {
+    // Use the first institution (for MVP simplicity)
+    const institutionId = memberships[0].institutionId;
+
+    // Check if user is admin of the institution
+    const isAdmin = await isInstitutionAdmin(userId, institutionId);
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: 'Only coaches can register institutions for tournaments' },
+        { error: 'Only institution admins can register for tournaments' },
         { status: 403 }
       );
     }
 
-    // Check if institution is already registered
-    const alreadyRegistered = await isInstitutionRegisteredForTournament(
-      institutionId,
-      tournamentId
-    );
-
-    if (alreadyRegistered) {
+    // Check if already registered
+    const existing = await getRegistration(tournamentId, institutionId);
+    if (existing) {
       return NextResponse.json(
         { error: 'Institution is already registered for this tournament' },
         { status: 409 }
       );
     }
 
-    // Determine initial status based on tournament registration type
-    const initialStatus = tournament.registrationType === 'OPEN' ? 'APPROVED' : 'PENDING';
-    const approvalData = tournament.registrationType === 'OPEN' 
-      ? { approvedAt: new Date(), approvedById: tournament.ownerId }
-      : {};
-
-    // Create the registration
-    const registration = await prisma.tournamentInstitutionRegistration.create({
-      data: {
-        tournamentId,
-        institutionId,
-        registeredById: currentUserId,
-        status: initialStatus,
-        ...approvalData,
-      },
-      include: {
-        institution: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        tournament: {
-          select: {
-            id: true,
-            name: true,
-            registrationType: true,
-          },
-        },
-      },
-    });
+    // Register the institution (auto-approved for MVP)
+    const registration = await registerInstitution(tournamentId, institutionId);
 
     return NextResponse.json({
       ...registration,
-      message: tournament.registrationType === 'OPEN' 
-        ? 'Institution registered successfully'
-        : 'Registration submitted for approval. You will be notified once it is approved.',
+      message: 'Institution registered successfully',
     }, { status: 201 });
-  } catch (err: any) {
+  } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -122,66 +78,42 @@ export async function POST(
 
 /**
  * DELETE /api/tournaments/[id]/register-institution
- * Unregister an institution from a tournament (coaches only)
+ * Unregister an institution from a tournament (admins only)
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: currentUserId } = await auth();
-  if (!currentUserId) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const { id: tournamentId } = await params;
 
-    // Check if tournament exists
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-    });
-
-    if (!tournament) {
-      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
-    }
-
-    // Check roster freeze - block unregistration if frozen
-    const modifyCheck = await canModifyRoster(currentUserId, tournamentId);
-    if (!modifyCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Cannot unregister. Tournament roster is frozen.' },
-        { status: 423 }
-      );
-    }
-
-    // Get current user's institution
-    const institutionId = await getUserInstitutionId(currentUserId);
-    if (!institutionId) {
+    // Get user's institution
+    const memberships = await getUserInstitutions(userId);
+    if (memberships.length === 0) {
       return NextResponse.json(
         { error: 'You must be a member of an institution' },
         { status: 400 }
       );
     }
 
-    // Check if current user is a coach
-    const isUserCoach = await isCoach(currentUserId, institutionId);
-    if (!isUserCoach) {
+    const institutionId = memberships[0].institutionId;
+
+    // Check if user is admin
+    const isAdmin = await isInstitutionAdmin(userId, institutionId);
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: 'Only coaches can unregister institutions from tournaments' },
+        { error: 'Only institution admins can unregister from tournaments' },
         { status: 403 }
       );
     }
 
-    // Check if institution is registered
-    const registration = await prisma.tournamentInstitutionRegistration.findUnique({
-      where: {
-        tournamentId_institutionId: {
-          tournamentId,
-          institutionId,
-        },
-      },
-    });
-
+    // Check if registered
+    const registration = await getRegistration(tournamentId, institutionId);
     if (!registration) {
       return NextResponse.json(
         { error: 'Institution is not registered for this tournament' },
@@ -189,75 +121,15 @@ export async function DELETE(
       );
     }
 
-    // Get counts for response
-    const teamsCount = await prisma.tournamentTeam.count({
-      where: {
-        tournamentId,
-        institutionId,
-      },
-    });
+    // Unregister
+    await unregisterInstitution(tournamentId, institutionId);
 
-    // Get user IDs from institution members to delete their participations
-    const institutionMembers = await prisma.institutionMember.findMany({
-      where: {
-        institutionId,
-      },
-      select: {
-        userId: true,
-      },
-    });
-
-    const userIds = institutionMembers.map((member) => member.userId);
-
-    // Count participations that will be deleted
-    const participationsCount = await prisma.tournamentParticipation.count({
-      where: {
-        tournamentId,
-        userId: {
-          in: userIds,
-        },
-      },
-    });
-
-    // Perform cascading deletion in a transaction
-    await prisma.$transaction([
-      // 1. Delete all tournament teams from this institution
-      prisma.tournamentTeam.deleteMany({
-        where: {
-          tournamentId,
-          institutionId,
-        },
-      }),
-      // 2. Delete all participations from institution members
-      // Note: Team participations are automatically nullified due to onDelete: SetNull
-      prisma.tournamentParticipation.deleteMany({
-        where: {
-          tournamentId,
-          userId: {
-            in: userIds,
-          },
-        },
-      }),
-      // 3. Delete the institution registration
-      prisma.tournamentInstitutionRegistration.delete({
-        where: {
-          id: registration.id,
-        },
-      }),
-    ]);
-
-    return NextResponse.json(
-      {
-        message: 'Institution successfully unregistered from tournament',
-        deleted: {
-          teams: teamsCount,
-          participations: participationsCount,
-        },
-      },
-      { status: 200 }
-    );
-  } catch (err: any) {
+    return NextResponse.json({
+      message: 'Institution successfully unregistered from tournament',
+    }, { status: 200 });
+  } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+

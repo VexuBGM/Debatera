@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
+import { ensureUserInDB } from '@/lib/ensureUser';
 
 export const runtime = 'nodejs';
 
@@ -8,11 +9,13 @@ export const runtime = 'nodejs';
  * GET /api/user/me
  * Get current user information
  */
-export async function GET(req: Request) {
+export async function GET() {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await ensureUserInDB();
 
   try {
     const user = await prisma.user.findUnique({
@@ -22,7 +25,6 @@ export async function GET(req: Request) {
         email: true,
         username: true,
         imageUrl: true,
-        role: true,
         createdAt: true,
       },
     });

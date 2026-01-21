@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { generateRound, isTournamentOwner, getTournament } from '@/lib/services/mvp';
 
 // GET /api/tournaments/[id]/rounds - Get all rounds for a tournament
 export async function GET(
@@ -15,75 +16,14 @@ export async function GET(
 
     const { id: tournamentId } = await params;
 
-    // Verify tournament exists
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-    });
+    // Get tournament with rounds
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    // Get all rounds with pairings
-    const rounds = await prisma.round.findMany({
-      where: { tournamentId },
-      include: {
-        roundPairings: {
-          include: {
-            propTeam: {
-              include: {
-                institution: true,
-                participations: {
-                  where: { role: 'DEBATER' },
-                  include: {
-                    user: true,
-                  },
-                },
-              },
-            },
-            oppTeam: {
-              include: {
-                institution: true,
-                participations: {
-                  where: { role: 'DEBATER' },
-                  include: {
-                    user: true,
-                  },
-                },
-              },
-            },
-            judges: {
-              include: {
-                participation: {
-                  include: {
-                    user: true,
-                    institution: true,
-                  },
-                },
-              },
-              orderBy: { isChair: 'desc' },
-            },
-            result: {
-              include: {
-                winnerTeam: {
-                  include: {
-                    institution: true,
-                  },
-                },
-                loserTeam: {
-                  include: {
-                    institution: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { number: 'asc' },
-    });
-
-    return NextResponse.json(rounds);
+    return NextResponse.json(tournament.rounds);
   } catch (error) {
     console.error('Error fetching rounds:', error);
     return NextResponse.json(
@@ -93,7 +33,7 @@ export async function GET(
   }
 }
 
-// POST /api/tournaments/[id]/rounds - Create a new round
+// POST /api/tournaments/[id]/rounds - Generate a new round with pairings
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -107,45 +47,30 @@ export async function POST(
     const { id: tournamentId } = await params;
 
     // Verify user is tournament owner
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-    });
-
-    if (!tournament) {
-      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
-    }
-
-    if (tournament.ownerId !== userId) {
+    const isOwner = await isTournamentOwner(userId, tournamentId);
+    if (!isOwner) {
       return NextResponse.json(
-        { error: 'Only tournament owner can create rounds' },
+        { error: 'Only tournament owner can generate rounds' },
         { status: 403 }
       );
     }
 
-    // Get the current round count
+    // Get current round count to determine next round number
     const roundCount = await prisma.round.count({
       where: { tournamentId },
     });
 
-    const newRoundNumber = roundCount + 1;
+    const nextRoundNumber = roundCount + 1;
 
-    // Create new round
-    const round = await prisma.round.create({
-      data: {
-        tournamentId,
-        number: newRoundNumber,
-        name: `Round ${newRoundNumber}`,
-      },
-      include: {
-        roundPairings: true,
-      },
-    });
+    // Generate the round with pairings
+    const round = await generateRound(tournamentId, nextRoundNumber);
 
     return NextResponse.json(round, { status: 201 });
   } catch (error) {
     console.error('Error creating round:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create round';
     return NextResponse.json(
-      { error: 'Failed to create round' },
+      { error: message },
       { status: 500 }
     );
   }

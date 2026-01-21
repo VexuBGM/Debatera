@@ -53,32 +53,23 @@ const HomePage = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [tournamentsRes, institutionsRes, notificationsRes] = await Promise.all([
+      const [tournamentsRes, institutionsRes] = await Promise.all([
         fetch('/api/tournaments'),
         fetch('/api/institutions'),
-        fetch('/api/notifications')
       ]);
 
       const tournaments = await tournamentsRes.json();
       const institutions = await institutionsRes.json();
-      const notifications = await notificationsRes.json();
-
-      // Filter upcoming tournaments (within next 30 days)
-      const now = new Date();
-      const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      const upcoming = tournaments.filter((t: UpcomingTournament) => {
-        const startDate = new Date(t.startDate);
-        return startDate >= now && startDate <= thirtyDaysFromNow;
-      });
 
       setStats({
-        tournamentsCount: tournaments.length,
-        institutionsCount: institutions.length,
-        upcomingDebates: 0, // Will be calculated when debates feature is implemented
-        notifications: notifications.institutionInvites?.length || 0
+        tournamentsCount: Array.isArray(tournaments) ? tournaments.length : 0,
+        institutionsCount: Array.isArray(institutions) ? institutions.length : 0,
+        upcomingDebates: 0,
+        notifications: 0
       });
 
-      setUpcomingTournaments(upcoming.slice(0, 3));
+      // No upcoming tournaments filter for MVP (no startDate field)
+      setUpcomingTournaments([]);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       toast.error('Failed to load dashboard data');

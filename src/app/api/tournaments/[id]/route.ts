@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { auth } from '@clerk/nextjs/server';
+import { getTournament } from '@/lib/services/mvp';
 
 export const runtime = 'nodejs';
 
 /**
  * GET /api/tournaments/[id]
- * Fetch tournament details including rosterFreezeAt
+ * Fetch tournament details with registrations and rounds
  */
 export async function GET(
   req: Request,
@@ -15,41 +14,16 @@ export async function GET(
   try {
     const { id: tournamentId } = await params;
 
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-      include: {
-        frozenBy: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-        _count: {
-          select: {
-            teams: true,
-            participations: true,
-          },
-        },
-      },
-    });
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    // Add a computed field to indicate if roster is currently frozen
-    const isFrozen = tournament.rosterFreezeAt ? new Date() >= tournament.rosterFreezeAt : false;
-
-    return NextResponse.json(
-      {
-        ...tournament,
-        isRosterFrozen: isFrozen,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json(tournament, { status: 200 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
