@@ -2,24 +2,20 @@ import React from 'react'
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Users } from 'lucide-react';
-
-type Tournament = {
-    id: string;
-    name: string;
-    status: 'DRAFT' | 'PUBLISHED';
-    createdAt: string;
-    _count: {
-      registrations: number;
-      rounds: number;
-    };
-}
+import prisma from '@/lib/prisma';
 
 const Tournaments = async () => {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/tournaments`, {cache: 'no-store'})
-  if (!res.ok) {
-    throw new Error('Failed to fetch tournaments')
-  }
-  const tournaments: Tournament[] = await res.json()
+  const tournaments = await prisma.tournament.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      _count: {
+        select: {
+          registrations: true,
+          rounds: true,
+        },
+      },
+    },
+  });
   
   return (
     <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
