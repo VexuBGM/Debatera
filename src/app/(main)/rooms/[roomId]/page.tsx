@@ -7,10 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, Video, Trophy, Loader2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Video, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -36,11 +33,6 @@ interface RoomInfo {
       id: string;
       institution: { id: string; name: string };
     } | null;
-    feedback: Array<{
-      id: string;
-      judgeUserId: string;
-      winner: string;
-    }>;
   };
   canAccess: boolean;
 }
@@ -48,16 +40,9 @@ interface RoomInfo {
 export default function RoomPage() {
   const params = useParams();
   const router = useRouter();
-  const { userId } = useAuth();
+  const { } = useAuth();
   const [room, setRoom] = useState<RoomInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
-  
-  // Feedback form state
-  const [winner, setWinner] = useState<'AFF' | 'NEG' | 'NONE'>('NONE');
-  const [affFeedback, setAffFeedback] = useState('');
-  const [negFeedback, setNegFeedback] = useState('');
 
   const roomId = params.roomId as string;
 
@@ -79,46 +64,10 @@ export default function RoomPage() {
       }
       const data = await response.json();
       setRoom(data);
-      
-      // Check if current user already submitted feedback
-      if (data.match?.feedback?.some((f: { judgeUserId: string }) => f.judgeUserId === userId)) {
-        setFeedbackSubmitted(true);
-      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Failed to load');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSubmitFeedback = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!room) return;
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/rooms/${roomId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          winner,
-          affFeedback: affFeedback.trim() || undefined,
-          negFeedback: negFeedback.trim() || undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to submit feedback');
-      }
-
-      toast.success('Feedback submitted successfully!');
-      setFeedbackSubmitted(true);
-      fetchRoom(); // Refresh to show updated data
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to submit');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -189,7 +138,7 @@ export default function RoomPage() {
 
       {/* Join Call Button */}
       {room.canAccess && (
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
               <Video className="h-5 w-5" />
@@ -204,105 +153,6 @@ export default function RoomPage() {
                 Join Video Call
               </Button>
             </Link>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Feedback Form */}
-      {!isBye && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Judge Feedback</CardTitle>
-            <CardDescription>
-              {feedbackSubmitted 
-                ? 'You have already submitted feedback for this match.'
-                : 'Submit your feedback and decision for this debate.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {feedbackSubmitted ? (
-              <div className="text-center py-8">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-lg font-medium">Feedback Submitted</p>
-                <p className="text-muted-foreground mt-2">
-                  Thank you for judging this debate.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitFeedback} className="space-y-6">
-                {/* Winner Selection */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Winner *</Label>
-                  <RadioGroup value={winner} onValueChange={(v) => setWinner(v as 'AFF' | 'NEG' | 'NONE')}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="AFF" id="aff" />
-                      <Label htmlFor="aff" className="cursor-pointer">
-                        <Badge className="bg-green-600 mr-2">AFF</Badge>
-                        {room.match.affRegistration.institution.name}
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="NEG" id="neg" />
-                      <Label htmlFor="neg" className="cursor-pointer">
-                        <Badge className="bg-orange-600 mr-2">NEG</Badge>
-                        {room.match.negRegistration!.institution.name}
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="NONE" id="none" />
-                      <Label htmlFor="none" className="cursor-pointer">No decision / Draw</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                {/* AFF Feedback */}
-                <div className="space-y-2">
-                  <Label htmlFor="affFeedback">
-                    Feedback for {room.match.affRegistration.institution.name} (AFF)
-                  </Label>
-                  <Textarea
-                    id="affFeedback"
-                    value={affFeedback}
-                    onChange={(e) => setAffFeedback(e.target.value)}
-                    placeholder="Optional feedback for the affirmative team..."
-                    rows={3}
-                    maxLength={2000}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                {/* NEG Feedback */}
-                <div className="space-y-2">
-                  <Label htmlFor="negFeedback">
-                    Feedback for {room.match.negRegistration!.institution.name} (NEG)
-                  </Label>
-                  <Textarea
-                    id="negFeedback"
-                    value={negFeedback}
-                    onChange={(e) => setNegFeedback(e.target.value)}
-                    placeholder="Optional feedback for the negative team..."
-                    rows={3}
-                    maxLength={2000}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="bg-cyan-500 hover:bg-cyan-600 w-full sm:w-auto"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    'Submit Feedback'
-                  )}
-                </Button>
-              </form>
-            )}
           </CardContent>
         </Card>
       )}

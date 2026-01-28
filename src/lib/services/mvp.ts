@@ -5,11 +5,10 @@
  * - Institutions (create, join, list members)
  * - Tournaments (create, register, list)
  * - Rounds/Matches (generate pairings, create rooms)
- * - Feedback (submit and view)
  */
 
 import { prisma } from '@/lib/prisma';
-import { InstitutionRole, TournamentStatus, RegistrationStatus, FeedbackWinner } from '@prisma/client';
+import { InstitutionRole, TournamentStatus, RegistrationStatus } from '@prisma/client';
 
 // ============================================================================
 // INSTITUTION SERVICES
@@ -135,7 +134,6 @@ export async function getTournament(tournamentId: string) {
               affRegistration: { include: { institution: true } },
               negRegistration: { include: { institution: true } },
               room: true,
-              feedback: true,
             },
           },
         },
@@ -296,9 +294,6 @@ export async function getRound(tournamentId: string, roundNumber: number) {
           affRegistration: { include: { institution: true } },
           negRegistration: { include: { institution: true } },
           room: true,
-          feedback: {
-            include: { judge: true },
-          },
         },
       },
     },
@@ -313,7 +308,6 @@ export async function getMatch(matchId: string) {
       affRegistration: { include: { institution: true } },
       negRegistration: { include: { institution: true } },
       room: true,
-      feedback: { include: { judge: true } },
     },
   });
 }
@@ -331,7 +325,6 @@ export async function getRoom(roomId: string) {
           round: { include: { tournament: true } },
           affRegistration: { include: { institution: true } },
           negRegistration: { include: { institution: true } },
-          feedback: { include: { judge: true } },
         },
       },
     },
@@ -347,60 +340,9 @@ export async function getRoomByMatchId(matchId: string) {
           round: { include: { tournament: true } },
           affRegistration: { include: { institution: true } },
           negRegistration: { include: { institution: true } },
-          feedback: { include: { judge: true } },
         },
       },
     },
-  });
-}
-
-// ============================================================================
-// FEEDBACK SERVICES
-// ============================================================================
-
-export async function submitFeedback(
-  matchId: string,
-  judgeUserId: string,
-  data: {
-    affFeedback?: string;
-    negFeedback?: string;
-    winner: FeedbackWinner;
-  }
-) {
-  return prisma.feedback.upsert({
-    where: {
-      matchId_judgeUserId: { matchId, judgeUserId },
-    },
-    update: {
-      affFeedback: data.affFeedback,
-      negFeedback: data.negFeedback,
-      winner: data.winner,
-    },
-    create: {
-      matchId,
-      judgeUserId,
-      affFeedback: data.affFeedback,
-      negFeedback: data.negFeedback,
-      winner: data.winner,
-    },
-    include: { judge: true, match: true },
-  });
-}
-
-export async function getFeedback(matchId: string) {
-  return prisma.feedback.findMany({
-    where: { matchId },
-    include: { judge: true },
-    orderBy: { createdAt: 'desc' },
-  });
-}
-
-export async function getUserFeedbackForMatch(matchId: string, userId: string) {
-  return prisma.feedback.findUnique({
-    where: {
-      matchId_judgeUserId: { matchId, judgeUserId: userId },
-    },
-    include: { judge: true },
   });
 }
 
@@ -409,7 +351,7 @@ export async function getUserFeedbackForMatch(matchId: string, userId: string) {
 // ============================================================================
 
 /**
- * Check if a user can access a match (either as participant or judge)
+ * Check if a user can access a match (as a participant)
  */
 export async function canUserAccessMatch(userId: string, matchId: string): Promise<boolean> {
   const match = await prisma.match.findUnique({
@@ -429,7 +371,6 @@ export async function canUserAccessMatch(userId: string, matchId: string): Promi
           },
         },
       },
-      feedback: true,
     },
   });
 
@@ -442,9 +383,6 @@ export async function canUserAccessMatch(userId: string, matchId: string): Promi
   // Check if user is in NEG institution (if not BYE)
   const negMembers = match.negRegistration?.institution?.members || [];
   if (negMembers.some((m) => m.userId === userId)) return true;
-
-  // Check if user submitted feedback (is a judge)
-  if (match.feedback.some((f) => f.judgeUserId === userId)) return true;
 
   return false;
 }
