@@ -38,7 +38,6 @@ model Institution {
 
   // Relationships
   members       InstitutionMember[]
-  registrations TournamentRegistration[]
   invitations   InstitutionInvitation[]
 }
 
@@ -66,95 +65,14 @@ model InstitutionMember {
 // ============================================================================
 // TOURNAMENT MODELS
 // ============================================================================
-enum TournamentStatus {
-  DRAFT
-  PUBLISHED
-}
-
 model Tournament {
   id              String           @id @default(dbgenerated("('tourn_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
   name            String
-  status          TournamentStatus @default(DRAFT)
   createdByUserId String           @db.VarChar(128)
   createdAt       DateTime         @default(now())
 
   // Relationships
   createdBy     User                     @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-  registrations TournamentRegistration[]
-  rounds        Round[]
-}
-
-enum RegistrationStatus {
-  PENDING
-  APPROVED
-}
-
-model TournamentRegistration {
-  id            String             @id @default(dbgenerated("('reg_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  tournamentId  String             @db.VarChar(128)
-  institutionId String             @db.VarChar(128)
-  status        RegistrationStatus @default(APPROVED) // Auto-approve for MVP
-  createdAt     DateTime           @default(now())
-
-  // Relationships
-  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-
-  // Match relationships (as AFF or NEG team)
-  affMatches Match[] @relation("AffTeam")
-  negMatches Match[] @relation("NegTeam")
-
-  @@unique([tournamentId, institutionId])
-  @@index([tournamentId])
-  @@index([institutionId])
-}
-
-// ============================================================================
-// ROUND & MATCH MODELS
-// ============================================================================
-model Round {
-  id           String   @id @default(dbgenerated("('rnd_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  tournamentId String   @db.VarChar(128)
-  number       Int
-  createdAt    DateTime @default(now())
-
-  // Relationships
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  matches    Match[]
-
-  @@unique([tournamentId, number])
-  @@index([tournamentId])
-}
-
-model Match {
-  id                String   @id @default(dbgenerated("('match_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  roundId           String   @db.VarChar(128)
-  affRegistrationId String   @db.VarChar(128)
-  negRegistrationId String?  @db.VarChar(128) // Nullable for BYE matches
-  createdAt         DateTime @default(now())
-
-  // Relationships
-  round           Round                   @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  affRegistration TournamentRegistration  @relation("AffTeam", fields: [affRegistrationId], references: [id], onDelete: Cascade)
-  negRegistration TournamentRegistration? @relation("NegTeam", fields: [negRegistrationId], references: [id], onDelete: Cascade)
-  room            Room?
-
-  @@index([roundId])
-  @@index([affRegistrationId])
-  @@index([negRegistrationId])
-}
-
-// ============================================================================
-// ROOM MODEL (Video Call)
-// ============================================================================
-model Room {
-  id           String   @id @default(dbgenerated("('room_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  matchId      String   @unique @db.VarChar(128)
-  streamCallId String   @db.VarChar(256) // GetStream call ID
-  createdAt    DateTime @default(now())
-
-  // Relationships
-  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================================
