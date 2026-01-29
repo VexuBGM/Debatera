@@ -1,6 +1,5 @@
 import React from 'react'
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { Trophy, Users } from 'lucide-react';
 import prisma from '@/lib/prisma';
 
@@ -10,8 +9,7 @@ const Tournaments = async () => {
     include: {
       _count: {
         select: {
-          registrations: true,
-          rounds: true,
+          tournamentInstitutions: true,
         },
       },
     },
@@ -39,19 +37,15 @@ const Tournaments = async () => {
                     <Trophy className="h-5 w-5 text-cyan-500" />
                     <h2 className="text-base sm:text-lg font-medium">{t.name}</h2>
                   </div>
-                  <Badge variant={t.status === 'PUBLISHED' ? 'default' : 'secondary'}>
-                    {t.status}
-                  </Badge>
                 </div>
                 
                 <div className="flex flex-wrap gap-4 text-xs sm:text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    <span>{t._count.registrations} institution{t._count.registrations !== 1 ? 's' : ''}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <span>{t._count.rounds} round{t._count.rounds !== 1 ? 's' : ''}</span>
+                    <span>
+                      {t._count.tournamentInstitutions} institution
+                      {t._count.tournamentInstitutions !== 1 ? 's' : ''}
+                    </span>
                   </div>
                   
                   <div className="text-xs">

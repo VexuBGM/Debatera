@@ -18,11 +18,13 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relationships
-  institutionMemberships    InstitutionMember[]
-  tournamentsCreated        Tournament[]
-  invitationsReceived       InstitutionInvitation[] @relation("InvitedUser")
-  invitationsCreated        InstitutionInvitation[] @relation("InvitationCreator")
-  notifications             Notification[]
+  institutionMemberships InstitutionMember[]
+  tournamentsCreated     Tournament[]
+  tournamentInstitutions TournamentInstitution[]
+  tournamentParticipants TournamentParticipant[]
+  invitationsReceived    InstitutionInvitation[] @relation("InvitedUser")
+  invitationsCreated     InstitutionInvitation[] @relation("InvitationCreator")
+  notifications          Notification[]
 
   @@index([email])
   @@index([username])
@@ -37,8 +39,10 @@ model Institution {
   createdAt DateTime @default(now())
 
   // Relationships
-  members       InstitutionMember[]
-  invitations   InstitutionInvitation[]
+  members                InstitutionMember[]
+  invitations            InstitutionInvitation[]
+  tournamentInstitutions TournamentInstitution[]
+  tournamentParticipants TournamentParticipant[]
 }
 
 enum InstitutionRole {
@@ -66,13 +70,67 @@ model InstitutionMember {
 // TOURNAMENT MODELS
 // ============================================================================
 model Tournament {
-  id              String           @id @default(dbgenerated("('tourn_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  name            String
-  createdByUserId String           @db.VarChar(128)
-  createdAt       DateTime         @default(now())
+  id                   String    @id @default(dbgenerated("('tourn_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  name                 String
+  createdByUserId      String    @db.VarChar(128)
+  createdAt            DateTime  @default(now())
+  registrationClosesAt DateTime?
 
   // Relationships
-  createdBy     User                     @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdBy              User                    @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  tournamentInstitutions TournamentInstitution[]
+  tournamentParticipants TournamentParticipant[]
+}
+
+// ============================================================================
+// TOURNAMENT REGISTRATION MODELS
+// ============================================================================
+
+enum TournamentInstitutionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TournamentParticipantRole {
+  DEBATER
+  JUDGE
+}
+
+model TournamentInstitution {
+  id                String                      @id @default(cuid())
+  tournamentId      String                      @db.VarChar(128)
+  institutionId     String                      @db.VarChar(128)
+  status            TournamentInstitutionStatus @default(PENDING)
+  requestedByUserId String                      @db.VarChar(128)
+  createdAt         DateTime                    @default(now())
+
+  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  requestedBy User        @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, institutionId])
+  @@index([tournamentId])
+  @@index([institutionId])
+  @@index([requestedByUserId])
+}
+
+model TournamentParticipant {
+  id            String                    @id @default(cuid())
+  tournamentId  String                    @db.VarChar(128)
+  userId        String                    @db.VarChar(128)
+  institutionId String                    @db.VarChar(128)
+  role          TournamentParticipantRole
+  createdAt     DateTime                  @default(now())
+
+  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
+  @@index([institutionId])
 }
 
 // ============================================================================

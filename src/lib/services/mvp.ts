@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { InstitutionRole, TournamentStatus } from '@prisma/client';
+import { InstitutionRole } from '@prisma/client';
 
 // ============================================================================
 // INSTITUTION SERVICES
@@ -98,7 +98,6 @@ export async function createTournament(name: string, userId: string) {
   return prisma.tournament.create({
     data: {
       name,
-      status: TournamentStatus.DRAFT,
       createdByUserId: userId,
     },
   });
@@ -125,7 +124,8 @@ export async function getTournament(tournamentId: string) {
 export async function publishTournament(tournamentId: string) {
   return prisma.tournament.update({
     where: { id: tournamentId },
-    data: { status: TournamentStatus.PUBLISHED },
+    // Tournament.status was removed in 20260128124553_add_tournament_registration_models
+    data: {},
   });
 }
 
