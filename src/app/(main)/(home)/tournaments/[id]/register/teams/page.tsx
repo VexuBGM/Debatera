@@ -1,0 +1,102 @@
+import {
+    getTournamentTeamsPageData,
+    getInstitutionTeamState,
+} from '@/actions/teams.actions';
+import { isRegistrationClosed } from '@/lib/tournament-utils';
+import { auth } from '@clerk/nextjs/server';
+import { redirect, notFound } from 'next/navigation';
+import { ManageTeamsBoard } from './_components/ManageTeamsBoard';
+import { AllTeamsList } from './_components/AllTeamsList';
+
+interface TeamsPageProps {
+    params: Promise<{ id: string }>;
+}
+
+/**
+ * Tournament Teams Page
+ * 
+ * Shows:
+ * - Team management board (if user can manage any institution)
+ * - Read-only list of all teams
+ */
+export default async function TeamsPage({ params }: TeamsPageProps) {
+    const { id: tournamentId } = await params;
+    const { userId } = await auth();
+
+    if (!userId) {
+        redirect('/sign-in');
+    }
+
+    const result = await getTournamentTeamsPageData(tournamentId);
+
+    if (!result.success || !result.data) {
+        notFound();
+    }
+
+    const {
+        tournament,
+        allTeams,
+        manageableInstitutions,
+        currentUserParticipantInstitutionId
+    } = result.data;
+
+    const isLocked = isRegistrationClosed(tournament.registrationClosesAt);
+
+    // Determine default institution to manage:
+    // 1. If user is a participant, use their institution (if manageable)
+    // 2. Otherwise, use the first manageable institution
+    let defaultInstitutionId: string | null = null;
+    if (manageableInstitutions.length > 0) {
+        const participantInst = manageableInstitutions.find(
+            i => i.id === currentUserParticipantInstitutionId
+        );
+        defaultInstitutionId = participantInst?.id ?? manageableInstitutions[0].id;
+    }
+
+    // Fetch initial state for default institution (if any)
+    let initialTeamState = null;
+    if (defaultInstitutionId) {
+        const stateResult = await getInstitutionTeamState(tournamentId, defaultInstitutionId);
+        if (stateResult.success && stateResult.data) {
+            initialTeamState = stateResult.data;
+        }
+    }
+
+    return (
+        <div className="container mx-auto py-6 px-4 space-y-8">
+            {/* Header */}
+            <div className="space-y-2">
+                <h1 className="text-2xl font-bold text-white">
+                    Team Management - {tournament.name}
+                </h1>
+                <p className="text-white/70">
+                    Teams must have {tournament.teamMinSize}-{tournament.teamMaxSize} members.
+                    {isLocked && (
+                        <span className="ml-2 text-red-400 font-medium">
+                            (Registration closed - read-only mode)
+                        </span>
+                    )}
+                </p>
+            </div>
+
+            {/* Management Board (if user can manage at least one institution) */}
+            {manageableInstitutions.length > 0 && (
+                <ManageTeamsBoard
+                    tournamentId={tournamentId}
+                    tournament={tournament}
+                    manageableInstitutions={manageableInstitutions}
+                    defaultInstitutionId={defaultInstitutionId!}
+                    initialTeamState={initialTeamState}
+                    isLocked={isLocked}
+                />
+            )}
+
+            {/* All Teams (read-only) */}
+            <AllTeamsList
+                allTeams={allTeams}
+                teamMinSize={tournament.teamMinSize}
+                teamMaxSize={tournament.teamMaxSize}
+            />
+        </div>
+    );
+}

@@ -164,6 +164,9 @@ export default function TournamentDetailPage() {
         <Link href={`/tournaments/${tournament.id}/register/members`} className="w-full sm:w-auto">
           <Button className="w-full sm:w-auto">Register institution / members</Button>
         </Link>
+        <Link href={`/tournaments/${tournament.id}/register/teams`} className="w-full sm:w-auto sm:ml-auto">
+          <Button className="w-full sm:w-auto">Register teams</Button>
+        </Link>
       </div>
 
       {/* Tournament Info */}
