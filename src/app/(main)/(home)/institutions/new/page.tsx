@@ -2,22 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Building2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
 export default function CreateInstitutionPage() {
   const router = useRouter();
-  const { userId } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -26,7 +22,6 @@ export default function CreateInstitutionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
 
     try {
       const response = await fetch('/api/institutions', {
@@ -41,11 +36,10 @@ export default function CreateInstitutionPage() {
         throw new Error(data.error || 'Failed to create institution');
       }
 
-      toast.success('Institution created successfully! You are now a coach.');
+      toast.success('Institution created! You are now an admin.');
       router.push(`/institutions/${data.id}`);
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create');
     } finally {
       setIsLoading(false);
     }
@@ -65,21 +59,15 @@ export default function CreateInstitutionPage() {
           <h1 className="text-3xl font-bold">Create Institution</h1>
         </div>
         <p className="text-muted-foreground">
-          Create a new institution (school or organization) and automatically become a coach.
+          Create a new institution and become its admin.
         </p>
       </div>
-
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
 
       <Card>
         <CardHeader>
           <CardTitle>Institution Details</CardTitle>
           <CardDescription>
-            As the creator, you'll be assigned as a coach and can manage members and teams.
+            As the creator, you&apos;ll be assigned as admin and can manage members.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,9 +85,6 @@ export default function CreateInstitutionPage() {
                 maxLength={120}
                 disabled={isLoading}
               />
-              <p className="text-sm text-muted-foreground">
-                This will be displayed on teams and in tournaments.
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -108,31 +93,18 @@ export default function CreateInstitutionPage() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="e.g., Harvard Debate Society - Competitive parliamentary debate team"
+                placeholder="Brief description of your institution..."
                 rows={4}
-                maxLength={2000}
+                maxLength={500}
                 disabled={isLoading}
               />
-              <p className="text-sm text-muted-foreground">
-                Optional: Add information about your institution or debate program.
-              </p>
-            </div>
-
-            <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
-              <h3 className="font-semibold text-cyan-500 mb-2">What happens next?</h3>
-              <ul className="text-sm space-y-1 text-muted-foreground">
-                <li>• You'll be assigned as a <strong>coach</strong></li>
-                <li>• You can add students and other coaches</li>
-                <li>• You can create teams for tournaments</li>
-                <li>• Members can only belong to one institution</li>
-              </ul>
             </div>
 
             <div className="flex gap-3">
               <Button
                 type="submit"
-                disabled={isLoading || !formData.name.trim()}
                 className="bg-cyan-500 hover:bg-cyan-600"
+                disabled={isLoading || !formData.name.trim()}
               >
                 {isLoading ? (
                   <>

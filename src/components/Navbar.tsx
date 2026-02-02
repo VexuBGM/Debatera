@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,27 +19,44 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { acceptInstitutionInvite, declineInstitutionInvite } from '@/actions/invitation.actions';
 
-interface InstitutionInvite {
+interface InstitutionInviteNotification {
   id: string;
-  institutionId: string;
-  inviterId: string;
-  inviteeEmail: string;
-  isCoach: boolean;
+  type: 'INSTITUTION_INVITE';
+  title: string;
+  message: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  isRead: boolean;
   createdAt: string;
-  expiresAt: string;
-  institution: {
+  invitation: {
     id: string;
-    name: string;
-    description: string | null;
-  };
-  inviter: {
-    id: string;
-    username: string | null;
-    email: string | null;
-    imageUrl: string | null;
-  };
+    role: 'ADMIN' | 'MEMBER';
+    status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED';
+    institution: {
+      id: string;
+      name: string;
+    };
+    createdBy: {
+      id: string;
+      username: string | null;
+      email: string | null;
+      imageUrl: string | null;
+    };
+  } | null;
 }
+
+interface GeneralNotification {
+  id: string;
+  type: 'GENERAL';
+  title: string;
+  message: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+type NotificationItem = InstitutionInviteNotification | GeneralNotification;
 
 interface TopNavProps {
   onMenuClick?: () => void;
@@ -48,19 +65,21 @@ interface TopNavProps {
 export default function TopNav({ onMenuClick }: TopNavProps = {}) {
   const pathname = usePathname();
   const { userId } = useAuth();
-  const [invitations, setInvitations] = useState<InstitutionInvite[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
+    if (!userId) return;
+    
+    setIsLoadingNotifications(true);
     try {
-      setIsLoadingNotifications(true);
       const response = await fetch('/api/notifications');
       if (response.ok) {
         const data = await response.json();
-        setInvitations(data.invitations || []);
+        setNotifications(data.notifications || []);
         setUnreadCount(data.unreadCount || 0);
       }
     } catch (error) {
@@ -68,9 +87,9 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
     } finally {
       setIsLoadingNotifications(false);
     }
-  };
+  }, [userId]);
 
-  const checkAdminStatus = async () => {
+  const checkAdminStatus = useCallback(async () => {
     if (!userId) return;
     
     try {
@@ -82,56 +101,52 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
     } catch (error) {
       console.error('Error checking admin status:', error);
     }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    checkAdminStatus();
-    
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
   }, [userId]);
 
-  const handleAcceptInvite = async (inviteId: string) => {
-    setProcessingInviteId(inviteId);
+  useEffect(() => {
+    if (userId) {
+      fetchNotifications();
+      checkAdminStatus();
+    }
+    
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(() => {
+      if (userId) fetchNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [userId, fetchNotifications, checkAdminStatus]);
+
+  const handleAcceptInvite = async (invitationId: string) => {
+    setProcessingInviteId(invitationId);
     try {
-      const response = await fetch(`/api/invitations/${inviteId}/accept`, {
-        method: 'POST',
-      });
+      const result = await acceptInstitutionInvite(invitationId);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to accept invitation');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to accept invitation');
       }
 
-      toast.success(`Joined ${data.institution.name}!`);
+      toast.success('You have joined the institution!');
       fetchNotifications(); // Refresh notifications
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to accept invitation');
     } finally {
       setProcessingInviteId(null);
     }
   };
 
-  const handleRejectInvite = async (inviteId: string) => {
-    setProcessingInviteId(inviteId);
+  const handleRejectInvite = async (invitationId: string) => {
+    setProcessingInviteId(invitationId);
     try {
-      const response = await fetch(`/api/invitations/${inviteId}/reject`, {
-        method: 'POST',
-      });
+      const result = await declineInstitutionInvite(invitationId);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to reject invitation');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to decline invitation');
       }
 
-      toast.success('Invitation rejected');
+      toast.success('Invitation declined');
       fetchNotifications(); // Refresh notifications
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to decline invitation');
     } finally {
       setProcessingInviteId(null);
     }
@@ -238,63 +253,104 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
-                  ) : invitations.length === 0 ? (
+                  ) : notifications.length === 0 ? (
                     <div className="py-6 sm:py-8 text-center text-xs sm:text-sm text-muted-foreground">
                       No new notifications
                     </div>
                   ) : (
                     <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
-                      {invitations.map((invite) => (
-                        <div
-                          key={invite.id}
-                          className="border-b p-3 last:border-b-0"
-                        >
-                          <div className="mb-2">
-                            <p className="text-sm font-medium">
-                              Institution Invitation
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {invite.inviter.username || invite.inviter.email} invited you to join{' '}
-                              <span className="font-semibold">{invite.institution.name}</span>
-                              {invite.isCoach && ' as a coach'}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="flex-1 bg-green-600 hover:bg-green-700"
-                              onClick={() => handleAcceptInvite(invite.id)}
-                              disabled={processingInviteId === invite.id}
-                            >
-                              {processingInviteId === invite.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Check className="mr-1 h-4 w-4" />
-                                  Accept
-                                </>
+                      {notifications.map((notification) => {
+                        // Handle Institution Invite notifications
+                        if (notification.type === 'INSTITUTION_INVITE') {
+                          const inviteNotif = notification as InstitutionInviteNotification;
+                          const invitation = inviteNotif.invitation;
+                          
+                          // Skip if invitation doesn't exist or is not pending
+                          if (!invitation || invitation.status !== 'PENDING') {
+                            return (
+                              <div key={notification.id} className="border-b p-3 last:border-b-0 opacity-60">
+                                <p className="text-sm text-muted-foreground">
+                                  {notification.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {invitation ? `Status: ${invitation.status.toLowerCase()}` : 'Invitation no longer available'}
+                                </p>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={notification.id}
+                              className={cn(
+                                "border-b p-3 last:border-b-0",
+                                !notification.isRead && "bg-cyan-500/5"
                               )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() => handleRejectInvite(invite.id)}
-                              disabled={processingInviteId === invite.id}
                             >
-                              {processingInviteId === invite.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <X className="mr-1 h-4 w-4" />
-                                  Reject
-                                </>
-                              )}
-                            </Button>
+                              <div className="mb-2">
+                                <p className="text-sm font-medium">
+                                  Institution Invitation
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {invitation.createdBy.username || invitation.createdBy.email || 'Someone'} invited you to join{' '}
+                                  <span className="font-semibold">{invitation.institution.name}</span>
+                                  {invitation.role === 'ADMIN' && ' as an admin'}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="flex-1 bg-green-600 hover:bg-green-700"
+                                  onClick={() => handleAcceptInvite(invitation.id)}
+                                  disabled={processingInviteId === invitation.id}
+                                >
+                                  {processingInviteId === invitation.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Check className="mr-1 h-4 w-4" />
+                                      Accept
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1"
+                                  onClick={() => handleRejectInvite(invitation.id)}
+                                  disabled={processingInviteId === invitation.id}
+                                >
+                                  {processingInviteId === invitation.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <X className="mr-1 h-4 w-4" />
+                                      Decline
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Handle general notifications
+                        return (
+                          <div
+                            key={notification.id}
+                            className={cn(
+                              "border-b p-3 last:border-b-0",
+                              !notification.isRead && "bg-cyan-500/5"
+                            )}
+                          >
+                            <p className="text-sm font-medium">{notification.title}</p>
+                            {notification.message && (
+                              <p className="text-xs text-muted-foreground">{notification.message}</p>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </DropdownMenuContent>

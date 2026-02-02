@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
+import { z } from 'zod';
+import { createInstitution, listInstitutions } from '@/lib/services/mvp';
+import { ensureUserInDB } from '@/lib/ensureUser';
 
 export const runtime = 'nodejs';
 
 const CreateInstitutionSchema = z.object({
   name: z.string().min(1, 'Name is required').max(120),
-  description: z.string().max(2000).optional().or(z.literal('')),
 });
 
 /**
  * POST /api/institutions
- * Create a new institution. The creator is automatically assigned as a coach.
+ * Create a new institution. The creator is automatically assigned as ADMIN.
  */
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -20,49 +20,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  await ensureUserInDB();
+
   try {
     const json = await req.json();
     const parsed = CreateInstitutionSchema.parse(json);
 
-    // Check if user is already in an institution
-    const existingMembership = await prisma.institutionMember.findUnique({
-      where: { userId },
-    });
-
-    if (existingMembership) {
-      return NextResponse.json(
-        { error: 'You are already a member of an institution' },
-        { status: 409 }
-      );
-    }
-
-    // Create institution and add creator as coach in a transaction
-    const institution = await prisma.$transaction(async (tx) => {
-      const inst = await tx.institution.create({
-        data: {
-          name: parsed.name,
-          description: parsed.description || null,
-          createdById: userId,
-        },
-      });
-
-      await tx.institutionMember.create({
-        data: {
-          userId,
-          institutionId: inst.id,
-          isCoach: true,
-        },
-      });
-
-      return inst;
-    });
-
+    const institution = await createInstitution(parsed.name, userId);
     return NextResponse.json(institution, { status: 201 });
-  } catch (err: any) {
-    if (err.name === 'ZodError') {
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.flatten() }, { status: 400 });
     }
-    if (err.code === 'P2002') {
+    if (typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2002') {
       return NextResponse.json(
         { error: 'An institution with this name already exists' },
         { status: 409 }
@@ -79,21 +49,7 @@ export async function POST(req: Request) {
  */
 export async function GET() {
   try {
-    const institutions = await prisma.institution.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        _count: {
-          select: {
-            members: true,
-            teams: true,
-          },
-        },
-      },
-    });
+    const institutions = await listInstitutions();
     return NextResponse.json(institutions, { status: 200 });
   } catch (err) {
     console.error(err);
