@@ -79,14 +79,35 @@ model Tournament {
   registrationClosesAt DateTime?
 
   // Team size configuration for this tournament
+  // DEPRECATED: Moving to TournamentSettings
   teamMinSize Int @default(2)
   teamMaxSize Int @default(5)
 
   // Relationships
   createdBy              User                    @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  settings               TournamentSettings?
   tournamentInstitutions TournamentInstitution[]
   tournamentParticipants TournamentParticipant[]
   tournamentTeams        TournamentTeam[]
+}
+
+// ============================================================================
+// TOURNAMENT SETTINGS
+// ============================================================================
+
+model TournamentSettings {
+  id                   String    @id @default(cuid())
+  tournamentId         String    @unique @db.VarChar(128)
+  registrationOpensAt  DateTime?
+  registrationClosesAt DateTime?
+  teamSizeMin          Int       @default(2)
+  teamSizeMax          Int       @default(5)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
 }
 
 // ============================================================================

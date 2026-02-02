@@ -8,6 +8,7 @@ import {
   TournamentParticipantRole,
 } from '@prisma/client';
 import { Prisma } from '@prisma/client';
+import { assertRegistrationOpen, TournamentSettingsLike } from '@/lib/guards/tournamentSettingsGuards';
 
 export const runtime = 'nodejs';
 
@@ -88,21 +89,33 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // tournament exists and registrationClosesAt not passed
+    // tournament exists and registration is open
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
-      select: { id: true, registrationClosesAt: true },
+      include: { settings: true },
     });
 
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    if (tournament.registrationClosesAt && tournament.registrationClosesAt.getTime() <= Date.now()) {
-      return NextResponse.json(
-        { error: 'Registration is closed for this tournament' },
-        { status: 403 }
-      );
+    try {
+      const settings: TournamentSettingsLike = tournament.settings ?? {
+        registrationOpensAt: null,
+        registrationClosesAt: null,
+        teamSizeMin: 2,
+        teamSizeMax: 5,
+      };
+
+      assertRegistrationOpen(settings);
+    } catch (error: any) {
+      if (error.message === 'REGISTRATION_CLOSED') {
+        return NextResponse.json(
+          { error: 'Registration is closed for this tournament' },
+          { status: 403 }
+        );
+      }
+      throw error;
     }
 
     // institution must have APPROVED TournamentInstitution

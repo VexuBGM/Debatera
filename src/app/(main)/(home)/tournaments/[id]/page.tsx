@@ -167,6 +167,11 @@ export default function TournamentDetailPage() {
         <Link href={`/tournaments/${tournament.id}/register/teams`} className="w-full sm:w-auto sm:ml-auto">
           <Button className="w-full sm:w-auto">Register teams</Button>
         </Link>
+        {isOwner && (
+          <Link href={`/tournaments/${tournament.id}/settings`} className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto">Settings</Button>
+          </Link>
+        )}
       </div>
 
       {/* Tournament Info */}

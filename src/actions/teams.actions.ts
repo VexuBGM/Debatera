@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
+import { assertRegistrationOpen, assertValidTeamSize, TournamentSettingsLike } from '@/lib/guards/tournamentSettingsGuards';
 
 export type TeamWithMembers = Prisma.TournamentTeamGetPayload<{
     include: {
@@ -57,14 +58,7 @@ export async function getTournamentTeamsPageData(
 
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
-            select: {
-                id: true,
-                name: true,
-                registrationClosesAt: true,
-                teamMinSize: true,
-                teamMaxSize: true,
-                createdByUserId: true,
-            },
+            include: { settings: true },
         });
 
         if (!tournament) {
@@ -147,10 +141,26 @@ export async function getTournamentTeamsPageData(
             select: { institutionId: true },
         });
 
+        const settings: TournamentSettingsLike = tournament.settings ?? {
+            registrationOpensAt: null,
+            registrationClosesAt: null,
+            teamSizeMin: 2,
+            teamSizeMax: 5,
+        };
+
+        const tournamentData = {
+            id: tournament.id,
+            name: tournament.name,
+            registrationClosesAt: settings.registrationClosesAt,
+            teamMinSize: settings.teamSizeMin,
+            teamMaxSize: settings.teamSizeMax,
+            createdByUserId: tournament.createdByUserId,
+        };
+
         return {
             success: true,
             data: {
-                tournament,
+                tournament: tournamentData,
                 allTeams,
                 manageableInstitutions,
                 currentUserParticipantInstitutionId: participantInfo?.institutionId ?? null,
@@ -282,6 +292,7 @@ export async function createTeam({
 
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
+            include: { settings: true },
         });
 
         if (!tournament) return { success: false, error: 'Tournament not found' };
@@ -300,6 +311,23 @@ export async function createTeam({
         });
 
         if (!institution) return { success: false, error: 'Institution not found' };
+
+        // Check registration
+        const settings: TournamentSettingsLike = tournament.settings ?? {
+            registrationOpensAt: null,
+            registrationClosesAt: null,
+            teamSizeMin: 2,
+            teamSizeMax: 5,
+        };
+
+        try {
+            assertRegistrationOpen(settings);
+        } catch (error: any) {
+            if (error.message === 'REGISTRATION_CLOSED') {
+                return { success: false, error: 'Registration is closed' };
+            }
+            throw error;
+        }
 
         // Generate team name: "InstName 1", "InstName 2", etc.
         // Find all current teams to determine the next number
@@ -445,6 +473,7 @@ export async function moveParticipant({
 
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
+            include: { settings: true },
         });
 
         if (!tournament) return { success: false, error: 'Tournament not found' };
@@ -472,8 +501,22 @@ export async function moveParticipant({
             if (targetTeam.institutionId !== participant.institutionId) {
                 return { success: false, error: 'Cannot assign to a team from a different institution' };
             }
-            if (targetTeam.members.length >= tournament.teamMaxSize) {
-                return { success: false, error: `Team is full (max ${tournament.teamMaxSize})` };
+
+            const settings: TournamentSettingsLike = tournament.settings ?? {
+                registrationOpensAt: null,
+                registrationClosesAt: null,
+                teamSizeMin: 2,
+                teamSizeMax: 5,
+            };
+
+            try {
+                assertRegistrationOpen(settings);
+                // Check Max size only for incremental build
+                assertValidTeamSize(settings, targetTeam.members.length + 1, false);
+            } catch (error: any) {
+                if (error.message === 'REGISTRATION_CLOSED') return { success: false, error: 'Registration is closed' };
+                if (error.message === 'TEAM_SIZE_INVALID') return { success: false, error: `Team is full (max ${settings.teamSizeMax})` };
+                throw error;
             }
 
             // Upsert membership (create or update if somehow exists but shouldn't due to unique constraint)

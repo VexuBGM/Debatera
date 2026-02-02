@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { ensureUserInDB } from '@/lib/ensureUser';
 import { InstitutionRole } from '@prisma/client';
+import { assertRegistrationOpen, TournamentSettingsLike } from '@/lib/guards/tournamentSettingsGuards';
 
 export const runtime = 'nodejs';
 
@@ -47,6 +48,33 @@ export async function DELETE(
 
     if (!membership || membership.role !== InstitutionRole.ADMIN) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Check registration
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { settings: true },
+    });
+
+    if (!tournament) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+
+    try {
+      const settings: TournamentSettingsLike = tournament.settings ?? {
+        registrationOpensAt: null,
+        registrationClosesAt: null,
+        teamSizeMin: 2,
+        teamSizeMax: 5,
+      };
+
+      assertRegistrationOpen(settings);
+    } catch (error: any) {
+      if (error.message === 'REGISTRATION_CLOSED') {
+        return NextResponse.json(
+          { error: 'Registration is closed for this tournament' },
+          { status: 403 }
+        );
+      }
+      throw error;
     }
 
     await prisma.tournamentParticipant.delete({ where: { id: participantId } });
