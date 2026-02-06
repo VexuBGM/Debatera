@@ -95,15 +95,26 @@ model Tournament {
 // TOURNAMENT SETTINGS
 // ============================================================================
 
+enum DebateFormat {
+  WSDC
+}
+
+enum EventMode {
+  ONLINE
+  IRL
+}
+
 model TournamentSettings {
-  id                   String    @id @default(cuid())
-  tournamentId         String    @unique @db.VarChar(128)
+  id                   String       @id @default(cuid())
+  tournamentId         String       @unique @db.VarChar(128)
   registrationOpensAt  DateTime?
   registrationClosesAt DateTime?
-  teamSizeMin          Int       @default(2)
-  teamSizeMax          Int       @default(5)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  teamSizeMin          Int          @default(2)
+  teamSizeMax          Int          @default(5)
+  debateFormat         DebateFormat @default(WSDC)
+  eventMode            EventMode    @default(IRL)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 

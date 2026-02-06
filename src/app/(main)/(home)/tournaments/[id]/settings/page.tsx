@@ -21,6 +21,8 @@ interface TournamentSettings {
     registrationClosesAt: string | null;
     teamSizeMin: number;
     teamSizeMax: number;
+    debateFormat: 'WSDC';
+    eventMode: 'ONLINE' | 'IRL';
 }
 
 export default function TournamentSettingsPage() {
@@ -36,6 +38,8 @@ export default function TournamentSettingsPage() {
         registrationClosesAt: null,
         teamSizeMin: 2,
         teamSizeMax: 5,
+        debateFormat: 'WSDC',
+        eventMode: 'IRL',
     });
 
     useEffect(() => {
@@ -63,6 +67,8 @@ export default function TournamentSettingsPage() {
                 registrationClosesAt: data.registrationClosesAt,
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
+                debateFormat: data.debateFormat ?? 'WSDC',
+                eventMode: data.eventMode ?? 'IRL',
             });
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Failed to load settings');
@@ -91,6 +97,8 @@ export default function TournamentSettingsPage() {
                 registrationClosesAt: data.registrationClosesAt,
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
+                debateFormat: data.debateFormat ?? 'WSDC',
+                eventMode: data.eventMode ?? 'IRL',
             });
 
             toast.success('Settings updated successfully');
@@ -174,6 +182,40 @@ export default function TournamentSettingsPage() {
                                     value={settings.teamSizeMax}
                                     onChange={(e) => setSettings(s => ({ ...s, teamSizeMax: parseInt(e.target.value) || 1 }))}
                                 />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t" />
+
+                    {/* Debate Format & Event Mode */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-medium leading-none">Format & Mode</h3>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="debateFormat">Debate Format</Label>
+                                <select
+                                    id="debateFormat"
+                                    value={settings.debateFormat}
+                                    onChange={(e) => setSettings(s => ({ ...s, debateFormat: e.target.value as 'WSDC' }))}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    disabled
+                                >
+                                    <option value="WSDC">WSDC</option>
+                                </select>
+                                <p className="text-xs text-muted-foreground">More formats coming soon.</p>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="eventMode">Event Mode</Label>
+                                <select
+                                    id="eventMode"
+                                    value={settings.eventMode}
+                                    onChange={(e) => setSettings(s => ({ ...s, eventMode: e.target.value as 'ONLINE' | 'IRL' }))}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <option value="IRL">In Real Life (IRL)</option>
+                                    <option value="ONLINE">Online</option>
+                                </select>
                             </div>
                         </div>
                     </div>

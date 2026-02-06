@@ -108,12 +108,16 @@ export async function PATCH(
                 registrationClosesAt: data.registrationClosesAt ? new Date(data.registrationClosesAt) : null,
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
+                debateFormat: data.debateFormat,
+                eventMode: data.eventMode,
             },
             update: {
                 registrationOpensAt: data.registrationOpensAt ? new Date(data.registrationOpensAt) : null,
                 registrationClosesAt: data.registrationClosesAt ? new Date(data.registrationClosesAt) : null,
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
+                debateFormat: data.debateFormat,
+                eventMode: data.eventMode,
             },
         });
 

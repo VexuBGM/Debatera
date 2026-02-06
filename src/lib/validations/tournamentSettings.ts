@@ -1,10 +1,15 @@
 import { z } from 'zod';
 
+export const DebateFormatEnum = z.enum(['WSDC']);
+export const EventModeEnum = z.enum(['ONLINE', 'IRL']);
+
 export const TournamentSettingsInputSchema = z.object({
     registrationOpensAt: z.string().datetime().nullable().optional(),
     registrationClosesAt: z.string().datetime().nullable().optional(),
     teamSizeMin: z.number().int().min(1).default(2),
     teamSizeMax: z.number().int().min(1).default(5),
+    debateFormat: DebateFormatEnum.default('WSDC'),
+    eventMode: EventModeEnum.default('IRL'),
 }).refine((data) => {
     // teamSizeMax >= teamSizeMin
     return data.teamSizeMax >= data.teamSizeMin;
@@ -23,3 +28,4 @@ export const TournamentSettingsInputSchema = z.object({
 });
 
 export type TournamentSettingsInput = z.infer<typeof TournamentSettingsInputSchema>;
+
