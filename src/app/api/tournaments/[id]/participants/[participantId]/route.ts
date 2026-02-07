@@ -25,7 +25,7 @@ export async function DELETE(
   try {
     const participant = await prisma.tournamentParticipant.findUnique({
       where: { id: participantId },
-      select: { id: true, tournamentId: true, institutionId: true } as any,
+      select: { id: true, tournamentId: true, institutionId: true },
     });
 
     if (!participant) {

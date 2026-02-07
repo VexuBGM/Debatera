@@ -160,15 +160,18 @@ export default function TournamentDetailPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Link href={`/tournaments/${tournament.id}/register/members`} className="w-full sm:w-auto">
           <Button className="w-full sm:w-auto">Register institution / members</Button>
         </Link>
-        <Link href={`/tournaments/${tournament.id}/register/teams`} className="w-full sm:w-auto sm:ml-auto">
+        <Link href={`/tournaments/${tournament.id}/register/teams`} className="w-full sm:w-auto">
           <Button className="w-full sm:w-auto">Register teams</Button>
         </Link>
+        <Link href={`/tournaments/${tournament.id}/rounds`} className="w-full sm:w-auto">
+          <Button variant="secondary" className="w-full sm:w-auto">View Rounds</Button>
+        </Link>
         {isOwner && (
-          <Link href={`/tournaments/${tournament.id}/settings`} className="w-full sm:w-auto">
+          <Link href={`/tournaments/${tournament.id}/settings`} className="w-full sm:w-auto sm:ml-auto">
             <Button variant="outline" className="w-full sm:w-auto">Settings</Button>
           </Link>
         )}

@@ -89,6 +89,7 @@ model Tournament {
   tournamentInstitutions TournamentInstitution[]
   tournamentParticipants TournamentParticipant[]
   tournamentTeams        TournamentTeam[]
+  rounds                 TournamentRound[]
 }
 
 // ============================================================================
@@ -168,6 +169,7 @@ model TournamentParticipant {
 
   // A participant can be in at most one team per tournament
   teamMembership TournamentTeamMember?
+  judgeAssignments TournamentDebateJudge[]
 
   @@unique([tournamentId, userId])
   @@index([tournamentId])
@@ -194,6 +196,8 @@ model TournamentTeam {
   institution Institution            @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   createdBy   User                   @relation("TeamsCreated", fields: [createdByUserId], references: [id], onDelete: Cascade)
   members     TournamentTeamMember[]
+  propDebates TournamentDebate[]     @relation("PropTeam")
+  oppDebates  TournamentDebate[]     @relation("OppTeam")
 
   // Team name must be unique within an institution for a given tournament
   @@unique([tournamentId, institutionId, name])
@@ -214,6 +218,78 @@ model TournamentTeamMember {
   participant TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
+}
+
+// ============================================================================
+// TOURNAMENT ROUND & DEBATE MODELS
+// ============================================================================
+
+enum TournamentRoundStatus {
+  DRAFT
+  PUBLISHED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// A round within a tournament (e.g., "Round 1", "Quarterfinals")
+model TournamentRound {
+  id           String                @id @default(cuid())
+  tournamentId String                @db.VarChar(128)
+  number       Int                   // Sequential round number within tournament
+  name         String                // Display name, e.g., "Round 1" or "Quarterfinals"
+  status       TournamentRoundStatus @default(DRAFT)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  // Relationships
+  tournament Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  debates    TournamentDebate[]
+
+  @@unique([tournamentId, number])
+  @@index([tournamentId])
+}
+
+// A single debate (pairing) within a round
+// In WSDC format: 2 teams (proposition vs opposition)
+model TournamentDebate {
+  id         String   @id @default(cuid())
+  roundId    String
+  order      Int      // For stable UI ordering within the round
+  propTeamId String?  @db.VarChar(128) // Nullable only for BYE debates
+  oppTeamId  String?  @db.VarChar(128) // Nullable only for BYE debates
+  isBye      Boolean  @default(false) // True if this is a bye (one team, no opponent)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  round    TournamentRound          @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  propTeam TournamentTeam?          @relation("PropTeam", fields: [propTeamId], references: [id], onDelete: SetNull)
+  oppTeam  TournamentTeam?          @relation("OppTeam", fields: [oppTeamId], references: [id], onDelete: SetNull)
+  judges   TournamentDebateJudge[]
+
+  @@unique([roundId, order])
+  @@index([roundId])
+  @@index([propTeamId])
+  @@index([oppTeamId])
+}
+
+// Junction table for judges assigned to a debate
+// Each judge (TournamentParticipant with role=JUDGE) can only be in ONE debate per round
+model TournamentDebateJudge {
+  id            String   @id @default(cuid())
+  debateId      String
+  participantId String   // Must be a TournamentParticipant with role=JUDGE
+  createdAt     DateTime @default(now())
+
+  // Relationships
+  debate      TournamentDebate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  participant TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  // A judge can only be assigned to ONE debate per round (enforced via unique constraint)
+  // The roundId is derived from debate.roundId in application logic
+  @@unique([debateId, participantId]) // Prevent duplicate judge in same debate
+  @@index([debateId])
+  @@index([participantId])
 }
 
 // ============================================================================
