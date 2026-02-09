@@ -90,6 +90,8 @@ model Tournament {
   tournamentParticipants TournamentParticipant[]
   tournamentTeams        TournamentTeam[]
   rounds                 TournamentRound[]
+  venues                 Venue[]
+  venueCategories        VenueCategory[]
 }
 
 // ============================================================================
@@ -257,6 +259,7 @@ model TournamentDebate {
   order      Int      // For stable UI ordering within the round
   propTeamId String?  @db.VarChar(128) // Nullable only for BYE debates
   oppTeamId  String?  @db.VarChar(128) // Nullable only for BYE debates
+  venueId    String?  // Assigned venue (nullable; set by auto-allocator or manually)
   isBye      Boolean  @default(false) // True if this is a bye (one team, no opponent)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -265,12 +268,14 @@ model TournamentDebate {
   round    TournamentRound          @relation(fields: [roundId], references: [id], onDelete: Cascade)
   propTeam TournamentTeam?          @relation("PropTeam", fields: [propTeamId], references: [id], onDelete: SetNull)
   oppTeam  TournamentTeam?          @relation("OppTeam", fields: [oppTeamId], references: [id], onDelete: SetNull)
+  venue    Venue?                   @relation(fields: [venueId], references: [id], onDelete: SetNull)
   judges   TournamentDebateJudge[]
 
   @@unique([roundId, order])
   @@index([roundId])
   @@index([propTeamId])
   @@index([oppTeamId])
+  @@index([venueId])
 }
 
 // Junction table for judges assigned to a debate
@@ -290,6 +295,47 @@ model TournamentDebateJudge {
   @@unique([debateId, participantId]) // Prevent duplicate judge in same debate
   @@index([debateId])
   @@index([participantId])
+}
+
+// ============================================================================
+// VENUE MODELS
+// ============================================================================
+
+// A physical venue (room) available for debates in an IRL tournament
+model Venue {
+  id           String   @id @default(cuid())
+  tournamentId String   @db.VarChar(128)
+  name         String   // e.g., "Room 101", "Main Hall"
+  priority     Int      @default(100) // Higher = better room; used for auto-allocation sorting
+  isActive     Boolean  @default(true) // Inactive venues are excluded from auto-allocation
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  tournament Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  categories VenueCategory[]     // Implicit M2M with VenueCategory
+  debates    TournamentDebate[]
+
+  @@unique([tournamentId, name]) // Venue names must be unique within a tournament
+  @@index([tournamentId])
+  @@index([priority])
+}
+
+// A tag/category for grouping venues (e.g., "Wheelchair Accessible", "Building A")
+model VenueCategory {
+  id           String   @id @default(cuid())
+  tournamentId String   @db.VarChar(128)
+  name         String   // e.g., "Wheelchair Accessible", "Building A"
+  description  String?  // Optional description for the category
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  venues     Venue[]    // Implicit M2M with Venue
+
+  @@unique([tournamentId, name]) // Category names must be unique within a tournament
+  @@index([tournamentId])
 }
 
 // ============================================================================

@@ -27,15 +27,18 @@ import {
   AlertTriangle,
   Check,
   Edit2,
+  MapPin,
   Play,
   Save,
   Shuffle,
   Trophy,
   Upload,
+  Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RoundEditor } from './RoundEditor';
-import type { RoundData, TeamData, JudgeData, EditorDebate } from './types';
+import { autoAllocateVenuesAction } from '@/actions/venues.actions';
+import type { RoundData, TeamData, JudgeData, VenueData, EditorDebate } from './types';
 
 // =============================================================================
 // Status Helpers
@@ -93,6 +96,10 @@ export default function RoundEditorPage() {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [allocatingVenues, setAllocatingVenues] = useState(false);
+
+  // Venue data (debate ID -> venue info)
+  const [venueMap, setVenueMap] = useState<Map<string, VenueData>>(new Map());
 
   // Confirmation dialogs
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
@@ -130,10 +137,20 @@ export default function RoundEditorPage() {
         propTeamId: d.propTeamId,
         oppTeamId: d.oppTeamId,
         isBye: d.isBye,
+        venueId: d.venue?.id ?? null,
         judgeParticipantIds: d.judges.map((j: { participantId: string }) => j.participantId),
       }));
       setEditorDebates(debates);
       setHasChanges(false);
+
+      // Build venue map from debate data
+      const newVenueMap = new Map<string, VenueData>();
+      for (const d of data.round.debates) {
+        if (d.venue) {
+          newVenueMap.set(d.venue.id, d.venue);
+        }
+      }
+      setVenueMap(newVenueMap);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to load pairings');
     } finally {
@@ -218,6 +235,34 @@ export default function RoundEditorPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to generate pairings');
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleAllocateVenues() {
+    if (!roundId) return;
+
+    setAllocatingVenues(true);
+    try {
+      const result = await autoAllocateVenuesAction(roundId);
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to auto-allocate venues');
+        return;
+      }
+
+      const data = result.data!;
+      for (const warning of data.warnings) {
+        toast.warning(warning);
+      }
+
+      toast.success(
+        `Allocated ${data.allocatedCount} venue(s) to ${data.totalDebates} debate(s)`
+      );
+      await fetchPairings(); // Refresh to show venue assignments
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to auto-allocate venues');
+    } finally {
+      setAllocatingVenues(false);
     }
   }
 
@@ -434,6 +479,19 @@ export default function RoundEditorPage() {
                 Complete Round
               </Button>
             )}
+
+            {/* Venue allocation — available whenever debates exist */}
+            {editorDebates.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleAllocateVenues}
+                disabled={allocatingVenues}
+                className="ml-auto"
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                {allocatingVenues ? 'Allocating...' : 'Allocate Venues'}
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -465,6 +523,7 @@ export default function RoundEditorPage() {
         debates={editorDebates}
         allTeams={allTeams}
         allJudges={allJudges}
+        venueMap={venueMap}
         canEdit={canEdit}
         onDebatesChange={handleDebatesChange}
       />

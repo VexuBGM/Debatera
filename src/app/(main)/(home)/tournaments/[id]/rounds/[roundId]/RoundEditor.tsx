@@ -26,7 +26,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import type { TeamData, JudgeData, EditorDebate } from './types';
+import type { TeamData, JudgeData, VenueData, EditorDebate } from './types';
 import { DebateCard } from './DebateCard';
 import { DraggableItem } from './DraggableItem';
 import { DroppablePanel } from './DroppablePanel';
@@ -39,6 +39,7 @@ interface RoundEditorProps {
   debates: EditorDebate[];
   allTeams: TeamData[];
   allJudges: JudgeData[];
+  venueMap: Map<string, VenueData>;
   canEdit: boolean;
   onDebatesChange: (debates: EditorDebate[]) => void;
 }
@@ -57,6 +58,7 @@ export function RoundEditor({
   debates,
   allTeams,
   allJudges,
+  venueMap,
   canEdit,
   onDebatesChange,
 }: RoundEditorProps) {
@@ -379,6 +381,7 @@ export function RoundEditor({
               debate={debate}
               teamMap={teamMap}
               judgeMap={judgeMap}
+              venue={debate.venueId ? venueMap.get(debate.venueId) ?? null : null}
               canEdit={false}
               onDebateChange={() => {}}
             />
@@ -457,6 +460,7 @@ export function RoundEditor({
                   debate={debate}
                   teamMap={teamMap}
                   judgeMap={judgeMap}
+                  venue={debate.venueId ? venueMap.get(debate.venueId) ?? null : null}
                   canEdit={canEdit}
                   onDebateChange={(updates) => handleDebateChange(debate.id, updates)}
                 />

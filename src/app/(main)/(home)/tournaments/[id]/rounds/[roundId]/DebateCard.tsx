@@ -21,12 +21,13 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   GripVertical,
+  MapPin,
   Minus,
   Users,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { EditorDebate, TeamData, JudgeData, DebateWarning } from './types';
+import type { EditorDebate, TeamData, JudgeData, VenueData, DebateWarning } from './types';
 import { DraggableItem } from './DraggableItem';
 import { DroppableSlot } from './DroppableSlot';
 
@@ -38,6 +39,7 @@ interface DebateCardProps {
   debate: EditorDebate;
   teamMap: Map<string, TeamData>;
   judgeMap: Map<string, JudgeData>;
+  venue: VenueData | null;
   canEdit: boolean;
   onDebateChange: (updates: Partial<EditorDebate>) => void;
 }
@@ -106,6 +108,7 @@ export function DebateCard({
   debate,
   teamMap,
   judgeMap,
+  venue,
   canEdit,
   onDebateChange,
 }: DebateCardProps) {
@@ -251,6 +254,12 @@ export function DebateCard({
               </Button>
             )}
           </div>
+          {venue && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+              <MapPin className="h-3 w-3" />
+              <span>{venue.name}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -279,13 +288,27 @@ export function DebateCard({
             {debate.order + 1}
           </div>
 
-          {/* Teams */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Content */}
+          <div className="flex-1 space-y-3">
+            {/* Venue tag */}
+            {venue && (
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-cyan-500" />
+                <span className="text-sm text-muted-foreground">{venue.name}</span>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                  P{venue.priority}
+                </Badge>
+              </div>
+            )}
+
+            {/* Teams */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Proposition */}
             {renderTeamSlot('prop', propTeam ?? null, debate.propTeamId)}
 
             {/* Opposition */}
             {renderTeamSlot('opp', oppTeam ?? null, debate.oppTeamId)}
+            </div>
           </div>
 
           {/* Actions */}

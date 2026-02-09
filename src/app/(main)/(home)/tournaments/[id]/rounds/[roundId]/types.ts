@@ -37,6 +37,12 @@ export interface DebateJudge {
   participant: JudgeData;
 }
 
+export interface VenueData {
+  id: string;
+  name: string;
+  priority: number;
+}
+
 export interface DebateData {
   id: string;
   order: number;
@@ -45,6 +51,7 @@ export interface DebateData {
   isBye: boolean;
   propTeam: TeamData | null;
   oppTeam: TeamData | null;
+  venue: VenueData | null;
   judges: DebateJudge[];
 }
 
@@ -69,6 +76,7 @@ export interface EditorDebate {
   propTeamId: string | null;
   oppTeamId: string | null;
   isBye: boolean;
+  venueId: string | null; // Assigned venue (read from server; not editable via DnD)
   judgeParticipantIds: string[];
 }
 

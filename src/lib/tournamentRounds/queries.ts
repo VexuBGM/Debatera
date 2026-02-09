@@ -67,6 +67,7 @@ export async function getRoundById(roundId: string) {
         include: {
           propTeam: { include: { institution: true } },
           oppTeam: { include: { institution: true } },
+          venue: { select: { id: true, name: true, priority: true } },
           judges: {
             include: {
               participant: {
@@ -189,6 +190,7 @@ export async function getPairingsForRound(roundId: string) {
         include: {
           propTeam: { include: { institution: true } },
           oppTeam: { include: { institution: true } },
+          venue: { select: { id: true, name: true, priority: true } },
           judges: {
             include: {
               participant: {
