@@ -16,6 +16,7 @@ export default function CreateTournamentPage() {
   const { userId } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState('');
+  const [eventMode, setEventMode] = useState<'IRL' | 'ONLINE'>('IRL');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +30,7 @@ export default function CreateTournamentPage() {
       const res = await fetch('/api/tournaments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ name: name.trim(), eventMode }),
       });
 
       const data = await res.json();
@@ -80,6 +81,20 @@ export default function CreateTournamentPage() {
                 required 
                 maxLength={120} 
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="eventMode">Event Mode <span className="text-red-500">*</span></Label>
+              <select
+                id="eventMode"
+                value={eventMode}
+                onChange={(e) => setEventMode(e.target.value as 'IRL' | 'ONLINE')}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="IRL">In Real Life (IRL)</option>
+                <option value="ONLINE">Online</option>
+              </select>
+              <p className="text-xs text-muted-foreground">This cannot be changed after the tournament is created.</p>
             </div>
 
             <div className="flex gap-3">

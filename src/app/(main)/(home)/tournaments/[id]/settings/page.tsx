@@ -210,12 +210,13 @@ export default function TournamentSettingsPage() {
                                 <select
                                     id="eventMode"
                                     value={settings.eventMode}
-                                    onChange={(e) => setSettings(s => ({ ...s, eventMode: e.target.value as 'ONLINE' | 'IRL' }))}
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    disabled
                                 >
                                     <option value="IRL">In Real Life (IRL)</option>
                                     <option value="ONLINE">Online</option>
                                 </select>
+                                <p className="text-xs text-muted-foreground">Set at tournament creation and cannot be changed.</p>
                             </div>
                         </div>
                     </div>

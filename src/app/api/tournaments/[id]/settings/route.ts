@@ -99,7 +99,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // Upsert settings
+        // Upsert settings (eventMode is immutable — set only at tournament creation)
         const settings = await prisma.tournamentSettings.upsert({
             where: { tournamentId },
             create: {
@@ -109,7 +109,6 @@ export async function PATCH(
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
-                eventMode: data.eventMode,
             },
             update: {
                 registrationOpensAt: data.registrationOpensAt ? new Date(data.registrationOpensAt) : null,
@@ -117,7 +116,6 @@ export async function PATCH(
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
-                eventMode: data.eventMode,
             },
         });
 

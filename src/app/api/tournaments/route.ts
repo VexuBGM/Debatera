@@ -3,12 +3,14 @@ import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
 import { createTournament, listTournaments } from '@/lib/services/mvp';
 import { ensureUserInDB } from '@/lib/ensureUser';
+import { EventModeEnum } from '@/lib/validations/tournamentSettings';
 
 // Prisma requires Node.js runtime, not Edge:
 export const runtime = 'nodejs';
 
 const CreateTournamentSchema = z.object({
   name: z.string().min(1, 'Name is required').max(120),
+  eventMode: EventModeEnum.default('IRL'),
 });
 
 export async function POST(req: Request) {
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
     const json = await req.json();
     const parsed = CreateTournamentSchema.parse(json);
 
-    const tournament = await createTournament(parsed.name, userId);
+    const tournament = await createTournament(parsed.name, userId, parsed.eventMode);
     return NextResponse.json(tournament, { status: 201 });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {

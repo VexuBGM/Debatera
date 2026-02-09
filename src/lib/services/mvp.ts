@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { InstitutionRole } from '@prisma/client';
+import { InstitutionRole, EventMode } from '@prisma/client';
 
 // ============================================================================
 // INSTITUTION SERVICES
@@ -94,11 +94,19 @@ export async function isInstitutionAdmin(userId: string, institutionId: string):
 // TOURNAMENT SERVICES
 // ============================================================================
 
-export async function createTournament(name: string, userId: string) {
+export async function createTournament(name: string, userId: string, eventMode: EventMode = EventMode.IRL) {
   return prisma.tournament.create({
     data: {
       name,
       createdByUserId: userId,
+      settings: {
+        create: {
+          eventMode,
+        },
+      },
+    },
+    include: {
+      settings: true,
     },
   });
 }
