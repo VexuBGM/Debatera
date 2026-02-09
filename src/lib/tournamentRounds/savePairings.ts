@@ -47,9 +47,10 @@ function validatePairings(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Track which teams and judges are used
+  // Track which teams, judges, and venues are used
   const usedTeamIds = new Set<string>();
   const usedJudgeIds = new Set<string>();
+  const usedVenueIds = new Set<string>();
 
   for (let i = 0; i < debates.length; i++) {
     const debate = debates[i];
@@ -82,6 +83,14 @@ function validatePairings(
       if (debate.judgeParticipantIds.length === 0) {
         errors.push(`${debateLabel}: Must have at least 1 judge.`);
       }
+    }
+
+    // Validate venue uniqueness
+    if (debate.venueId) {
+      if (usedVenueIds.has(debate.venueId)) {
+        errors.push(`${debateLabel}: Venue is already assigned to another debate.`);
+      }
+      usedVenueIds.add(debate.venueId);
     }
 
     // Validate team IDs exist
@@ -235,6 +244,7 @@ export async function savePairings(
           propTeamId: debate.propTeamId,
           oppTeamId: debate.oppTeamId,
           isBye: debate.isBye,
+          venueId: debate.venueId ?? null,
           judges: {
             create: debate.judgeParticipantIds.map((participantId) => ({
               participantId,

@@ -39,6 +39,7 @@ interface RoundEditorProps {
   debates: EditorDebate[];
   allTeams: TeamData[];
   allJudges: JudgeData[];
+  allVenues: VenueData[];
   venueMap: Map<string, VenueData>;
   canEdit: boolean;
   onDebatesChange: (debates: EditorDebate[]) => void;
@@ -58,6 +59,7 @@ export function RoundEditor({
   debates,
   allTeams,
   allJudges,
+  allVenues,
   venueMap,
   canEdit,
   onDebatesChange,
@@ -106,6 +108,14 @@ export function RoundEditor({
     () => allJudges.filter((j) => !assignedJudgeIds.has(j.id)),
     [allJudges, assignedJudgeIds]
   );
+
+  const usedVenueIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const debate of debates) {
+      if (debate.venueId) ids.add(debate.venueId);
+    }
+    return ids;
+  }, [debates]);
 
   // =============================================================================
   // Lookup Maps
@@ -382,6 +392,8 @@ export function RoundEditor({
               teamMap={teamMap}
               judgeMap={judgeMap}
               venue={debate.venueId ? venueMap.get(debate.venueId) ?? null : null}
+              allVenues={allVenues}
+              usedVenueIds={usedVenueIds}
               canEdit={false}
               onDebateChange={() => {}}
             />
@@ -461,6 +473,8 @@ export function RoundEditor({
                   teamMap={teamMap}
                   judgeMap={judgeMap}
                   venue={debate.venueId ? venueMap.get(debate.venueId) ?? null : null}
+                  allVenues={allVenues}
+                  usedVenueIds={usedVenueIds}
                   canEdit={canEdit}
                   onDebateChange={(updates) => handleDebateChange(debate.id, updates)}
                 />

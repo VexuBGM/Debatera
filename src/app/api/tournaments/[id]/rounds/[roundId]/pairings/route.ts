@@ -53,10 +53,15 @@ export async function GET(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
 
-    // For the editor, also load all teams and judges to show unassigned ones
-    const [allTeams, allJudges] = await Promise.all([
+    // For the editor, also load all teams, judges, and venues
+    const [allTeams, allJudges, allVenues] = await Promise.all([
       getTeamsForTournament(tournamentId),
       getJudgesForTournament(tournamentId),
+      (await import('@/lib/prisma')).prisma.venue.findMany({
+        where: { tournamentId, isActive: true },
+        orderBy: { priority: 'desc' },
+        select: { id: true, name: true, priority: true },
+      }),
     ]);
 
     // Calculate which teams and judges are assigned
@@ -79,6 +84,7 @@ export async function GET(req: Request, { params }: RouteParams) {
         round,
         allTeams,
         allJudges,
+        allVenues,
         unassignedTeams,
         unassignedJudges,
         isAdmin,

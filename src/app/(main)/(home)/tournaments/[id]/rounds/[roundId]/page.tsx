@@ -109,6 +109,7 @@ export default function RoundEditorPage() {
 
   // Venue data (debate ID -> venue info)
   const [venueMap, setVenueMap] = useState<Map<string, VenueData>>(new Map());
+  const [allVenues, setAllVenues] = useState<VenueData[]>([]);
 
   // Confirmation dialogs
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
@@ -152,14 +153,19 @@ export default function RoundEditorPage() {
       setEditorDebates(debates);
       setHasChanges(false);
 
-      // Build venue map from debate data
+      // Build venue map from all venues
       const newVenueMap = new Map<string, VenueData>();
+      for (const v of (data.allVenues ?? [])) {
+        newVenueMap.set(v.id, v);
+      }
+      // Also include any venue data from debates that might not be in allVenues
       for (const d of data.round.debates) {
-        if (d.venue) {
+        if (d.venue && !newVenueMap.has(d.venue.id)) {
           newVenueMap.set(d.venue.id, d.venue);
         }
       }
       setVenueMap(newVenueMap);
+      setAllVenues(data.allVenues ?? []);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to load pairings');
     } finally {
@@ -568,6 +574,7 @@ export default function RoundEditorPage() {
         debates={editorDebates}
         allTeams={allTeams}
         allJudges={allJudges}
+        allVenues={allVenues}
         venueMap={venueMap}
         canEdit={canEdit}
         onDebatesChange={handleDebatesChange}

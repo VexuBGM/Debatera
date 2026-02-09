@@ -47,6 +47,7 @@ export const DebatePairingSchema = z.object({
   propTeamId: z.string().nullable(),
   oppTeamId: z.string().nullable(),
   isBye: z.boolean().default(false),
+  venueId: z.string().nullable().optional(),
   judgeParticipantIds: z.array(z.string()),
 });
 
