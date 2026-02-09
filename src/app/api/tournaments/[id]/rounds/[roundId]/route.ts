@@ -127,7 +127,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       }
 
       // Validate before publishing: all non-bye debates need teams + judges
-      if (newStatus === 'PUBLISHED' && currentStatus === 'DRAFT') {
+      if (newStatus === 'PUBLISHED') {
         const validationErrors: string[] = [];
 
         for (const debate of round.debates) {

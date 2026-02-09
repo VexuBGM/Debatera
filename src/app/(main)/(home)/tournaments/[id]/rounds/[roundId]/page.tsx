@@ -24,8 +24,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   AlertTriangle,
   Check,
+  ChevronDown,
   Edit2,
   MapPin,
   Play,
@@ -45,6 +52,8 @@ import type { RoundData, TeamData, JudgeData, VenueData, EditorDebate } from './
 // =============================================================================
 
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
+
+const ALL_ROUND_STATUSES: RoundStatus[] = ['DRAFT', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED'];
 
 function getStatusBadgeVariant(status: RoundStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
@@ -414,9 +423,45 @@ export default function RoundEditorPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant={getStatusBadgeVariant(round.status)} className="mr-2">
-            {getStatusLabel(round.status)}
-          </Badge>
+          {isAdmin ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="inline-flex items-center gap-1 cursor-pointer focus:outline-none"
+                  disabled={updatingStatus}
+                >
+                  <Badge variant={getStatusBadgeVariant(round.status)} className="mr-0">
+                    {getStatusLabel(round.status)}
+                    <ChevronDown className="h-3 w-3 ml-1" />
+                  </Badge>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {ALL_ROUND_STATUSES.map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    disabled={status === round.status || updatingStatus}
+                    onClick={() => {
+                      if (status === 'PUBLISHED' && round.status === 'DRAFT') {
+                        setPublishDialogOpen(true);
+                      } else {
+                        handleStatusChange(status);
+                      }
+                    }}
+                  >
+                    <Badge variant={getStatusBadgeVariant(status)} className="mr-2">
+                      {getStatusLabel(status)}
+                    </Badge>
+                    {status === round.status && <Check className="h-3 w-3 ml-auto" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Badge variant={getStatusBadgeVariant(round.status)} className="mr-2">
+              {getStatusLabel(round.status)}
+            </Badge>
+          )}
 
           {hasChanges && (
             <Badge variant="outline" className="text-amber-600 border-amber-600">

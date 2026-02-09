@@ -16,9 +16,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trophy, Lock } from 'lucide-react';
+import { Plus, Edit, Trophy, Lock, ChevronDown, Check } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -27,6 +33,8 @@ import { toast } from 'sonner';
 // =============================================================================
 
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
+
+const ALL_ROUND_STATUSES: RoundStatus[] = ['DRAFT', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED'];
 
 interface Round {
   id: string;
@@ -95,6 +103,7 @@ export default function TournamentRoundsPage() {
   // Create round dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newRoundName, setNewRoundName] = useState('');
+  const [updatingStatusForRound, setUpdatingStatusForRound] = useState<string | null>(null);
 
   const isOwner = tournament?.createdByUserId === userId;
 
@@ -149,6 +158,36 @@ export default function TournamentRoundsPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to create round');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleStatusChange(roundId: string, newStatus: RoundStatus) {
+    setUpdatingStatusForRound(roundId);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/rounds/${roundId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.validationErrors?.length) {
+          data.validationErrors.forEach((err: string) => toast.error(err));
+        } else {
+          throw new Error(data?.error || 'Failed to update status');
+        }
+        return;
+      }
+
+      toast.success(`Round status changed to ${newStatus.toLowerCase().replace('_', ' ')}`);
+      setRounds((prev) =>
+        prev.map((r) => (r.id === roundId ? { ...r, status: newStatus } : r))
+      );
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setUpdatingStatusForRound(null);
     }
   }
 
@@ -292,9 +331,33 @@ export default function TournamentRoundsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={getStatusBadgeVariant(round.status)}>
-                    {getStatusLabel(round.status)}
-                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="inline-flex items-center gap-1 cursor-pointer focus:outline-none"
+                        disabled={updatingStatusForRound === round.id}
+                      >
+                        <Badge variant={getStatusBadgeVariant(round.status)}>
+                          {getStatusLabel(round.status)}
+                          <ChevronDown className="h-3 w-3 ml-1" />
+                        </Badge>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {ALL_ROUND_STATUSES.map((status) => (
+                        <DropdownMenuItem
+                          key={status}
+                          disabled={status === round.status || updatingStatusForRound === round.id}
+                          onClick={() => handleStatusChange(round.id, status)}
+                        >
+                          <Badge variant={getStatusBadgeVariant(status)} className="mr-2">
+                            {getStatusLabel(status)}
+                          </Badge>
+                          {status === round.status && <Check className="h-3 w-3 ml-auto" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Link href={`/tournaments/${tournamentId}/rounds/${round.id}`}>
                     <Button variant="outline" size="sm">
                       <Edit className="h-4 w-4 mr-2" />

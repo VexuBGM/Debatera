@@ -66,25 +66,22 @@ export type SavePairingsInput = z.infer<typeof SavePairingsSchema>;
 // =============================================================================
 
 /**
- * Valid status transitions:
- * DRAFT -> PUBLISHED -> IN_PROGRESS -> COMPLETED
- *
- * No backwards transitions by default.
+ * All possible round statuses in their natural order.
  */
-export const VALID_STATUS_TRANSITIONS: Record<TournamentRoundStatusType, TournamentRoundStatusType[]> = {
-  DRAFT: ['PUBLISHED'],
-  PUBLISHED: ['IN_PROGRESS'],
-  IN_PROGRESS: ['COMPLETED'],
-  COMPLETED: [], // Terminal state
-};
+export const ALL_ROUND_STATUSES: TournamentRoundStatusType[] = [
+  'DRAFT',
+  'PUBLISHED',
+  'IN_PROGRESS',
+  'COMPLETED',
+];
 
 /**
  * Check if a status transition is valid.
+ * Organizers can freely change round status to any value.
  */
 export function isValidStatusTransition(
-  currentStatus: TournamentRoundStatusType,
-  newStatus: TournamentRoundStatusType
+  _currentStatus: TournamentRoundStatusType,
+  _newStatus: TournamentRoundStatusType
 ): boolean {
-  if (currentStatus === newStatus) return true; // No-op is always valid
-  return VALID_STATUS_TRANSITIONS[currentStatus].includes(newStatus);
+  return true;
 }
