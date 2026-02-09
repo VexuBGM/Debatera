@@ -531,8 +531,8 @@ export default function RoundEditorPage() {
               </Button>
             )}
 
-            {/* Venue allocation — available whenever debates exist */}
-            {editorDebates.length > 0 && (
+            {/* Venue allocation — only available when drafting */}
+            {isDraft && editorDebates.length > 0 && (
               <Button
                 variant="outline"
                 onClick={handleAllocateVenues}
