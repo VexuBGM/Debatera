@@ -20,6 +20,9 @@ interface Tournament {
     username: string | null;
     email: string | null;
   };
+  settings?: {
+    eventMode: 'ONLINE' | 'IRL';
+  } | null;
 }
 
 type TournamentInstitutionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -170,7 +173,7 @@ export default function TournamentDetailPage() {
         <Link href={`/tournaments/${tournament.id}/rounds`} className="w-full sm:w-auto">
           <Button variant="secondary" className="w-full sm:w-auto">View Rounds</Button>
         </Link>
-        {isOwner && (
+        {isOwner && tournament.settings?.eventMode !== 'ONLINE' && (
           <Link href={`/tournaments/${tournament.id}/venues`} className="w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
               <MapPin className="h-4 w-4 mr-2" />

@@ -38,6 +38,23 @@ export function assertRegistrationOpen(settings: TournamentSettingsLike, now: Da
 }
 
 /**
+ * Checks if the tournament is set to IRL (in-person) mode.
+ */
+export function isIRLMode(settings: { eventMode: string }): boolean {
+    return settings.eventMode === 'IRL';
+}
+
+/**
+ * Asserts that the tournament is in IRL mode.
+ * Throws a descriptive error if the tournament is set to ONLINE.
+ */
+export function assertIRLMode(settings: { eventMode: string }): void {
+    if (!isIRLMode(settings)) {
+        throw new Error('Venues are not available for Online tournaments.');
+    }
+}
+
+/**
  * Asserts that the team member memberCount is within valid range.
  * @param checkMin - whether to enforce the minimum size (default: true). 
  *                   Disable when building teams incrementally.

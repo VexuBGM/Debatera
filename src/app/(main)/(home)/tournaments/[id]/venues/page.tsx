@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MapPin, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getTournamentVenues,
@@ -24,6 +25,9 @@ interface Tournament {
   id: string;
   name: string;
   createdByUserId: string;
+  settings?: {
+    eventMode: 'ONLINE' | 'IRL';
+  } | null;
 }
 
 interface Round {
@@ -139,6 +143,40 @@ export default function TournamentVenuesPage() {
   // ── Active / Inactive counts ────────────────────────────────────────
   const activeCount = venues.filter((v) => v.isActive).length;
   const inactiveCount = venues.length - activeCount;
+  const isOnlineMode = tournament.settings?.eventMode === 'ONLINE';
+
+  // ── Online mode: venues disabled ────────────────────────────────────
+  if (isOnlineMode) {
+    return (
+      <main className="max-w-4xl mx-auto p-4 space-y-6">
+        <div className="flex items-center gap-4">
+          <MapPin className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-2xl font-semibold">Venues</h1>
+        </div>
+
+        <Card className="border-dashed">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-2">
+              <Monitor className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <CardTitle className="text-lg">Venues Not Available</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              This tournament is set to <strong>Online</strong> mode. Physical venues are disabled.
+              To manage venues, change the event mode to <strong>IRL</strong> in{' '}
+              <a
+                href={`/tournaments/${tournament.id}/settings`}
+                className="text-cyan-500 underline underline-offset-2 hover:text-cyan-400"
+              >
+                Tournament Settings
+              </a>.
+            </p>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-4xl mx-auto p-4 space-y-6">

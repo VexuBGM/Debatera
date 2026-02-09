@@ -125,6 +125,7 @@ export async function getTournament(tournamentId: string) {
     where: { id: tournamentId },
     include: {
       createdBy: true,
+      settings: { select: { eventMode: true } },
     },
   });
 }

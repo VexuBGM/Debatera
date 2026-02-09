@@ -13,6 +13,7 @@ import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { isTournamentAdmin } from '@/lib/tournamentRounds/authorization';
 import { autoAllocateVenues, type AutoAllocateResult } from '@/lib/venues';
+import { assertIRLMode } from '@/lib/guards/tournamentSettingsGuards';
 
 // =============================================================================
 // Types
@@ -68,6 +69,21 @@ async function authorizeAdmin(tournamentId: string): Promise<
   return { authorized: true, userId };
 }
 
+/**
+ * Fetch tournament settings and assert that the tournament is in IRL mode.
+ * Throws if settings are missing or eventMode is ONLINE.
+ */
+async function assertVenueIRL(tournamentId: string): Promise<void> {
+  const settings = await prisma.tournamentSettings.findUnique({
+    where: { tournamentId },
+    select: { eventMode: true },
+  });
+  if (!settings) {
+    throw new Error('Tournament settings not found.');
+  }
+  assertIRLMode(settings);
+}
+
 /** Get the tournamentId for a given venue. */
 async function getTournamentIdForVenue(venueId: string): Promise<string | null> {
   const venue = await prisma.venue.findUnique({
@@ -120,6 +136,8 @@ export async function createVenue(
       return { success: false, error: authResult.error };
     }
 
+    await assertVenueIRL(input.tournamentId);
+
     const venue = await prisma.venue.create({
       data: {
         tournamentId: input.tournamentId,
@@ -168,6 +186,8 @@ export async function updateVenue(
     if (!authResult.authorized) {
       return { success: false, error: authResult.error };
     }
+
+    await assertVenueIRL(tournamentId);
 
     const venue = await prisma.venue.update({
       where: { id: input.venueId },
@@ -219,6 +239,8 @@ export async function deleteVenue(
     if (!authResult.authorized) {
       return { success: false, error: authResult.error };
     }
+
+    await assertVenueIRL(tournamentId);
 
     await prisma.venue.delete({ where: { id: venueId } });
 
@@ -273,6 +295,8 @@ export async function createVenueCategory(
       return { success: false, error: authResult.error };
     }
 
+    await assertVenueIRL(tournamentId);
+
     const category = await prisma.venueCategory.create({
       data: {
         tournamentId,
@@ -320,6 +344,8 @@ export async function deleteVenueCategory(
       return { success: false, error: authResult.error };
     }
 
+    await assertVenueIRL(category.tournamentId);
+
     await prisma.venueCategory.delete({ where: { id: categoryId } });
 
     revalidatePath(`/tournaments/${category.tournamentId}`);
@@ -356,6 +382,8 @@ export async function autoAllocateVenuesAction(
     if (!authResult.authorized) {
       return { success: false, error: authResult.error };
     }
+
+    await assertVenueIRL(round.tournamentId);
 
     const result = await autoAllocateVenues(roundId);
 
