@@ -125,7 +125,7 @@ export async function getTournamentTeamsPageData(
         const adminInstitutionIds = new Set(userMemberships.map(m => m.institutionId));
 
         const manageableInstitutions = participatingInstitutions
-            .filter(pi => adminInstitutionIds.has(pi.institutionId) || tournament.createdByUserId === userId)
+            .filter(pi => adminInstitutionIds.has(pi.institutionId))
             .map(pi => ({
                 id: pi.institution.id,
                 name: pi.institution.name,
@@ -200,15 +200,7 @@ export async function getInstitutionTeamState(
         });
 
         if (!membership) {
-            // Also allow if the user is the tournament creator
-            const tournament = await prisma.tournament.findUnique({
-                where: { id: tournamentId },
-                select: { createdByUserId: true },
-            });
-
-            if (tournament?.createdByUserId !== userId) {
-                return { success: false, error: 'You are not a member of this institution' };
-            }
+            return { success: false, error: 'You are not a member of this institution' };
         }
 
         // Fetch teams
@@ -280,7 +272,7 @@ export async function createTeam({
             return { success: false, error: 'Unauthorized' };
         }
 
-        // Permission check: Must be Institution Admin or Tournament Creator
+        // Permission check: Must be Institution Admin
         const membership = await prisma.institutionMember.findUnique({
             where: {
                 institutionId_userId: {
@@ -290,19 +282,16 @@ export async function createTeam({
             },
         });
 
+        if (membership?.role !== 'ADMIN') {
+            return { success: false, error: 'Only institution admins can manage teams' };
+        }
+
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
             include: { settings: true },
         });
 
         if (!tournament) return { success: false, error: 'Tournament not found' };
-
-        const isInstitutionAdmin = membership?.role === 'ADMIN';
-        const isTournamentCreator = tournament.createdByUserId === userId;
-
-        if (!isInstitutionAdmin && !isTournamentCreator) {
-            return { success: false, error: 'Insufficient permissions' };
-        }
 
         // Get institution name for auto-naming
         const institution = await prisma.institution.findUnique({
@@ -401,7 +390,7 @@ export async function deleteTeam({
 
         if (!team) return { success: false, error: 'Team not found' };
 
-        // Permission check
+        // Permission check: Only institution admins can delete teams
         const membership = await prisma.institutionMember.findUnique({
             where: {
                 institutionId_userId: {
@@ -411,15 +400,8 @@ export async function deleteTeam({
             },
         });
 
-        const tournament = await prisma.tournament.findUnique({
-            where: { id: team.tournamentId },
-        });
-
-        const isInstitutionAdmin = membership?.role === 'ADMIN';
-        const isTournamentCreator = tournament?.createdByUserId === userId;
-
-        if (!isInstitutionAdmin && !isTournamentCreator) {
-            return { success: false, error: 'Insufficient permissions' };
+        if (membership?.role !== 'ADMIN') {
+            return { success: false, error: 'Only institution admins can manage teams' };
         }
 
         await prisma.tournamentTeam.delete({
@@ -461,7 +443,7 @@ export async function moveParticipant({
 
         if (!participant) return { success: false, error: 'Participant not found' };
 
-        // Permission check
+        // Permission check: Only institution admins can manage team members
         const membership = await prisma.institutionMember.findUnique({
             where: {
                 institutionId_userId: {
@@ -471,19 +453,16 @@ export async function moveParticipant({
             },
         });
 
+        if (membership?.role !== 'ADMIN') {
+            return { success: false, error: 'Only institution admins can manage teams' };
+        }
+
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
             include: { settings: true },
         });
 
         if (!tournament) return { success: false, error: 'Tournament not found' };
-
-        const isInstitutionAdmin = membership?.role === 'ADMIN';
-        const isTournamentCreator = tournament.createdByUserId === userId;
-
-        if (!isInstitutionAdmin && !isTournamentCreator) {
-            return { success: false, error: 'Insufficient permissions' };
-        }
 
         if (toTeamId) {
             // Assigning to a team

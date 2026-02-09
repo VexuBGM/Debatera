@@ -89,7 +89,7 @@ Located in `src/actions/teams.actions.ts`:
 
 ## Permission Rules
 
-1. **Create/Delete/Move**: User must be an `InstitutionMember` with role `ADMIN` for the institution
+1. **Create/Delete/Move**: User must be an `InstitutionMember` with role `ADMIN` for the institution. Tournament admins/creators cannot manage teams.
 2. **Approved Only**: Institution must have `TournamentInstitution.status = APPROVED`
 3. **Lock After Close**: If `tournament.registrationClosesAt` is in the past, all mutations are blocked
 
@@ -158,11 +158,6 @@ Team names are auto-generated as `${Institution.name} ${N}` where N is the small
 
 ### Editing Team Sizes
 Add UI in tournament settings to update `teamMinSize` and `teamMaxSize`.
-
-### Organizer Permissions
-To allow tournament organizers to manage any institution's teams:
-1. Add check for `tournament.createdByUserId === userId` in `assertCanManageInstitutionInTournament`
-2. Update UI to show all institutions as manageable for organizers
 
 ### Team Name Editing
 Currently disabled. To enable:
