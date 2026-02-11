@@ -106,15 +106,19 @@ const WSDC_SPEECH_ORDER = [
   'PROP_REPLY',
 ] as const;
 
+// Speeches grouped by side for two-column layout
+const PROP_SPEECH_ORDER = ['PROP_1', 'PROP_2', 'PROP_3', 'PROP_REPLY'] as const;
+const OPP_SPEECH_ORDER = ['OPP_1', 'OPP_2', 'OPP_3', 'OPP_REPLY'] as const;
+
 const SPEECH_ROLE_LABELS: Record<string, string> = {
-  PROP_1: '1st Proposition',
-  OPP_1: '1st Opposition',
-  PROP_2: '2nd Proposition',
-  OPP_2: '2nd Opposition',
-  PROP_3: '3rd Proposition',
-  OPP_3: '3rd Opposition',
-  OPP_REPLY: 'Opposition Reply',
-  PROP_REPLY: 'Proposition Reply',
+  PROP_1: '1st Speaker',
+  OPP_1: '1st Speaker',
+  PROP_2: '2nd Speaker',
+  OPP_2: '2nd Speaker',
+  PROP_3: '3rd Speaker',
+  OPP_3: '3rd Speaker',
+  OPP_REPLY: 'Reply',
+  PROP_REPLY: 'Reply',
 };
 
 const CONSTRUCTIVE_ROLES = [
@@ -369,13 +373,124 @@ export default function BallotEntryPage() {
   // Render
   // ============================================================================
 
+  // Render a single speech row (used in both columns)
+  function renderSpeechCard(
+    role: string,
+    side: 'PROPOSITION' | 'OPPOSITION'
+  ) {
+    const range = getScoreRange(role);
+    const isReply = REPLY_ROLES.includes(role);
+    const members = getTeamMembers(side);
+    const s = speeches[role] || {
+      speakerId: null,
+      speakerName: null,
+      score: '',
+      comment: '',
+    };
+
+    return (
+      <div
+        key={role}
+        className={`p-3 rounded-lg border space-y-2 ${
+          side === 'PROPOSITION'
+            ? 'border-blue-500/30 bg-blue-500/5'
+            : 'border-red-500/30 bg-red-500/5'
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm">
+              {SPEECH_ROLE_LABELS[role]}
+            </span>
+            {isReply && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 ${
+                  side === 'PROPOSITION'
+                    ? 'border-blue-400/50 text-blue-400'
+                    : 'border-red-400/50 text-red-400'
+                }`}
+              >
+                Reply
+              </Badge>
+            )}
+          </div>
+          <span className="text-[11px] text-muted-foreground">
+            {range.min}–{range.max}
+          </span>
+        </div>
+
+        {/* Speaker */}
+        <div>
+          <Label className="text-xs text-muted-foreground">Speaker</Label>
+          {members.length > 0 ? (
+            <Select
+              value={s.speakerId || ''}
+              onValueChange={(v) => {
+                updateSpeech(role, 'speakerId', v || null);
+                const member = members.find((m) => m.id === v);
+                updateSpeech(role, 'speakerName', member?.name || null);
+              }}
+              disabled={isSubmitted}
+            >
+              <SelectTrigger className="mt-1 h-8 text-sm">
+                <SelectValue placeholder="Select speaker" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              placeholder="Speaker name"
+              value={s.speakerName || ''}
+              onChange={(e) => updateSpeech(role, 'speakerName', e.target.value)}
+              disabled={isSubmitted}
+              className="mt-1 h-8 text-sm"
+            />
+          )}
+        </div>
+
+        {/* Score + Comment row */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">Score</Label>
+            <Input
+              type="number"
+              min={range.min}
+              max={range.max}
+              step={0.5}
+              value={s.score}
+              onChange={(e) => updateSpeech(role, 'score', e.target.value)}
+              disabled={isSubmitted}
+              className="mt-1 h-8 text-sm"
+              placeholder={`${range.min}–${range.max}`}
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Comment</Label>
+            <Input
+              value={s.comment}
+              onChange={(e) => updateSpeech(role, 'comment', e.target.value)}
+              disabled={isSubmitted}
+              className="mt-1 h-8 text-sm"
+              placeholder="Optional"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
       {/* Back link */}
       <div className="mb-4">
-        <Link
-          href={`/tournaments/${ballot.tournament.id}/my-ballots`}
-        >
+        <Link href={`/tournaments/${ballot.tournament.id}/my-ballots`}>
           <Button variant="ghost" className="pl-0 hover:pl-2 transition-all">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to My Ballots
@@ -384,7 +499,7 @@ export default function BallotEntryPage() {
       </div>
 
       {/* Header Card */}
-      <Card className="mb-6">
+      <Card className="mb-6 border-border/60">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -396,13 +511,22 @@ export default function BallotEntryPage() {
             </div>
             <div className="flex items-center gap-2">
               <Badge
-                variant={
-                  ballot.adjudicatorRole === 'CHAIR' ? 'default' : 'secondary'
+                className={
+                  ballot.adjudicatorRole === 'CHAIR'
+                    ? 'bg-amber-500 text-white hover:bg-amber-600'
+                    : 'bg-zinc-600 text-zinc-100 hover:bg-zinc-700'
                 }
               >
                 {ballot.adjudicatorRole === 'CHAIR' ? '🪑 Chair' : 'Panelist'}
               </Badge>
-              <Badge variant={isSubmitted ? 'default' : 'outline'}>
+              <Badge
+                className={
+                  isSubmitted
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'border-dashed border-muted-foreground text-muted-foreground'
+                }
+                variant={isSubmitted ? 'default' : 'outline'}
+              >
                 {isSubmitted ? (
                   <span className="flex items-center gap-1">
                     <Lock className="h-3 w-3" />
@@ -418,19 +542,15 @@ export default function BallotEntryPage() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="font-medium text-blue-600">Proposition</span>
-              <p className="text-muted-foreground">
-                {ballot.debate.propTeam?.name ?? 'TBD'}
-              </p>
+              <span className="font-semibold text-blue-400">Proposition</span>
+              <p>{ballot.debate.propTeam?.name ?? 'TBD'}</p>
               <p className="text-xs text-muted-foreground">
                 {ballot.debate.propTeam?.institution}
               </p>
             </div>
             <div className="text-right">
-              <span className="font-medium text-red-600">Opposition</span>
-              <p className="text-muted-foreground">
-                {ballot.debate.oppTeam?.name ?? 'TBD'}
-              </p>
+              <span className="font-semibold text-red-400">Opposition</span>
+              <p>{ballot.debate.oppTeam?.name ?? 'TBD'}</p>
               <p className="text-xs text-muted-foreground">
                 {ballot.debate.oppTeam?.institution}
               </p>
@@ -440,7 +560,7 @@ export default function BallotEntryPage() {
       </Card>
 
       {/* Winner Vote */}
-      <Card className="mb-6">
+      <Card className="mb-6 border-border/60">
         <CardHeader>
           <CardTitle className="text-lg">Winner Vote</CardTitle>
           <CardDescription>
@@ -455,16 +575,26 @@ export default function BallotEntryPage() {
             }
             disabled={isSubmitted}
           >
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-6">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="PROPOSITION" id="vote-prop" />
-                <Label htmlFor="vote-prop" className="text-blue-600 font-medium">
+                <Label
+                  htmlFor="vote-prop"
+                  className={`font-semibold cursor-pointer ${
+                    vote === 'PROPOSITION' ? 'text-blue-400' : 'text-muted-foreground'
+                  }`}
+                >
                   Proposition
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="OPPOSITION" id="vote-opp" />
-                <Label htmlFor="vote-opp" className="text-red-600 font-medium">
+                <Label
+                  htmlFor="vote-opp"
+                  className={`font-semibold cursor-pointer ${
+                    vote === 'OPPOSITION' ? 'text-red-400' : 'text-muted-foreground'
+                  }`}
+                >
                   Opposition
                 </Label>
               </div>
@@ -473,8 +603,8 @@ export default function BallotEntryPage() {
         </CardContent>
       </Card>
 
-      {/* Speaker Scores */}
-      <Card className="mb-6">
+      {/* Speaker Scores — Two-Column Layout */}
+      <Card className="mb-6 border-border/60">
         <CardHeader>
           <CardTitle className="text-lg">Speaker Scores</CardTitle>
           <CardDescription>
@@ -482,138 +612,51 @@ export default function BallotEntryPage() {
             30–40. Half points allowed.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {WSDC_SPEECH_ORDER.map((role) => {
-            const side = getSpeechSide(role);
-            const range = getScoreRange(role);
-            const isReply = REPLY_ROLES.includes(role);
-            const members = getTeamMembers(side);
-            const s = speeches[role] || {
-              speakerId: null,
-              speakerName: null,
-              score: '',
-              comment: '',
-            };
-
-            return (
-              <div
-                key={role}
-                className={`p-4 rounded-lg border ${
-                  side === 'PROPOSITION'
-                    ? 'border-blue-200 bg-blue-50/30'
-                    : 'border-red-200 bg-red-50/30'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">
-                      {SPEECH_ROLE_LABELS[role]}
-                    </span>
-                    {isReply && (
-                      <Badge variant="outline" className="text-xs">
-                        Reply
-                      </Badge>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {range.min}–{range.max} pts
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Speaker selector */}
-                  <div>
-                    <Label className="text-xs">Speaker</Label>
-                    {members.length > 0 ? (
-                      <Select
-                        value={s.speakerId || ''}
-                        onValueChange={(v) => {
-                          updateSpeech(role, 'speakerId', v || null);
-                          const member = members.find((m) => m.id === v);
-                          updateSpeech(
-                            role,
-                            'speakerName',
-                            member?.name || null
-                          );
-                        }}
-                        disabled={isSubmitted}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select speaker" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {members.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>
-                              {m.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        placeholder="Speaker name"
-                        value={s.speakerName || ''}
-                        onChange={(e) =>
-                          updateSpeech(role, 'speakerName', e.target.value)
-                        }
-                        disabled={isSubmitted}
-                        className="mt-1"
-                      />
-                    )}
-                  </div>
-
-                  {/* Score */}
-                  <div>
-                    <Label className="text-xs">Score</Label>
-                    <Input
-                      type="number"
-                      min={range.min}
-                      max={range.max}
-                      step={0.5}
-                      value={s.score}
-                      onChange={(e) =>
-                        updateSpeech(role, 'score', e.target.value)
-                      }
-                      disabled={isSubmitted}
-                      className="mt-1"
-                      placeholder={`${range.min}–${range.max}`}
-                    />
-                  </div>
-
-                  {/* Comment */}
-                  <div>
-                    <Label className="text-xs">Comment</Label>
-                    <Input
-                      value={s.comment}
-                      onChange={(e) =>
-                        updateSpeech(role, 'comment', e.target.value)
-                      }
-                      disabled={isSubmitted}
-                      className="mt-1"
-                      placeholder="Optional"
-                    />
-                  </div>
-                </div>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Proposition Column */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-blue-500/30">
+                <div className="w-2 h-2 rounded-full bg-blue-400" />
+                <h3 className="font-semibold text-blue-400 text-sm">
+                  Proposition
+                </h3>
               </div>
-            );
-          })}
-
-          {/* Running Totals */}
-          <div className="flex justify-between items-center pt-4 border-t font-medium">
-            <div className="text-blue-600">
-              Proposition Total:{' '}
-              <span className="text-lg">{propTotal.toFixed(1)}</span>
+              {PROP_SPEECH_ORDER.map((role) =>
+                renderSpeechCard(role, 'PROPOSITION')
+              )}
+              <div className="text-center pt-2 border-t border-blue-500/20">
+                <span className="text-xs text-muted-foreground">Total</span>
+                <p className="text-xl font-bold text-blue-400">
+                  {propTotal.toFixed(1)}
+                </p>
+              </div>
             </div>
-            <div className="text-red-600">
-              Opposition Total:{' '}
-              <span className="text-lg">{oppTotal.toFixed(1)}</span>
+
+            {/* Opposition Column */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-red-500/30">
+                <div className="w-2 h-2 rounded-full bg-red-400" />
+                <h3 className="font-semibold text-red-400 text-sm">
+                  Opposition
+                </h3>
+              </div>
+              {OPP_SPEECH_ORDER.map((role) =>
+                renderSpeechCard(role, 'OPPOSITION')
+              )}
+              <div className="text-center pt-2 border-t border-red-500/20">
+                <span className="text-xs text-muted-foreground">Total</span>
+                <p className="text-xl font-bold text-red-400">
+                  {oppTotal.toFixed(1)}
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Private Notes / Feedback */}
-      <Card className="mb-6">
+      <Card className="mb-6 border-border/60">
         <CardHeader>
           <CardTitle className="text-lg">Private Notes</CardTitle>
           <CardDescription>
@@ -686,11 +729,11 @@ export default function BallotEntryPage() {
             <p>
               <strong>Winner vote:</strong>{' '}
               {vote === 'PROPOSITION' ? (
-                <span className="text-blue-600">Proposition</span>
+                <span className="text-blue-400">Proposition</span>
               ) : vote === 'OPPOSITION' ? (
-                <span className="text-red-600">Opposition</span>
+                <span className="text-red-400">Opposition</span>
               ) : (
-                <span className="text-amber-600">Not selected!</span>
+                <span className="text-amber-400">Not selected!</span>
               )}
             </p>
             <p>

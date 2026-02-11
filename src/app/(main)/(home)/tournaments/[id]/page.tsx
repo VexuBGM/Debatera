@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, ArrowLeft, MapPin } from 'lucide-react';
+import { Trophy, ArrowLeft, MapPin, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -172,6 +172,12 @@ export default function TournamentDetailPage() {
         </Link>
         <Link href={`/tournaments/${tournament.id}/rounds`} className="w-full sm:w-auto">
           <Button variant="secondary" className="w-full sm:w-auto">View Rounds</Button>
+        </Link>
+        <Link href={`/tournaments/${tournament.id}/my-ballots`} className="w-full sm:w-auto">
+          <Button variant="secondary" className="w-full sm:w-auto">
+            <Scale className="h-4 w-4 mr-2" />
+            My Ballots
+          </Button>
         </Link>
         {isOwner && tournament.settings?.eventMode !== 'ONLINE' && (
           <Link href={`/tournaments/${tournament.id}/venues`} className="w-full sm:w-auto">

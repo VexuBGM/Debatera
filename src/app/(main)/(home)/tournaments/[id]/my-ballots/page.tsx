@@ -137,13 +137,22 @@ function BallotCard({ ballot }: { ballot: BallotListItem }) {
             <div className="flex items-center gap-2">
               <span className="font-semibold">{ballot.round.name}</span>
               <Badge
-                variant={
-                  ballot.adjudicatorRole === 'CHAIR' ? 'default' : 'secondary'
+                className={
+                  ballot.adjudicatorRole === 'CHAIR'
+                    ? 'bg-amber-500 text-white hover:bg-amber-600'
+                    : 'bg-zinc-600 text-zinc-100 hover:bg-zinc-700'
                 }
               >
                 {ballot.adjudicatorRole === 'CHAIR' ? '🪑 Chair' : 'Panelist'}
               </Badge>
-              <Badge variant={isSubmitted ? 'default' : 'outline'}>
+              <Badge
+                className={
+                  isSubmitted
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'border-dashed border-muted-foreground text-muted-foreground'
+                }
+                variant={isSubmitted ? 'default' : 'outline'}
+              >
                 {isSubmitted ? (
                   <span className="flex items-center gap-1">
                     <Check className="h-3 w-3" />
