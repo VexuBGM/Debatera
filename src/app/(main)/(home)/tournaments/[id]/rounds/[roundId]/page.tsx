@@ -141,15 +141,22 @@ export default function RoundEditorPage() {
       setEditedName(data.round.name);
 
       // Initialize editor debates from server data
-      const debates: EditorDebate[] = data.round.debates.map((d: RoundData['debates'][0]) => ({
-        id: d.id,
-        order: d.order,
-        propTeamId: d.propTeamId,
-        oppTeamId: d.oppTeamId,
-        isBye: d.isBye,
-        venueId: d.venue?.id ?? null,
-        judgeParticipantIds: d.judges.map((j: { participantId: string }) => j.participantId),
-      }));
+      const debates: EditorDebate[] = data.round.debates.map((d: RoundData['debates'][0]) => {
+        // Split judges by role: first CHAIR becomes chairJudgeParticipantId, rest are panelists
+        const chairJudge = d.judges.find((j: { role?: string; participantId: string }) => j.role === 'CHAIR');
+        const panelistJudges = d.judges.filter((j: { role?: string; participantId: string }) => j.role !== 'CHAIR');
+
+        return {
+          id: d.id,
+          order: d.order,
+          propTeamId: d.propTeamId,
+          oppTeamId: d.oppTeamId,
+          isBye: d.isBye,
+          venueId: d.venue?.id ?? null,
+          chairJudgeParticipantId: chairJudge?.participantId ?? null,
+          panelistJudgeParticipantIds: panelistJudges.map((j: { participantId: string }) => j.participantId),
+        };
+      });
       setEditorDebates(debates);
       setHasChanges(false);
 
@@ -348,11 +355,11 @@ export default function RoundEditorPage() {
     if (!round || round.status !== 'DRAFT') return false;
     if (hasChanges) return false; // Must save first
 
-    // All non-bye debates must have both teams and at least 1 judge
+    // All non-bye debates must have both teams, a chair judge, and at least 1 total judge
     for (const debate of editorDebates) {
       if (!debate.isBye) {
         if (!debate.propTeamId || !debate.oppTeamId) return false;
-        if (debate.judgeParticipantIds.length === 0) return false;
+        if (!debate.chairJudgeParticipantId) return false;
       }
     }
 
@@ -562,8 +569,8 @@ export default function RoundEditorPage() {
                 (d) => !d.isBye && (!d.propTeamId || !d.oppTeamId)
               ) && <li>Some debates are missing teams</li>}
               {editorDebates.some(
-                (d) => !d.isBye && d.judgeParticipantIds.length === 0
-              ) && <li>Some debates have no judges assigned</li>}
+                (d) => !d.isBye && !d.chairJudgeParticipantId
+              ) && <li>Some debates have no chair judge assigned</li>}
             </ul>
           </CardContent>
         </Card>

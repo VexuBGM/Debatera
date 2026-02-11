@@ -8,7 +8,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { TournamentRoundStatus } from '@prisma/client';
+import { TournamentRoundStatus, JudgeRole } from '@prisma/client';
 import { getTeamsForTournament, getJudgesForTournament } from './queries';
 
 // =============================================================================
@@ -235,7 +235,7 @@ export async function generatePairings(
     // Delete existing debates for this round (cascades to judges)
     await tx.tournamentDebate.deleteMany({ where: { roundId } });
 
-    // Create new debates with judges
+    // Create new debates with judges (first judge = CHAIR, rest = PANELIST)
     for (const plan of debatePlans) {
       await tx.tournamentDebate.create({
         data: {
@@ -245,8 +245,9 @@ export async function generatePairings(
           oppTeamId: plan.oppTeamId,
           isBye: plan.isBye,
           judges: {
-            create: plan.judgeIds.map((participantId) => ({
+            create: plan.judgeIds.map((participantId, index) => ({
               participantId,
+              role: index === 0 ? JudgeRole.CHAIR : JudgeRole.PANELIST,
             })),
           },
         },

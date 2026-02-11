@@ -278,13 +278,20 @@ model TournamentDebate {
   @@index([venueId])
 }
 
+// Judge role within a debate panel
+enum JudgeRole {
+  CHAIR     // Exactly one per debate; casts the tiebreaker vote
+  PANELIST  // Zero or more per debate
+}
+
 // Junction table for judges assigned to a debate
 // Each judge (TournamentParticipant with role=JUDGE) can only be in ONE debate per round
 model TournamentDebateJudge {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   debateId      String
-  participantId String   // Must be a TournamentParticipant with role=JUDGE
-  createdAt     DateTime @default(now())
+  participantId String    // Must be a TournamentParticipant with role=JUDGE
+  role          JudgeRole @default(PANELIST)
+  createdAt     DateTime  @default(now())
 
   // Relationships
   debate      TournamentDebate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
@@ -295,6 +302,7 @@ model TournamentDebateJudge {
   @@unique([debateId, participantId]) // Prevent duplicate judge in same debate
   @@index([debateId])
   @@index([participantId])
+  @@index([role])
 }
 
 // ============================================================================

@@ -141,6 +141,13 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             if (debate.judges.length === 0) {
               validationErrors.push(`Debate ${debate.order + 1}: No judges assigned`);
             }
+            // Validate exactly 1 chair per debate
+            const chairs = debate.judges.filter((j) => j.role === 'CHAIR');
+            if (chairs.length === 0) {
+              validationErrors.push(`Debate ${debate.order + 1}: No chair judge assigned`);
+            } else if (chairs.length > 1) {
+              validationErrors.push(`Debate ${debate.order + 1}: Multiple chair judges assigned (must be exactly 1)`);
+            }
           }
         }
 

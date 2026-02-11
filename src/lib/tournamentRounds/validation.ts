@@ -38,6 +38,7 @@ export type UpdateRoundInput = z.infer<typeof UpdateRoundSchema>;
 
 /**
  * Schema for a single debate in the pairings payload.
+ * Judges are split into a single chair and zero-or-more panelists.
  */
 export const DebatePairingSchema = z.object({
   // If updating an existing debate, include its ID
@@ -48,7 +49,8 @@ export const DebatePairingSchema = z.object({
   oppTeamId: z.string().nullable(),
   isBye: z.boolean().default(false),
   venueId: z.string().nullable().optional(),
-  judgeParticipantIds: z.array(z.string()),
+  chairJudgeParticipantId: z.string().nullable(),
+  panelistJudgeParticipantIds: z.array(z.string()),
 });
 
 export type DebatePairingInput = z.infer<typeof DebatePairingSchema>;

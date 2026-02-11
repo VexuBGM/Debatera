@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { TournamentRoundStatus, TournamentParticipantRole } from '@prisma/client';
+import { TournamentRoundStatus, TournamentParticipantRole, JudgeRole } from '@prisma/client';
 import type { DebatePairingInput } from './validation';
 
 // =============================================================================
@@ -27,6 +27,17 @@ interface TeamLookup {
 interface JudgeLookup {
   id: string;
   institutionId: string;
+}
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+/** Collect every judge participant ID referenced by a debate input. */
+function getAllJudgeIds(debate: DebatePairingInput): string[] {
+  const ids: string[] = [...debate.panelistJudgeParticipantIds];
+  if (debate.chairJudgeParticipantId) ids.push(debate.chairJudgeParticipantId);
+  return ids;
 }
 
 // =============================================================================
@@ -55,6 +66,7 @@ function validatePairings(
   for (let i = 0; i < debates.length; i++) {
     const debate = debates[i];
     const debateLabel = `Debate ${i + 1}`;
+    const allJudgeIds = getAllJudgeIds(debate);
 
     // Validate BYE logic
     if (debate.isBye) {
@@ -69,7 +81,7 @@ function validatePairings(
       }
 
       // BYE debates should not have judges
-      if (debate.judgeParticipantIds.length > 0) {
+      if (allJudgeIds.length > 0) {
         warnings.push(`${debateLabel}: BYE debates typically don't need judges.`);
       }
     } else {
@@ -80,8 +92,23 @@ function validatePairings(
       if (!debate.oppTeamId) {
         errors.push(`${debateLabel}: Missing opposition team.`);
       }
-      if (debate.judgeParticipantIds.length === 0) {
+
+      // Must have at least 1 judge (the chair)
+      if (allJudgeIds.length === 0) {
         errors.push(`${debateLabel}: Must have at least 1 judge.`);
+      }
+
+      // Must have exactly 1 chair
+      if (!debate.chairJudgeParticipantId) {
+        errors.push(`${debateLabel}: Must have exactly 1 chair judge.`);
+      }
+
+      // Chair must not also appear as panelist
+      if (
+        debate.chairJudgeParticipantId &&
+        debate.panelistJudgeParticipantIds.includes(debate.chairJudgeParticipantId)
+      ) {
+        errors.push(`${debateLabel}: Chair judge cannot also be a panelist.`);
       }
     }
 
@@ -115,8 +142,8 @@ function validatePairings(
       usedTeamIds.add(debate.oppTeamId);
     }
 
-    // Validate judge IDs and check for duplicates
-    for (const judgeId of debate.judgeParticipantIds) {
+    // Validate judge IDs and check for duplicates (across all debates in the round)
+    for (const judgeId of allJudgeIds) {
       if (!validJudgeIds.has(judgeId)) {
         errors.push(`${debateLabel}: Invalid judge ID.`);
       }
@@ -137,8 +164,8 @@ function validatePairings(
         }
       }
 
-      // Judge conflicts
-      for (const judgeId of debate.judgeParticipantIds) {
+      // Judge conflicts (check all judges – chair + panelists)
+      for (const judgeId of allJudgeIds) {
         const judge = judgeLookup.get(judgeId);
         if (judge) {
           const propTeam = debate.propTeamId ? teamLookup.get(debate.propTeamId) : null;
@@ -153,9 +180,9 @@ function validatePairings(
         }
       }
 
-      // Even panel warning
-      if (debate.judgeParticipantIds.length > 0 && debate.judgeParticipantIds.length % 2 === 0) {
-        warnings.push(`${debateLabel}: Even number of judges (${debate.judgeParticipantIds.length}).`);
+      // Even panel warning (total judges = chair + panelists)
+      if (allJudgeIds.length > 0 && allJudgeIds.length % 2 === 0) {
+        warnings.push(`${debateLabel}: Even number of judges (${allJudgeIds.length}).`);
       }
     }
   }
@@ -235,8 +262,24 @@ export async function savePairings(
     // Delete existing debates for this round (cascades to judges)
     await tx.tournamentDebate.deleteMany({ where: { roundId } });
 
-    // Create new debates with judges
+    // Create new debates with chair + panelist judges
     for (const debate of debates) {
+      const judgeRecords: { participantId: string; role: JudgeRole }[] = [];
+
+      if (debate.chairJudgeParticipantId) {
+        judgeRecords.push({
+          participantId: debate.chairJudgeParticipantId,
+          role: JudgeRole.CHAIR,
+        });
+      }
+
+      for (const panelistId of debate.panelistJudgeParticipantIds) {
+        judgeRecords.push({
+          participantId: panelistId,
+          role: JudgeRole.PANELIST,
+        });
+      }
+
       await tx.tournamentDebate.create({
         data: {
           roundId,
@@ -246,9 +289,7 @@ export async function savePairings(
           isBye: debate.isBye,
           venueId: debate.venueId ?? null,
           judges: {
-            create: debate.judgeParticipantIds.map((participantId) => ({
-              participantId,
-            })),
+            create: judgeRecords,
           },
         },
       });

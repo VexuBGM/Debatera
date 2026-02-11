@@ -43,6 +43,7 @@ export async function getRoundsForTournament(
                     include: { user: true, institution: true },
                   },
                 },
+                orderBy: { role: 'asc' }, // CHAIR first, then PANELIST
               },
             },
           },
@@ -74,6 +75,7 @@ export async function getRoundById(roundId: string) {
                 include: { user: true, institution: true },
               },
             },
+            orderBy: { role: 'asc' }, // CHAIR first, then PANELIST
           },
         },
       },
@@ -197,6 +199,7 @@ export async function getPairingsForRound(roundId: string) {
                 include: { user: true, institution: true },
               },
             },
+            orderBy: { role: 'asc' }, // CHAIR first, then PANELIST
           },
         },
       },
@@ -217,6 +220,7 @@ export async function getJudgeAssignmentsForRound(roundId: string) {
     select: {
       participantId: true,
       debateId: true,
+      role: true,
     },
   });
 }

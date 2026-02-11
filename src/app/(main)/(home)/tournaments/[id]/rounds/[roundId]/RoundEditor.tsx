@@ -92,7 +92,8 @@ export function RoundEditor({
   const assignedJudgeIds = useMemo(() => {
     const ids = new Set<string>();
     for (const debate of debates) {
-      for (const judgeId of debate.judgeParticipantIds) {
+      if (debate.chairJudgeParticipantId) ids.add(debate.chairJudgeParticipantId);
+      for (const judgeId of debate.panelistJudgeParticipantIds) {
         ids.add(judgeId);
       }
     }
@@ -169,7 +170,7 @@ export function RoundEditor({
     const overId = over.id as string;
     const activeType = active.data.current?.type as 'team' | 'judge';
     const activeSourceDebateId = active.data.current?.debateId as string | undefined;
-    const activeSourceSlot = active.data.current?.slot as 'prop' | 'opp' | 'judges' | undefined;
+    const activeSourceSlot = active.data.current?.slot as 'prop' | 'opp' | 'chair' | 'panelists' | undefined;
 
     // Parse the drop target
     // Format: "debate-{debateId}-{slot}" or "unassigned-teams" or "unassigned-judges"
@@ -185,9 +186,13 @@ export function RoundEditor({
     }
 
     if (overId === 'unassigned-judges' && activeType === 'judge') {
-      // Remove judge from debate
-      if (activeSourceDebateId) {
-        removeJudgeFromDebate(activeSourceDebateId, activeId);
+      // Remove judge from debate (chair or panelist)
+      if (activeSourceDebateId && activeSourceSlot) {
+        if (activeSourceSlot === 'chair') {
+          removeChairFromDebate(activeSourceDebateId);
+        } else if (activeSourceSlot === 'panelists') {
+          removePanelistFromDebate(activeSourceDebateId, activeId);
+        }
       }
       return;
     }
@@ -195,7 +200,7 @@ export function RoundEditor({
     // Dropping on a debate slot
     if (overParts[0] === 'debate' && overParts.length >= 3) {
       const targetDebateId = overParts[1];
-      const targetSlot = overParts[2] as 'prop' | 'opp' | 'judges';
+      const targetSlot = overParts[2] as 'prop' | 'opp' | 'chair' | 'panelists';
 
       // Validate drop
       if (activeType === 'team' && (targetSlot === 'prop' || targetSlot === 'opp')) {
@@ -207,13 +212,17 @@ export function RoundEditor({
           // Adding from unassigned
           addTeamToDebate(activeId, targetDebateId, targetSlot);
         }
-      } else if (activeType === 'judge' && targetSlot === 'judges') {
-        if (activeSourceDebateId) {
-          // Moving between debates
-          moveJudge(activeId, activeSourceDebateId, targetDebateId);
+      } else if (activeType === 'judge' && (targetSlot === 'chair' || targetSlot === 'panelists')) {
+        if (activeSourceDebateId && activeSourceSlot) {
+          // Moving from one debate slot to another
+          moveJudge(activeId, activeSourceDebateId, activeSourceSlot as 'chair' | 'panelists', targetDebateId, targetSlot);
         } else {
           // Adding from unassigned
-          addJudgeToDebate(activeId, targetDebateId);
+          if (targetSlot === 'chair') {
+            addChairToDebate(activeId, targetDebateId);
+          } else {
+            addPanelistToDebate(activeId, targetDebateId);
+          }
         }
       } else {
         toast.error('Invalid drop target');
@@ -307,58 +316,121 @@ export function RoundEditor({
     );
   }
 
-  function addJudgeToDebate(judgeId: string, debateId: string) {
+  function addChairToDebate(judgeId: string, debateId: string) {
     onDebatesChange(
       debates.map((d) => {
         if (d.id !== debateId) return d;
 
-        // Check if judge is already in this debate
-        if (d.judgeParticipantIds.includes(judgeId)) {
+        // Check if chair slot is already occupied
+        if (d.chairJudgeParticipantId) {
+          toast.error('Chair slot is already occupied. Remove the current chair first.');
           return d;
         }
 
+        // Remove from panelists if the judge is already a panelist in this debate
+        const newPanelists = d.panelistJudgeParticipantIds.filter((id) => id !== judgeId);
+
         return {
           ...d,
-          judgeParticipantIds: [...d.judgeParticipantIds, judgeId],
+          chairJudgeParticipantId: judgeId,
+          panelistJudgeParticipantIds: newPanelists,
         };
       })
     );
   }
 
-  function removeJudgeFromDebate(debateId: string, judgeId: string) {
+  function addPanelistToDebate(judgeId: string, debateId: string) {
+    onDebatesChange(
+      debates.map((d) => {
+        if (d.id !== debateId) return d;
+
+        // Check if judge is already in this debate (as chair or panelist)
+        if (d.chairJudgeParticipantId === judgeId) return d;
+        if (d.panelistJudgeParticipantIds.includes(judgeId)) return d;
+
+        return {
+          ...d,
+          panelistJudgeParticipantIds: [...d.panelistJudgeParticipantIds, judgeId],
+        };
+      })
+    );
+  }
+
+  function removeChairFromDebate(debateId: string) {
+    onDebatesChange(
+      debates.map((d) => {
+        if (d.id !== debateId) return d;
+        return { ...d, chairJudgeParticipantId: null };
+      })
+    );
+  }
+
+  function removePanelistFromDebate(debateId: string, judgeId: string) {
     onDebatesChange(
       debates.map((d) => {
         if (d.id !== debateId) return d;
         return {
           ...d,
-          judgeParticipantIds: d.judgeParticipantIds.filter((id) => id !== judgeId),
+          panelistJudgeParticipantIds: d.panelistJudgeParticipantIds.filter((id) => id !== judgeId),
         };
       })
     );
   }
 
-  function moveJudge(judgeId: string, fromDebateId: string, toDebateId: string) {
-    if (fromDebateId === toDebateId) return;
+  function moveJudge(
+    judgeId: string,
+    fromDebateId: string,
+    fromSlot: 'chair' | 'panelists',
+    toDebateId: string,
+    toSlot: 'chair' | 'panelists'
+  ) {
+    // Same position — no-op
+    if (fromDebateId === toDebateId && fromSlot === toSlot) return;
 
     onDebatesChange(
       debates.map((d) => {
+        let updated = { ...d };
+
+        // Remove from source
         if (d.id === fromDebateId) {
-          return {
-            ...d,
-            judgeParticipantIds: d.judgeParticipantIds.filter((id) => id !== judgeId),
-          };
-        }
-        if (d.id === toDebateId) {
-          // Check if judge is already in this debate
-          if (d.judgeParticipantIds.includes(judgeId)) {
-            return d;
+          if (fromSlot === 'chair') {
+            updated = { ...updated, chairJudgeParticipantId: null };
+          } else {
+            updated = {
+              ...updated,
+              panelistJudgeParticipantIds: updated.panelistJudgeParticipantIds.filter((id) => id !== judgeId),
+            };
           }
-          return {
-            ...d,
-            judgeParticipantIds: [...d.judgeParticipantIds, judgeId],
-          };
         }
-        return d;
+
+        // Add to target
+        if (d.id === toDebateId) {
+          if (toSlot === 'chair') {
+            if (updated.chairJudgeParticipantId && updated.chairJudgeParticipantId !== judgeId) {
+              toast.error('Chair slot is already occupied');
+              return d; // abort — can't overwrite chair
+            }
+            updated = { ...updated, chairJudgeParticipantId: judgeId };
+            // Remove from panelists if moving within same debate
+            updated = {
+              ...updated,
+              panelistJudgeParticipantIds: updated.panelistJudgeParticipantIds.filter((id) => id !== judgeId),
+            };
+          } else {
+            if (!updated.panelistJudgeParticipantIds.includes(judgeId)) {
+              updated = {
+                ...updated,
+                panelistJudgeParticipantIds: [...updated.panelistJudgeParticipantIds, judgeId],
+              };
+            }
+            // Clear chair if moving within same debate from chair to panelist
+            if (updated.chairJudgeParticipantId === judgeId) {
+              updated = { ...updated, chairJudgeParticipantId: null };
+            }
+          }
+        }
+
+        return updated;
       })
     );
   }

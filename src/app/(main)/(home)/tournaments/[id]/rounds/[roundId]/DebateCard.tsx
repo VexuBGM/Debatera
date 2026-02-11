@@ -4,6 +4,7 @@
  * Debate Card Component
  *
  * Displays a single debate with prop/opp teams and judges.
+ * Judges are split into Chair (1/4 width) and Panelists (3/4 width).
  * Supports drag and drop when in edit mode.
  */
 
@@ -20,6 +21,7 @@ import {
 import {
   AlertTriangle,
   ArrowLeftRight,
+  Crown,
   GripVertical,
   MapPin,
   Minus,
@@ -50,7 +52,7 @@ interface DebateCardProps {
 // Helpers
 // =============================================================================
 
-function getJudgeName(judge: JudgeData | undefined): string {
+function getJudgeName(judge: JudgeData | null | undefined): string {
   if (!judge) return 'Unknown';
   return judge.user?.username || judge.user?.email || 'Unknown Judge';
 }
@@ -75,8 +77,14 @@ function computeWarnings(
     });
   }
 
+  // All judge IDs (chair + panelists)
+  const allJudgeIds = [
+    ...(debate.chairJudgeParticipantId ? [debate.chairJudgeParticipantId] : []),
+    ...debate.panelistJudgeParticipantIds,
+  ];
+
   // Judge conflicts
-  for (const judgeId of debate.judgeParticipantIds) {
+  for (const judgeId of allJudgeIds) {
     const judge = judgeMap.get(judgeId);
     if (judge) {
       const hasConflict =
@@ -92,10 +100,10 @@ function computeWarnings(
   }
 
   // Even panel
-  if (debate.judgeParticipantIds.length > 0 && debate.judgeParticipantIds.length % 2 === 0) {
+  if (allJudgeIds.length > 0 && allJudgeIds.length % 2 === 0) {
     warnings.push({
       type: 'even-panel',
-      message: `Even number of judges (${debate.judgeParticipantIds.length})`,
+      message: `Even number of judges (${allJudgeIds.length})`,
     });
   }
 
@@ -119,6 +127,9 @@ export function DebateCard({
   const propTeam = debate.propTeamId ? teamMap.get(debate.propTeamId) : null;
   const oppTeam = debate.oppTeamId ? teamMap.get(debate.oppTeamId) : null;
   const warnings = computeWarnings(debate, teamMap, judgeMap);
+  const chairJudge = debate.chairJudgeParticipantId
+    ? judgeMap.get(debate.chairJudgeParticipantId) ?? null
+    : null;
 
   // Swap prop and opp teams
   function handleSwapTeams() {
@@ -139,7 +150,8 @@ export function DebateCard({
       if (hasOnlyOne) {
         onDebateChange({
           isBye: true,
-          judgeParticipantIds: [], // BYE debates don't need judges
+          chairJudgeParticipantId: null,
+          panelistJudgeParticipantIds: [],
         });
       }
     }
@@ -152,10 +164,15 @@ export function DebateCard({
     });
   }
 
-  // Remove judge
-  function handleRemoveJudge(judgeId: string) {
+  // Remove chair judge
+  function handleRemoveChair() {
+    onDebateChange({ chairJudgeParticipantId: null });
+  }
+
+  // Remove panelist judge
+  function handleRemovePanelist(judgeId: string) {
     onDebateChange({
-      judgeParticipantIds: debate.judgeParticipantIds.filter((id) => id !== judgeId),
+      panelistJudgeParticipantIds: debate.panelistJudgeParticipantIds.filter((id) => id !== judgeId),
     });
   }
 
@@ -394,60 +411,125 @@ export function DebateCard({
           )}
         </div>
 
-        {/* Judges */}
+        {/* Judges — split into Chair (1/4) and Panelists (3/4) */}
         <div className="mt-4 pt-4 border-t">
           <div className="flex items-center gap-2 mb-2">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Judges ({debate.judgeParticipantIds.length})</span>
+            <span className="text-sm font-medium">
+              Judges ({(debate.chairJudgeParticipantId ? 1 : 0) + debate.panelistJudgeParticipantIds.length})
+            </span>
           </div>
 
-          <DroppableSlot
-            id={`debate-${debate.id}-judges`}
-            type="judge"
-            debateId={debate.id}
-            slot="judges"
-            isEmpty={debate.judgeParticipantIds.length === 0}
-            className={cn(
-              'min-h-10',
-              debate.judgeParticipantIds.length === 0 && 'p-3'
-            )}
-          >
-            {debate.judgeParticipantIds.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                Drop judges here
+          <div className="grid grid-cols-4 gap-3">
+            {/* Chair — 1/4 width */}
+            <div className="col-span-1">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Crown className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                  Chair
+                </span>
               </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {debate.judgeParticipantIds.map((judgeId) => {
-                  const judge = judgeMap.get(judgeId);
-                  return (
-                    <DraggableItem
-                      key={judgeId}
-                      id={judgeId}
-                      type="judge"
-                      data={{ type: 'judge', debateId: debate.id }}
-                      disabled={!canEdit}
-                    >
-                      <div className="px-3 py-1.5 bg-muted rounded-full text-sm flex items-center gap-2 group">
-                        {canEdit && (
-                          <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
-                        )}
-                        <span>{getJudgeName(judge)}</span>
-                        {canEdit && (
-                          <button
-                            className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
-                            onClick={() => handleRemoveJudge(judgeId)}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
-                    </DraggableItem>
-                  );
-                })}
+
+              <DroppableSlot
+                id={`debate-${debate.id}-chair`}
+                type="judge"
+                debateId={debate.id}
+                slot="chair"
+                isEmpty={!debate.chairJudgeParticipantId}
+                className={cn(
+                  'min-h-10',
+                  !debate.chairJudgeParticipantId && 'p-2'
+                )}
+              >
+                {!debate.chairJudgeParticipantId ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
+                    Drop chair here
+                  </div>
+                ) : (
+                  <DraggableItem
+                    id={debate.chairJudgeParticipantId}
+                    type="judge"
+                    data={{ type: 'judge', debateId: debate.id, slot: 'chair' }}
+                    disabled={!canEdit}
+                  >
+                    <div className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md text-sm flex items-center gap-1.5 group">
+                      {canEdit && (
+                        <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab shrink-0" />
+                      )}
+                      <Crown className="h-3 w-3 text-amber-500 shrink-0" />
+                      <span className="truncate font-medium text-black dark:text-white">{getJudgeName(chairJudge)}</span>
+                      {canEdit && (
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive ml-auto shrink-0"
+                          onClick={handleRemoveChair}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </DraggableItem>
+                )}
+              </DroppableSlot>
+            </div>
+
+            {/* Panelists — 3/4 width */}
+            <div className="col-span-3">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Panelists ({debate.panelistJudgeParticipantIds.length})
+                </span>
               </div>
-            )}
-          </DroppableSlot>
+
+              <DroppableSlot
+                id={`debate-${debate.id}-panelists`}
+                type="judge"
+                debateId={debate.id}
+                slot="panelists"
+                isEmpty={debate.panelistJudgeParticipantIds.length === 0}
+                className={cn(
+                  'min-h-10',
+                  debate.panelistJudgeParticipantIds.length === 0 && 'p-2'
+                )}
+              >
+                {debate.panelistJudgeParticipantIds.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
+                    Drop panelists here
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {debate.panelistJudgeParticipantIds.map((judgeId) => {
+                      const judge = judgeMap.get(judgeId);
+                      return (
+                        <DraggableItem
+                          key={judgeId}
+                          id={judgeId}
+                          type="judge"
+                          data={{ type: 'judge', debateId: debate.id, slot: 'panelists' }}
+                          disabled={!canEdit}
+                        >
+                          <div className="px-3 py-1.5 bg-muted rounded-full text-sm flex items-center gap-2 group">
+                            {canEdit && (
+                              <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
+                            )}
+                            <span>{getJudgeName(judge)}</span>
+                            {canEdit && (
+                              <button
+                                className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                                onClick={() => handleRemovePanelist(judgeId)}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </DraggableItem>
+                      );
+                    })}
+                  </div>
+                )}
+              </DroppableSlot>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

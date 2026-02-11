@@ -31,9 +31,12 @@ export interface JudgeData {
   } | null;
 }
 
+export type JudgeRole = 'CHAIR' | 'PANELIST';
+
 export interface DebateJudge {
   id: string;
   participantId: string;
+  role: JudgeRole;
   participant: JudgeData;
 }
 
@@ -77,7 +80,8 @@ export interface EditorDebate {
   oppTeamId: string | null;
   isBye: boolean;
   venueId: string | null; // Assigned venue (read from server; not editable via DnD)
-  judgeParticipantIds: string[];
+  chairJudgeParticipantId: string | null;
+  panelistJudgeParticipantIds: string[];
 }
 
 // DnD item types
@@ -87,7 +91,7 @@ export interface DragItem {
   type: DragItemType;
   id: string;
   sourceDebateId?: string; // If dragged from a debate
-  sourceSlot?: 'prop' | 'opp' | 'judges'; // Which slot it came from
+  sourceSlot?: 'prop' | 'opp' | 'chair' | 'panelists'; // Which slot it came from
 }
 
 // Validation
