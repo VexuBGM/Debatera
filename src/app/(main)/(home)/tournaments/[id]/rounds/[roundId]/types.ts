@@ -96,6 +96,6 @@ export interface DragItem {
 
 // Validation
 export interface DebateWarning {
-  type: 'same-institution' | 'judge-conflict' | 'even-panel';
+  type: 'same-institution' | 'judge-conflict' | 'even-panel' | 'no-chair';
   message: string;
 }

@@ -66,6 +66,14 @@ function computeWarnings(
 
   if (debate.isBye) return warnings;
 
+  // Missing chair judge
+  if (!debate.chairJudgeParticipantId) {
+    warnings.push({
+      type: 'no-chair',
+      message: 'No chair judge assigned',
+    });
+  }
+
   const propTeam = debate.propTeamId ? teamMap.get(debate.propTeamId) : null;
   const oppTeam = debate.oppTeamId ? teamMap.get(debate.oppTeamId) : null;
 
@@ -420,9 +428,9 @@ export function DebateCard({
             </span>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
-            {/* Chair — 1/4 width */}
-            <div className="col-span-1">
+          <div className="space-y-3">
+            {/* Chair */}
+            <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Crown className="h-3.5 w-3.5 text-amber-500" />
                 <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
@@ -452,15 +460,15 @@ export function DebateCard({
                     data={{ type: 'judge', debateId: debate.id, slot: 'chair' }}
                     disabled={!canEdit}
                   >
-                    <div className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md text-sm flex items-center gap-1.5 group">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md text-sm group">
                       {canEdit && (
                         <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab shrink-0" />
                       )}
                       <Crown className="h-3 w-3 text-amber-500 shrink-0" />
-                      <span className="truncate font-medium text-black dark:text-white">{getJudgeName(chairJudge)}</span>
+                      <span className="font-medium text-black dark:text-white whitespace-nowrap">{getJudgeName(chairJudge)}</span>
                       {canEdit && (
                         <button
-                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive ml-auto shrink-0"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive shrink-0"
                           onClick={handleRemoveChair}
                         >
                           <X className="h-3 w-3" />
@@ -472,8 +480,8 @@ export function DebateCard({
               </DroppableSlot>
             </div>
 
-            {/* Panelists — 3/4 width */}
-            <div className="col-span-3">
+            {/* Panelists */}
+            <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Users className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -508,7 +516,7 @@ export function DebateCard({
                           data={{ type: 'judge', debateId: debate.id, slot: 'panelists' }}
                           disabled={!canEdit}
                         >
-                          <div className="px-3 py-1.5 bg-muted rounded-full text-sm flex items-center gap-2 group">
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm group whitespace-nowrap">
                             {canEdit && (
                               <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
                             )}
