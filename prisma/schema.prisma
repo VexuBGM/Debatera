@@ -200,6 +200,7 @@ model TournamentTeam {
   members     TournamentTeamMember[]
   propDebates TournamentDebate[]     @relation("PropTeam")
   oppDebates  TournamentDebate[]     @relation("OppTeam")
+  debateWins  DebateResult[]         @relation("DebateWinner")
 
   // Team name must be unique within an institution for a given tournament
   @@unique([tournamentId, institutionId, name])
@@ -218,6 +219,7 @@ model TournamentTeamMember {
   // Relationships
   team        TournamentTeam        @relation(fields: [teamId], references: [id], onDelete: Cascade)
   participant TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  ballotSpeeches BallotSpeech[]
 
   @@index([teamId])
 }
@@ -270,6 +272,8 @@ model TournamentDebate {
   oppTeam  TournamentTeam?          @relation("OppTeam", fields: [oppTeamId], references: [id], onDelete: SetNull)
   venue    Venue?                   @relation(fields: [venueId], references: [id], onDelete: SetNull)
   judges   TournamentDebateJudge[]
+  ballots  Ballot[]
+  result   DebateResult?
 
   @@unique([roundId, order])
   @@index([roundId])
@@ -296,6 +300,7 @@ model TournamentDebateJudge {
   // Relationships
   debate      TournamentDebate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
   participant TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  ballot      Ballot?
 
   // A judge can only be assigned to ONE debate per round (enforced via unique constraint)
   // The roundId is derived from debate.roundId in application logic
@@ -400,4 +405,102 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@index([entityType, entityId])
+}
+
+// ============================================================================
+// BALLOT ENUMS
+// ============================================================================
+
+enum BallotStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum Side {
+  PROPOSITION
+  OPPOSITION
+}
+
+enum SpeechRole {
+  PROP_1
+  OPP_1
+  PROP_2
+  OPP_2
+  PROP_3
+  OPP_3
+  OPP_REPLY
+  PROP_REPLY
+}
+
+// ============================================================================
+// BALLOT MODELS (WSDC individual adjudicator ballots)
+// ============================================================================
+
+// One ballot per adjudicator per debate
+model Ballot {
+  id              String       @id @default(cuid())
+  debateId        String
+  adjudicatorId   String       @unique // FK to TournamentDebateJudge (1:1)
+  status          BallotStatus @default(DRAFT)
+  vote            Side?        // Winning side chosen by this adjudicator
+  propTotal       Decimal?     @db.Decimal(5, 1) // Computed server-side
+  oppTotal        Decimal?     @db.Decimal(5, 1)
+  privateNotes    String?      @db.Text
+  submittedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relationships
+  debate      TournamentDebate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  adjudicator TournamentDebateJudge @relation(fields: [adjudicatorId], references: [id], onDelete: Cascade)
+  speeches    BallotSpeech[]
+
+  @@unique([debateId, adjudicatorId])
+  @@index([debateId])
+  @@index([adjudicatorId])
+  @@index([status])
+}
+
+// Individual speech score within a ballot
+model BallotSpeech {
+  id          String     @id @default(cuid())
+  ballotId    String
+  role        SpeechRole
+  side        Side       // Derived from role but stored for easier queries
+  speakerId   String?    // FK to TournamentTeamMember (optional)
+  speakerName String?    // Fallback display name
+  score       Decimal?   @db.Decimal(4, 1) // e.g. 75.5
+  comment     String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relationships
+  ballot  Ballot              @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+  speaker TournamentTeamMember? @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+
+  @@unique([ballotId, role])
+  @@index([ballotId])
+  @@index([speakerId])
+}
+
+// Stores the computed debate result after all ballots are submitted
+model DebateResult {
+  id            String   @id @default(cuid())
+  debateId      String   @unique
+  winningSide   Side
+  winningTeamId String?  @db.VarChar(128)
+  propTotalAvg  Decimal? @db.Decimal(5, 1) // Average across all ballots
+  oppTotalAvg   Decimal? @db.Decimal(5, 1)
+  voteProp      Int      @default(0) // Number of votes for proposition
+  voteOpp       Int      @default(0) // Number of votes for opposition
+  decidedByChair Boolean @default(false) // True if tie broken by chair
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  debate      TournamentDebate @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  winningTeam TournamentTeam?  @relation("DebateWinner", fields: [winningTeamId], references: [id], onDelete: SetNull)
+
+  @@index([debateId])
+  @@index([winningTeamId])
 }

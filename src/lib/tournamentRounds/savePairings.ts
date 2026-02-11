@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { TournamentRoundStatus, TournamentParticipantRole, JudgeRole } from '@prisma/client';
 import type { DebatePairingInput } from './validation';
 import { hasInstitutionConflict, type InstitutionConflictDetail } from './institutionConflict';
+import { createBallotsForDebate } from '@/lib/ballots/createBallots';
 
 // =============================================================================
 // Types
@@ -291,7 +292,7 @@ export async function savePairings(
 
   // Step 4: Save in transaction
   await prisma.$transaction(async (tx) => {
-    // Delete existing debates for this round (cascades to judges)
+    // Delete existing debates for this round (cascades to judges and draft ballots)
     await tx.tournamentDebate.deleteMany({ where: { roundId } });
 
     // Create new debates with chair + panelist judges
@@ -312,7 +313,7 @@ export async function savePairings(
         });
       }
 
-      await tx.tournamentDebate.create({
+      const createdDebate = await tx.tournamentDebate.create({
         data: {
           roundId,
           order: debate.order,
@@ -325,6 +326,11 @@ export async function savePairings(
           },
         },
       });
+
+      // Create DRAFT ballots with 8 empty speech rows for each judge
+      if (!debate.isBye && judgeRecords.length > 0) {
+        await createBallotsForDebate(tx, createdDebate.id);
+      }
     }
   });
 
