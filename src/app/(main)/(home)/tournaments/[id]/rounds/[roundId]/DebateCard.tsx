@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import type { EditorDebate, TeamData, JudgeData, VenueData, DebateWarning } from './types';
 import { DraggableItem } from './DraggableItem';
 import { DroppableSlot } from './DroppableSlot';
+import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
 
 // =============================================================================
 // Types
@@ -95,10 +96,13 @@ function computeWarnings(
   for (const judgeId of allJudgeIds) {
     const judge = judgeMap.get(judgeId);
     if (judge) {
-      const hasConflict =
-        (propTeam && judge.institutionId === propTeam.institutionId) ||
-        (oppTeam && judge.institutionId === oppTeam.institutionId);
-      if (hasConflict) {
+      if (
+        hasInstitutionConflict(
+          judge.institutionId,
+          propTeam?.institutionId ?? null,
+          oppTeam?.institutionId ?? null
+        )
+      ) {
         warnings.push({
           type: 'judge-conflict',
           message: `Judge ${getJudgeName(judge)} has institution conflict`,

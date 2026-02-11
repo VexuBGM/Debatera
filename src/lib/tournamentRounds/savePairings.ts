@@ -7,6 +7,7 @@
 import { prisma } from '@/lib/prisma';
 import { TournamentRoundStatus, TournamentParticipantRole, JudgeRole } from '@prisma/client';
 import type { DebatePairingInput } from './validation';
+import { hasInstitutionConflict, type InstitutionConflictDetail } from './institutionConflict';
 
 // =============================================================================
 // Types
@@ -17,6 +18,9 @@ export interface SavePairingsResult {
   debatesSaved: number;
   warnings: string[];
   errors: string[];
+  /** Present when `success === false` and `code === "INSTITUTION_CONFLICT"`. */
+  code?: 'INSTITUTION_CONFLICT';
+  conflicts?: InstitutionConflictDetail[];
 }
 
 interface TeamLookup {
@@ -54,9 +58,10 @@ function validatePairings(
   validJudgeIds: Set<string>,
   teamLookup: Map<string, TeamLookup>,
   judgeLookup: Map<string, JudgeLookup>
-): { errors: string[]; warnings: string[] } {
+): { errors: string[]; warnings: string[]; conflicts: InstitutionConflictDetail[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const conflicts: InstitutionConflictDetail[] = [];
 
   // Track which teams, judges, and venues are used
   const usedTeamIds = new Set<string>();
@@ -164,7 +169,7 @@ function validatePairings(
         }
       }
 
-      // Judge conflicts (check all judges – chair + panelists)
+      // Judge institution conflicts (blocking errors – never persist invalid assignments)
       for (const judgeId of allJudgeIds) {
         const judge = judgeLookup.get(judgeId);
         if (judge) {
@@ -172,10 +177,26 @@ function validatePairings(
           const oppTeam = debate.oppTeamId ? teamLookup.get(debate.oppTeamId) : null;
 
           if (
-            (propTeam && judge.institutionId === propTeam.institutionId) ||
-            (oppTeam && judge.institutionId === oppTeam.institutionId)
+            hasInstitutionConflict(
+              judge.institutionId,
+              propTeam?.institutionId ?? null,
+              oppTeam?.institutionId ?? null
+            )
           ) {
-            warnings.push(`${debateLabel}: Judge has institution conflict.`);
+            const teamInstIds = [
+              propTeam?.institutionId,
+              oppTeam?.institutionId,
+            ].filter((id): id is string => !!id);
+
+            conflicts.push({
+              debateId: debate.debateId ?? `debate-${i}`,
+              judgeId,
+              judgeInstitutionId: judge.institutionId,
+              teamInstitutionIds: teamInstIds,
+            });
+            errors.push(
+              `${debateLabel}: Judge has institution conflict (judge and team share institution).`
+            );
           }
         }
       }
@@ -187,7 +208,7 @@ function validatePairings(
     }
   }
 
-  return { errors, warnings };
+  return { errors, warnings, conflicts };
 }
 
 // =============================================================================
@@ -245,7 +266,7 @@ export async function savePairings(
   judges.forEach((j) => judgeLookup.set(j.id, j));
 
   // Step 3: Validate
-  const { errors, warnings } = validatePairings(
+  const { errors, warnings, conflicts } = validatePairings(
     debates,
     validTeamIds,
     validJudgeIds,
@@ -254,6 +275,17 @@ export async function savePairings(
   );
 
   if (errors.length > 0) {
+    // If there are institution conflicts, attach the structured list
+    if (conflicts.length > 0) {
+      return {
+        success: false,
+        debatesSaved: 0,
+        warnings,
+        errors,
+        code: 'INSTITUTION_CONFLICT',
+        conflicts,
+      };
+    }
     return { success: false, debatesSaved: 0, warnings, errors };
   }
 

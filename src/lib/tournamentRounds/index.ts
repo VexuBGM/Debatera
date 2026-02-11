@@ -9,3 +9,4 @@ export * from './validation';
 export * from './queries';
 export * from './generatePairings';
 export * from './savePairings';
+export * from './institutionConflict';

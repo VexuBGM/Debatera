@@ -30,6 +30,7 @@ import type { TeamData, JudgeData, VenueData, EditorDebate } from './types';
 import { DebateCard } from './DebateCard';
 import { DraggableItem } from './DraggableItem';
 import { DroppablePanel } from './DroppablePanel';
+import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
 
 // =============================================================================
 // Types
@@ -234,6 +235,49 @@ export function RoundEditor({
   // State Update Helpers
   // =============================================================================
 
+  /** Returns true when judge has an institution conflict with the debate. */
+  function judgeConflictsWithDebate(judgeId: string, debate: EditorDebate): boolean {
+    const judge = judgeMap.get(judgeId);
+    if (!judge) return false;
+    const propTeam = debate.propTeamId ? teamMap.get(debate.propTeamId) : null;
+    const oppTeam = debate.oppTeamId ? teamMap.get(debate.oppTeamId) : null;
+    return hasInstitutionConflict(
+      judge.institutionId,
+      propTeam?.institutionId ?? null,
+      oppTeam?.institutionId ?? null
+    );
+  }
+
+  /** Removes any judges from the debate that now have institution conflicts, showing a toast. */
+  function autoUnassignConflictingJudges(debate: EditorDebate): EditorDebate {
+    const removedNames: string[] = [];
+    let { chairJudgeParticipantId, panelistJudgeParticipantIds } = debate;
+
+    if (chairJudgeParticipantId && judgeConflictsWithDebate(chairJudgeParticipantId, debate)) {
+      const judge = judgeMap.get(chairJudgeParticipantId);
+      removedNames.push(judge?.user?.username || judge?.user?.email || 'Chair judge');
+      chairJudgeParticipantId = null;
+    }
+
+    const validPanelists: string[] = [];
+    for (const pid of panelistJudgeParticipantIds) {
+      if (judgeConflictsWithDebate(pid, debate)) {
+        const judge = judgeMap.get(pid);
+        removedNames.push(judge?.user?.username || judge?.user?.email || 'Panelist');
+      } else {
+        validPanelists.push(pid);
+      }
+    }
+
+    if (removedNames.length > 0) {
+      toast.warning(
+        `Auto-unassigned due to institution conflict: ${removedNames.join(', ')}`
+      );
+    }
+
+    return { ...debate, chairJudgeParticipantId, panelistJudgeParticipantIds: validPanelists };
+  }
+
   function addTeamToDebate(teamId: string, debateId: string, slot: 'prop' | 'opp') {
     onDebatesChange(
       debates.map((d) => {
@@ -246,11 +290,14 @@ export function RoundEditor({
           return d;
         }
 
-        return {
+        const updated = {
           ...d,
           [slot === 'prop' ? 'propTeamId' : 'oppTeamId']: teamId,
           isBye: false, // Adding a team clears BYE status
         };
+
+        // After placing a team, auto-unassign any judges that now conflict
+        return autoUnassignConflictingJudges(updated);
       })
     );
   }
@@ -292,7 +339,8 @@ export function RoundEditor({
             update.isBye = false;
           }
 
-          return update;
+          // If same debate (swapping slots), auto-unassign conflicting judges
+          return autoUnassignConflictingJudges(update);
         }
 
         // Add to target (if different debate)
@@ -304,11 +352,13 @@ export function RoundEditor({
             return d;
           }
 
-          return {
+          const updated = {
             ...d,
             [toSlot === 'prop' ? 'propTeamId' : 'oppTeamId']: teamId,
             isBye: false,
           };
+
+          return autoUnassignConflictingJudges(updated);
         }
 
         return d;
@@ -317,6 +367,12 @@ export function RoundEditor({
   }
 
   function addChairToDebate(judgeId: string, debateId: string) {
+    const debate = debates.find((d) => d.id === debateId);
+    if (debate && judgeConflictsWithDebate(judgeId, debate)) {
+      toast.error("Can't assign: institution conflict (judge and team share institution).");
+      return;
+    }
+
     onDebatesChange(
       debates.map((d) => {
         if (d.id !== debateId) return d;
@@ -340,6 +396,12 @@ export function RoundEditor({
   }
 
   function addPanelistToDebate(judgeId: string, debateId: string) {
+    const debate = debates.find((d) => d.id === debateId);
+    if (debate && judgeConflictsWithDebate(judgeId, debate)) {
+      toast.error("Can't assign: institution conflict (judge and team share institution).");
+      return;
+    }
+
     onDebatesChange(
       debates.map((d) => {
         if (d.id !== debateId) return d;
@@ -386,6 +448,13 @@ export function RoundEditor({
   ) {
     // Same position — no-op
     if (fromDebateId === toDebateId && fromSlot === toSlot) return;
+
+    // Check institution conflict at the destination debate
+    const targetDebate = debates.find((d) => d.id === toDebateId);
+    if (targetDebate && judgeConflictsWithDebate(judgeId, targetDebate)) {
+      toast.error("Can't assign: institution conflict (judge and team share institution).");
+      return;
+    }
 
     onDebatesChange(
       debates.map((d) => {
@@ -436,9 +505,22 @@ export function RoundEditor({
   }
 
   // Handler for debate card changes (swap, toggle bye, etc.)
+  // After applying updates, revalidate judges; auto-unassign any that now conflict.
   function handleDebateChange(debateId: string, updates: Partial<EditorDebate>) {
     onDebatesChange(
-      debates.map((d) => (d.id === debateId ? { ...d, ...updates } : d))
+      debates.map((d) => {
+        if (d.id !== debateId) return d;
+
+        const updated = { ...d, ...updates };
+
+        // If teams changed, auto-unassign conflicting judges
+        const teamChanged =
+          updates.propTeamId !== undefined || updates.oppTeamId !== undefined;
+
+        if (!teamChanged) return updated;
+
+        return autoUnassignConflictingJudges(updated);
+      })
     );
   }
 
