@@ -129,6 +129,49 @@ export async function updateRound(
   });
 }
 
+/**
+ * Delete a round and all associated debates, judges, and ballots.
+ * Only DRAFT rounds can be deleted.
+ */
+export async function deleteRound(roundId: string) {
+  return prisma.$transaction(async (tx) => {
+    // Get debates for this round to cascade delete related records
+    const debates = await tx.tournamentDebate.findMany({
+      where: { roundId },
+      select: { id: true },
+    });
+
+    const debateIds = debates.map((d) => d.id);
+
+    if (debateIds.length > 0) {
+      // Delete ballots for all debates in this round
+      await tx.ballot.deleteMany({
+        where: { debateId: { in: debateIds } },
+      });
+
+      // Delete debate results
+      await tx.debateResult.deleteMany({
+        where: { debateId: { in: debateIds } },
+      });
+
+      // Delete judge assignments
+      await tx.tournamentDebateJudge.deleteMany({
+        where: { debateId: { in: debateIds } },
+      });
+
+      // Delete debates
+      await tx.tournamentDebate.deleteMany({
+        where: { roundId },
+      });
+    }
+
+    // Delete the round itself
+    return tx.tournamentRound.delete({
+      where: { id: roundId },
+    });
+  });
+}
+
 // =============================================================================
 // Team & Judge Queries
 // =============================================================================

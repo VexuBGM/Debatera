@@ -12,6 +12,7 @@ import {
   isTournamentAdmin,
   getRoundById,
   updateRound,
+  deleteRound,
   UpdateRoundSchema,
   isValidStatusTransition,
   TournamentRoundStatusType,
@@ -175,6 +176,53 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     return NextResponse.json(updatedRound, { status: 200 });
   } catch (err) {
     console.error('Error updating round:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/tournaments/[id]/rounds/[roundId]
+ *
+ * Delete a round and all its associated data.
+ * Admin only. Only DRAFT rounds can be deleted.
+ */
+export async function DELETE(req: Request, { params }: RouteParams) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  await ensureUserInDB();
+  const { id: tournamentId, roundId } = await params;
+
+  const isAdmin = await isTournamentAdmin(tournamentId, userId);
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+  }
+
+  try {
+    const round = await getRoundById(roundId);
+
+    if (!round) {
+      return NextResponse.json({ error: 'Round not found' }, { status: 404 });
+    }
+
+    if (round.tournament.id !== tournamentId) {
+      return NextResponse.json({ error: 'Round not found' }, { status: 404 });
+    }
+
+    if (round.status !== TournamentRoundStatus.DRAFT) {
+      return NextResponse.json(
+        { error: 'Only draft rounds can be deleted' },
+        { status: 400 }
+      );
+    }
+
+    await deleteRound(roundId);
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (err) {
+    console.error('Error deleting round:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

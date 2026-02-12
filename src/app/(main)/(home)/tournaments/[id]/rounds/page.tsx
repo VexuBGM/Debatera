@@ -17,14 +17,25 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trophy, Lock, ChevronDown, Check } from 'lucide-react';
+import { Plus, Edit, Trophy, Lock, ChevronDown, Check, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -104,6 +115,17 @@ export default function TournamentRoundsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newRoundName, setNewRoundName] = useState('');
   const [updatingStatusForRound, setUpdatingStatusForRound] = useState<string | null>(null);
+
+  // Rename dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [roundToRename, setRoundToRename] = useState<Round | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renaming, setRenaming] = useState(false);
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [roundToDelete, setRoundToDelete] = useState<Round | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const isOwner = tournament?.createdByUserId === userId;
 
@@ -188,6 +210,67 @@ export default function TournamentRoundsPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setUpdatingStatusForRound(null);
+    }
+  }
+
+  function openRenameDialog(round: Round) {
+    setRoundToRename(round);
+    setRenameValue(round.name);
+    setRenameDialogOpen(true);
+  }
+
+  async function handleRename() {
+    if (!roundToRename || !renameValue.trim()) return;
+
+    setRenaming(true);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/rounds/${roundToRename.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to rename round');
+
+      toast.success('Round renamed successfully');
+      setRounds((prev) =>
+        prev.map((r) => (r.id === roundToRename.id ? { ...r, name: renameValue.trim() } : r))
+      );
+      setRenameDialogOpen(false);
+      setRoundToRename(null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to rename round');
+    } finally {
+      setRenaming(false);
+    }
+  }
+
+  function openDeleteDialog(round: Round) {
+    setRoundToDelete(round);
+    setDeleteDialogOpen(true);
+  }
+
+  async function handleDeleteRound() {
+    if (!roundToDelete) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/rounds/${roundToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete round');
+
+      toast.success('Round deleted successfully');
+      setRounds((prev) => prev.filter((r) => r.id !== roundToDelete.id));
+      setDeleteDialogOpen(false);
+      setRoundToDelete(null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete round');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -364,12 +447,90 @@ export default function TournamentRoundsPage() {
                       {round.status === 'DRAFT' ? 'Edit' : 'View'}
                     </Button>
                   </Link>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openRenameDialog(round)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        disabled={round.status !== 'DRAFT'}
+                        onClick={() => openDeleteDialog(round)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Round</DialogTitle>
+            <DialogDescription>
+              Enter a new name for this round.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="renameName">Round Name</Label>
+              <Input
+                id="renameName"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleRename();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRename} disabled={renaming || !renameValue.trim()}>
+              {renaming ? 'Renaming...' : 'Rename'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Round</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{roundToDelete?.name}&quot;? This will permanently
+              remove the round and all its debates, pairings, and ballots. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRound}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
