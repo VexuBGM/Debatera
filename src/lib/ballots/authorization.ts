@@ -60,21 +60,21 @@ interface BallotAccessContext {
  * Check whether a user can edit (save draft) a ballot.
  * - Only the owning adjudicator can edit.
  * - Ballot must be DRAFT.
- * - Round must not be COMPLETED.
+ * - Round must be IN_PROGRESS.
  */
 export function canEditBallot(
   userId: string,
   context: BallotAccessContext
 ): boolean {
   if (context.ballotStatus === BallotStatus.SUBMITTED) return false;
-  if (context.roundStatus === TournamentRoundStatus.COMPLETED) return false;
+  if (context.roundStatus !== TournamentRoundStatus.IN_PROGRESS) return false;
   return context.ballotAdjudicatorParticipantUserId === userId;
 }
 
 /**
  * Check whether a user can view a ballot's details (scores, votes).
- * - Owning adjudicator can always see their own ballot.
  * - Organizers can see any ballot any time.
+ * - Owning adjudicator can see their own ballot only when round is IN_PROGRESS or COMPLETED.
  * - Public/teams can see details only after tournament is COMPLETED (handled at page level).
  */
 export function canViewBallotDetails(
@@ -83,6 +83,14 @@ export function canViewBallotDetails(
 ): boolean {
   // Organizer can always view
   if (context.tournamentCreatorUserId === userId) return true;
+
+  // Ballot is only visible once the round is IN_PROGRESS or later
+  if (
+    context.roundStatus !== TournamentRoundStatus.IN_PROGRESS &&
+    context.roundStatus !== TournamentRoundStatus.COMPLETED
+  ) {
+    return false;
+  }
 
   // Owning adjudicator can view their own ballot
   if (context.ballotAdjudicatorParticipantUserId === userId) return true;

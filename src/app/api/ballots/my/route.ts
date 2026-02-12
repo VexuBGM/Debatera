@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { TournamentRoundStatus } from '@prisma/client';
 import { getBallotsForAdjudicator } from '@/lib/ballots';
 
 export const runtime = 'nodejs';
@@ -28,7 +29,16 @@ export async function GET(req: Request) {
       );
     }
 
-    const ballots = await getBallotsForAdjudicator(userId, tournamentId);
+    const allBallots = await getBallotsForAdjudicator(userId, tournamentId);
+
+    // Only show ballots whose round is IN_PROGRESS or COMPLETED
+    const ballots = allBallots.filter((ballot) => {
+      const roundStatus = ballot.adjudicator.debate.round.status;
+      return (
+        roundStatus === TournamentRoundStatus.IN_PROGRESS ||
+        roundStatus === TournamentRoundStatus.COMPLETED
+      );
+    });
 
     // Map to a safe shape (never expose other judges' data)
     const response = ballots.map((ballot) => ({
