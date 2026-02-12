@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma';
 import { TournamentRoundStatus, JudgeRole } from '@prisma/client';
 import { getTeamsForTournament, getJudgesForTournament } from './queries';
 import { hasInstitutionConflict } from './institutionConflict';
+import { createBallotsForDebate } from '@/lib/ballots/createBallots';
 
 // =============================================================================
 // Types
@@ -274,7 +275,7 @@ export async function generatePairings(
 
     // Create new debates with judges (first judge = CHAIR, rest = PANELIST)
     for (const plan of debatePlans) {
-      await tx.tournamentDebate.create({
+      const createdDebate = await tx.tournamentDebate.create({
         data: {
           roundId,
           order: plan.order,
@@ -289,6 +290,11 @@ export async function generatePairings(
           },
         },
       });
+
+      // Create draft ballots for each judge in non-BYE debates
+      if (!plan.isBye && plan.judgeIds.length > 0) {
+        await createBallotsForDebate(tx, createdDebate.id);
+      }
     }
   });
 
