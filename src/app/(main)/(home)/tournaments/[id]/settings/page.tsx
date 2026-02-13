@@ -8,13 +8,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Calendar as CalendarIcon, Save } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface TournamentSettings {
     registrationOpensAt: string | null;
@@ -33,6 +44,7 @@ export default function TournamentSettingsPage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [settings, setSettings] = useState<TournamentSettings>({
         registrationOpensAt: null,
         registrationClosesAt: null,
@@ -107,6 +119,27 @@ export default function TournamentSettingsPage() {
             toast.error(err instanceof Error ? err.message : 'Failed to save settings');
         } finally {
             setSaving(false);
+        }
+    }
+
+    async function handleDelete() {
+        setDeleting(true);
+        try {
+            const res = await fetch(`/api/tournaments/${tournamentId}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data?.error || 'Failed to delete tournament');
+            }
+
+            toast.success('Tournament deleted successfully');
+            router.push('/tournaments');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete tournament');
+        } finally {
+            setDeleting(false);
         }
     }
 
@@ -229,6 +262,53 @@ export default function TournamentSettingsPage() {
                         </Button>
                     </div>
 
+                </CardContent>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card className="border-destructive">
+                <CardHeader>
+                    <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                    <CardDescription>
+                        Irreversible actions that permanently affect your tournament.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium">Delete this tournament</p>
+                            <p className="text-sm text-muted-foreground">
+                                Once deleted, all tournament data including teams, rounds, and ballots will be permanently removed.
+                            </p>
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={deleting}>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Tournament
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the tournament
+                                        and all associated data including teams, rounds, debates, and ballots.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={handleDelete}
+                                        disabled={deleting}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                        {deleting ? 'Deleting...' : 'Yes, delete tournament'}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
                 </CardContent>
             </Card>
         </main>
