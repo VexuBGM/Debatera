@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, ArrowLeft, MapPin, Scale } from 'lucide-react';
+import { Trophy, ArrowLeft, MapPin, Scale, Swords } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -56,6 +56,7 @@ export default function TournamentDetailPage() {
   const [organizerRegistrationsLoading, setOrganizerRegistrationsLoading] = useState(false);
   const [organizerRegistrationsError, setOrganizerRegistrationsError] = useState<string | null>(null);
   const [updatingRegistrationId, setUpdatingRegistrationId] = useState<string | null>(null);
+  const [isDebater, setIsDebater] = useState(false);
 
   const isOwner = tournament?.createdByUserId === userId;
 
@@ -71,6 +72,25 @@ export default function TournamentDetailPage() {
     void fetchOrganizerRegistrations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId, isOwner]);
+
+  useEffect(() => {
+    if (!tournamentId || !userId) return;
+    void checkIsDebater();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournamentId, userId]);
+
+  async function checkIsDebater() {
+    try {
+      const res = await fetch(
+        `/api/tournaments/${tournamentId}/participants/me`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      setIsDebater(data?.role === 'DEBATER');
+    } catch {
+      // silently ignore – button simply stays hidden
+    }
+  }
 
   async function fetchTournament() {
     try {
@@ -173,6 +193,14 @@ export default function TournamentDetailPage() {
         <Link href={`/tournaments/${tournament.id}/rounds`} className="w-full sm:w-auto">
           <Button variant="secondary" className="w-full sm:w-auto">View Rounds</Button>
         </Link>
+        {isDebater && (
+          <Link href={`/tournaments/${tournament.id}/my-debates`} className="w-full sm:w-auto">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              <Swords className="h-4 w-4 mr-2" />
+              My Debates
+            </Button>
+          </Link>
+        )}
         <Link href={`/tournaments/${tournament.id}/my-ballots`} className="w-full sm:w-auto">
           <Button variant="secondary" className="w-full sm:w-auto">
             <Scale className="h-4 w-4 mr-2" />
