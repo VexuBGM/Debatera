@@ -44,6 +44,12 @@ interface RoundEditorProps {
   venueMap: Map<string, VenueData>;
   canEdit: boolean;
   onDebatesChange: (debates: EditorDebate[]) => void;
+  // Call-related (optional — only needed for ONLINE tournaments)
+  tournamentId?: string;
+  roundId?: string;
+  roundStatus?: string;
+  eventMode?: string;
+  userCallEligibility?: Record<string, string>;
 }
 
 interface ActiveDrag {
@@ -64,6 +70,11 @@ export function RoundEditor({
   venueMap,
   canEdit,
   onDebatesChange,
+  tournamentId,
+  roundId,
+  roundStatus,
+  eventMode,
+  userCallEligibility,
 }: RoundEditorProps) {
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
 
@@ -550,6 +561,11 @@ export function RoundEditor({
               usedVenueIds={usedVenueIds}
               canEdit={false}
               onDebateChange={() => {}}
+              tournamentId={tournamentId}
+              roundId={roundId}
+              roundStatus={roundStatus}
+              eventMode={eventMode}
+              callRole={userCallEligibility?.[debate.id]}
             />
           ))
         )}
@@ -631,6 +647,11 @@ export function RoundEditor({
                   usedVenueIds={usedVenueIds}
                   canEdit={canEdit}
                   onDebateChange={(updates) => handleDebateChange(debate.id, updates)}
+                  tournamentId={tournamentId}
+                  roundId={roundId}
+                  roundStatus={roundStatus}
+                  eventMode={eventMode}
+                  callRole={userCallEligibility?.[debate.id]}
                 />
               ))}
             </SortableContext>

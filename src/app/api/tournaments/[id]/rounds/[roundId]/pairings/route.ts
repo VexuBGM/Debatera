@@ -17,6 +17,8 @@ import {
   getJudgesForTournament,
 } from '@/lib/tournamentRounds';
 import { TournamentRoundStatus } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { getDebateRoleForUser, type DebateStreamRole } from '@/lib/stream/eligibility';
 
 export const runtime = 'nodejs';
 
@@ -79,6 +81,29 @@ export async function GET(req: Request, { params }: RouteParams) {
     const unassignedTeams = allTeams.filter((t) => !assignedTeamIds.has(t.id));
     const unassignedJudges = allJudges.filter((j) => !assignedJudgeIds.has(j.id));
 
+    // Fetch event mode for the tournament (for "Join Call" button)
+    const settings = await prisma.tournamentSettings.findUnique({
+      where: { tournamentId },
+      select: { eventMode: true },
+    });
+    const eventMode = settings?.eventMode ?? 'IRL';
+
+    // Build per-debate call eligibility for the current user
+    let userCallEligibility: Record<string, DebateStreamRole> = {};
+    if (userId && eventMode === 'ONLINE' && round.status !== TournamentRoundStatus.DRAFT) {
+      const entries = await Promise.all(
+        round.debates
+          .filter((d) => !d.isBye)
+          .map(async (d) => {
+            const role = await getDebateRoleForUser({ debateId: d.id, userId });
+            return [d.id, role] as const;
+          })
+      );
+      userCallEligibility = Object.fromEntries(
+        entries.filter((e): e is [string, DebateStreamRole] => e[1] !== null)
+      );
+    }
+
     return NextResponse.json(
       {
         round,
@@ -88,6 +113,8 @@ export async function GET(req: Request, { params }: RouteParams) {
         unassignedTeams,
         unassignedJudges,
         isAdmin,
+        eventMode,
+        userCallEligibility,
       },
       { status: 200 }
     );

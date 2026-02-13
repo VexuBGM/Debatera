@@ -26,6 +26,7 @@ import {
   MapPin,
   Minus,
   Users,
+  Video,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ import type { EditorDebate, TeamData, JudgeData, VenueData, DebateWarning } from
 import { DraggableItem } from './DraggableItem';
 import { DroppableSlot } from './DroppableSlot';
 import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
+import Link from 'next/link';
 
 // =============================================================================
 // Types
@@ -47,6 +49,12 @@ interface DebateCardProps {
   usedVenueIds: Set<string>;
   canEdit: boolean;
   onDebateChange: (updates: Partial<EditorDebate>) => void;
+  // Call-related (optional — only used for ONLINE tournaments)
+  tournamentId?: string;
+  roundId?: string;
+  roundStatus?: string;
+  eventMode?: string;
+  callRole?: string; // "judge" | "debater" | undefined
 }
 
 // =============================================================================
@@ -135,6 +143,11 @@ export function DebateCard({
   usedVenueIds,
   canEdit,
   onDebateChange,
+  tournamentId,
+  roundId,
+  roundStatus,
+  eventMode,
+  callRole,
 }: DebateCardProps) {
   const propTeam = debate.propTeamId ? teamMap.get(debate.propTeamId) : null;
   const oppTeam = debate.oppTeamId ? teamMap.get(debate.oppTeamId) : null;
@@ -543,6 +556,24 @@ export function DebateCard({
             </div>
           </div>
         </div>
+
+        {/* Join Call button — ONLINE tournaments, PUBLISHED+ rounds, eligible users */}
+        {eventMode === 'ONLINE' &&
+          callRole &&
+          roundStatus !== 'DRAFT' &&
+          tournamentId &&
+          roundId && (
+            <div className="mt-4 pt-3 border-t flex justify-end">
+              <Link
+                href={`/tournaments/${tournamentId}/rounds/${roundId}/debates/${debate.id}/call`}
+              >
+                <Button size="sm" className="gap-2">
+                  <Video className="h-4 w-4" />
+                  Join Call
+                </Button>
+              </Link>
+            </div>
+          )}
       </CardContent>
     </Card>
   );

@@ -92,6 +92,7 @@ model Tournament {
   rounds                 TournamentRound[]
   venues                 Venue[]
   venueCategories        VenueCategory[]
+  videoCalls             VideoCall[]
 }
 
 // ============================================================================
@@ -273,7 +274,8 @@ model TournamentDebate {
   venue    Venue?                   @relation(fields: [venueId], references: [id], onDelete: SetNull)
   judges   TournamentDebateJudge[]
   ballots  Ballot[]
-  result   DebateResult?
+  result    DebateResult?
+  videoCall VideoCall?
 
   @@unique([roundId, order])
   @@index([roundId])
@@ -503,4 +505,31 @@ model DebateResult {
 
   @@index([debateId])
   @@index([winningTeamId])
+}
+
+// ============================================================================
+// VIDEO CALL MODELS (Stream / getStream.io)
+// ============================================================================
+
+enum VideoCallKind {
+  DEBATE
+}
+
+model VideoCall {
+  id           String        @id @default(cuid())
+  kind         VideoCallKind
+  tournamentId String        @db.VarChar(128)
+  debateId     String?       @unique @db.VarChar(128)
+  callType     String        // e.g. "debate"
+  callId       String        // e.g. "debate_<debateId>"
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relationships
+  tournament Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  debate     TournamentDebate? @relation(fields: [debateId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, debateId])
+  @@index([tournamentId, kind])
+  @@index([debateId])
 }

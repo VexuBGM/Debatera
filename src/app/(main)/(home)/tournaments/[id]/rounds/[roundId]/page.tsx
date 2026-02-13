@@ -93,6 +93,10 @@ export default function RoundEditorPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Stream call data
+  const [eventMode, setEventMode] = useState<string>('IRL');
+  const [userCallEligibility, setUserCallEligibility] = useState<Record<string, string>>({});
+
   // Editor state - local copy of debates for editing
   const [editorDebates, setEditorDebates] = useState<EditorDebate[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
@@ -139,6 +143,10 @@ export default function RoundEditorPage() {
       setAllJudges(data.allJudges);
       setIsAdmin(data.isAdmin);
       setEditedName(data.round.name);
+
+      // Stream call data
+      setEventMode(data.eventMode ?? 'IRL');
+      setUserCallEligibility(data.userCallEligibility ?? {});
 
       // Initialize editor debates from server data
       const debates: EditorDebate[] = data.round.debates.map((d: RoundData['debates'][0]) => {
@@ -585,6 +593,11 @@ export default function RoundEditorPage() {
         venueMap={venueMap}
         canEdit={canEdit}
         onDebatesChange={handleDebatesChange}
+        tournamentId={tournamentId}
+        roundId={roundId}
+        roundStatus={round.status}
+        eventMode={eventMode}
+        userCallEligibility={userCallEligibility}
       />
 
       {/* Generate Confirmation Dialog */}

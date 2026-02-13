@@ -18,6 +18,7 @@ import {
   TournamentRoundStatusType,
 } from '@/lib/tournamentRounds';
 import { TournamentRoundStatus } from '@prisma/client';
+import { ensureCallsForRound } from '@/lib/stream/ensure';
 
 export const runtime = 'nodejs';
 
@@ -172,6 +173,14 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
 
     const updatedRound = await updateRound(roundId, updateData);
+
+    // When a round is published, create Stream video calls for ONLINE tournaments
+    if (updateData.status === TournamentRoundStatus.PUBLISHED) {
+      // Best-effort: don't block response if call creation fails
+      ensureCallsForRound(roundId, userId).catch((err) =>
+        console.error('[stream] Failed to ensure calls for round:', err)
+      );
+    }
 
     return NextResponse.json(updatedRound, { status: 200 });
   } catch (err) {
