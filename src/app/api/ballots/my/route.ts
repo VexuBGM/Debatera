@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { TournamentRoundStatus } from '@prisma/client';
 import { getBallotsForAdjudicator } from '@/lib/ballots';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -28,6 +29,13 @@ export async function GET(req: Request) {
         { status: 400 }
       );
     }
+
+    // Fetch eventMode for this tournament
+    const settings = await prisma.tournamentSettings.findUnique({
+      where: { tournamentId },
+      select: { eventMode: true },
+    });
+    const eventMode = settings?.eventMode ?? 'IRL';
 
     const allBallots = await getBallotsForAdjudicator(userId, tournamentId);
 
@@ -80,7 +88,7 @@ export async function GET(req: Request) {
       },
     }));
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json({ ballots: response, eventMode }, { status: 200 });
   } catch (err) {
     console.error('Error fetching my ballots:', err);
     return NextResponse.json(

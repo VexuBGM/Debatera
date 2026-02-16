@@ -80,7 +80,7 @@ interface BallotData {
   submittedAt: string | null;
   adjudicatorRole: 'CHAIR' | 'PANELIST';
   adjudicator: { id: string; name: string };
-  tournament: { id: string; name: string };
+  tournament: { id: string; name: string; eventMode?: string };
   round: { id: string; number: number; name: string; status: string };
   debate: {
     id: string;
@@ -505,8 +505,10 @@ export default function BallotEntryPage() {
             <div>
               <CardTitle>{ballot.tournament.name}</CardTitle>
               <CardDescription>
-                {ballot.round.name} &bull;{' '}
-                {ballot.debate.venue?.name ?? 'No venue'}
+                {ballot.round.name}
+                {ballot.tournament.eventMode !== 'ONLINE' && (
+                  <> &bull; {ballot.debate.venue?.name ?? 'No venue'}</>
+                )}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">

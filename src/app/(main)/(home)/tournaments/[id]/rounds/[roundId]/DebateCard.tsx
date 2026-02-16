@@ -300,37 +300,39 @@ export function DebateCard({
               </Button>
             )}
           </div>
-          {/* Venue */}
-          <div className="flex items-center gap-1.5 mt-2">
-            <MapPin className="h-3 w-3 text-muted-foreground" />
-            {canEdit ? (
-              <Select
-                value={debate.venueId ?? '__none__'}
-                onValueChange={(val) =>
-                  onDebateChange({ venueId: val === '__none__' ? null : val })
-                }
-              >
-                <SelectTrigger className="h-7 w-44 text-xs">
-                  <SelectValue placeholder="No venue" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No venue</SelectItem>
-                  {allVenues.map((v) => {
-                    const taken = usedVenueIds.has(v.id) && v.id !== debate.venueId;
-                    return (
-                      <SelectItem key={v.id} value={v.id} disabled={taken}>
-                        {v.name} (P{v.priority}){taken ? ' — in use' : ''}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                {venue ? venue.name : 'No venue'}
-              </span>
-            )}
-          </div>
+          {/* Venue — hidden for ONLINE tournaments */}
+          {eventMode !== 'ONLINE' && (
+            <div className="flex items-center gap-1.5 mt-2">
+              <MapPin className="h-3 w-3 text-muted-foreground" />
+              {canEdit ? (
+                <Select
+                  value={debate.venueId ?? '__none__'}
+                  onValueChange={(val) =>
+                    onDebateChange({ venueId: val === '__none__' ? null : val })
+                  }
+                >
+                  <SelectTrigger className="h-7 w-44 text-xs">
+                    <SelectValue placeholder="No venue" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No venue</SelectItem>
+                    {allVenues.map((v) => {
+                      const taken = usedVenueIds.has(v.id) && v.id !== debate.venueId;
+                      return (
+                        <SelectItem key={v.id} value={v.id} disabled={taken}>
+                          {v.name} (P{v.priority}){taken ? ' — in use' : ''}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {venue ? venue.name : 'No venue'}
+                </span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -361,42 +363,44 @@ export function DebateCard({
 
           {/* Content */}
           <div className="flex-1 space-y-3">
-            {/* Venue dropdown */}
-            <div className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 text-cyan-500" />
-              {canEdit ? (
-                <Select
-                  value={debate.venueId ?? '__none__'}
-                  onValueChange={(val) =>
-                    onDebateChange({ venueId: val === '__none__' ? null : val })
-                  }
-                >
-                  <SelectTrigger className="h-7 w-52 text-xs">
-                    <SelectValue placeholder="Select venue" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">No venue</SelectItem>
-                    {allVenues.map((v) => {
-                      const taken = usedVenueIds.has(v.id) && v.id !== debate.venueId;
-                      return (
-                        <SelectItem key={v.id} value={v.id} disabled={taken}>
-                          {v.name} (P{v.priority}){taken ? ' — in use' : ''}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              ) : venue ? (
-                <>
-                  <span className="text-sm text-muted-foreground">{venue.name}</span>
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                    P{venue.priority}
-                  </Badge>
-                </>
-              ) : (
-                <span className="text-sm text-muted-foreground">No venue</span>
-              )}
-            </div>
+            {/* Venue dropdown — hidden for ONLINE tournaments */}
+            {eventMode !== 'ONLINE' && (
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-cyan-500" />
+                {canEdit ? (
+                  <Select
+                    value={debate.venueId ?? '__none__'}
+                    onValueChange={(val) =>
+                      onDebateChange({ venueId: val === '__none__' ? null : val })
+                    }
+                  >
+                    <SelectTrigger className="h-7 w-52 text-xs">
+                      <SelectValue placeholder="Select venue" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No venue</SelectItem>
+                      {allVenues.map((v) => {
+                        const taken = usedVenueIds.has(v.id) && v.id !== debate.venueId;
+                        return (
+                          <SelectItem key={v.id} value={v.id} disabled={taken}>
+                            {v.name} (P{v.priority}){taken ? ' — in use' : ''}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                ) : venue ? (
+                  <>
+                    <span className="text-sm text-muted-foreground">{venue.name}</span>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                      P{venue.priority}
+                    </Badge>
+                  </>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No venue</span>
+                )}
+              </div>
+            )}
 
             {/* Teams */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

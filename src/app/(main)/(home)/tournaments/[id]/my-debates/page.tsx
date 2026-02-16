@@ -291,11 +291,13 @@ function DebateCard({
             </div>
           )}
 
-          {/* Venue */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <MapPin className="h-4 w-4" />
-            <span>{debate.venue?.name ?? 'TBA'}</span>
-          </div>
+          {/* Venue — hidden for ONLINE tournaments */}
+          {!isOnline && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <MapPin className="h-4 w-4" />
+              <span>{debate.venue?.name ?? 'TBA'}</span>
+            </div>
+          )}
         </div>
 
         {/* Join Call button — visible for ONLINE tournaments with PUBLISHED/IN_PROGRESS rounds */}

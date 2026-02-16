@@ -72,7 +72,11 @@ export async function GET(_req: Request, { params }: RouteParams) {
             debate: {
               include: {
                 round: {
-                  include: { tournament: true },
+                  include: {
+                    tournament: {
+                      include: { settings: { select: { eventMode: true } } },
+                    },
+                  },
                 },
                 propTeam: {
                   include: {
@@ -140,6 +144,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
         tournament: {
           id: debate.round.tournament.id,
           name: debate.round.tournament.name,
+          eventMode: debate.round.tournament.settings?.eventMode ?? 'IRL',
         },
         round: {
           id: debate.round.id,

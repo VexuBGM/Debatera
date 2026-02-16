@@ -546,8 +546,8 @@ export default function RoundEditorPage() {
               </Button>
             )}
 
-            {/* Venue allocation — only available when drafting */}
-            {isDraft && editorDebates.length > 0 && (
+            {/* Venue allocation — only available when drafting and not ONLINE */}
+            {isDraft && editorDebates.length > 0 && eventMode !== 'ONLINE' && (
               <Button
                 variant="outline"
                 onClick={handleAllocateVenues}

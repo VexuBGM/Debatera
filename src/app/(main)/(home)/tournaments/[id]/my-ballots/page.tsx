@@ -47,6 +47,7 @@ export default function MyBallotsPage() {
   const { userId } = useAuth();
 
   const [ballots, setBallots] = useState<BallotListItem[]>([]);
+  const [eventMode, setEventMode] = useState<'IRL' | 'ONLINE'>('IRL');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,7 +61,8 @@ export default function MyBallotsPage() {
       const res = await fetch(`/api/ballots/my?tournamentId=${tournamentId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to fetch ballots');
-      setBallots(data);
+      setEventMode(data.eventMode ?? 'IRL');
+      setBallots(data.ballots);
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to load ballots'
@@ -169,7 +171,7 @@ function BallotCard({ ballot }: { ballot: BallotListItem }) {
               {ballot.debate.oppTeam?.name ?? 'TBD'}
             </p>
 
-            {ballot.debate.venue && (
+            {eventMode !== 'ONLINE' && ballot.debate.venue && (
               <p className="text-xs text-muted-foreground">
                 📍 {ballot.debate.venue.name}
               </p>
