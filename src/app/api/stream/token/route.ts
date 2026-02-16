@@ -51,9 +51,13 @@ export async function POST(req: Request) {
     }
 
     // 4. Generate token – valid for 1 hour
+    //    iat is set 60s in the past to avoid clock-skew errors
+    //    ("token used before issued at")
+    const iat = Math.floor(Date.now() / 1000) - 60;
     const token = streamServerClient.generateUserToken({
       user_id: userId,
       validity_in_seconds: 60 * 60,
+      iat,
     });
 
     return NextResponse.json({ token, role });
