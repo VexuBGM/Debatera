@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GripVertical } from 'lucide-react';
 import type { DebaterParticipant } from '@/actions/teams.actions';
+import { displayNameFromDbUser, initialsFromDbUser } from '@/lib/users/displayName';
 
 interface DebaterCardProps {
     debater: DebaterParticipant;
@@ -35,8 +36,8 @@ export function DebaterCard({ debater, disabled = false, isDragging = false }: D
         transition,
     };
 
-    const displayName = debater.user.username || debater.user.email?.split('@')[0] || 'Unknown';
-    const initials = displayName.slice(0, 2).toUpperCase();
+    const displayName = displayNameFromDbUser(debater.user);
+    const initials = initialsFromDbUser(debater.user);
 
     const isCurrentlyDragging = isDragging || isSortableDragging;
 

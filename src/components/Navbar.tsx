@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 import Image from 'next/image';
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -40,7 +41,8 @@ interface InstitutionInviteNotification {
     };
     createdBy: {
       id: string;
-      username: string | null;
+      firstName: string | null;
+      lastName: string | null;
       email: string | null;
       imageUrl: string | null;
     };
@@ -292,7 +294,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
                                   Institution Invitation
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {invitation.createdBy.username || invitation.createdBy.email || 'Someone'} invited you to join{' '}
+                                  {displayNameFromDbUser(invitation.createdBy)} invited you to join{' '}
                                   <span className="font-semibold">{invitation.institution.name}</span>
                                   {invitation.role === 'ADMIN' && ' as an admin'}
                                 </p>

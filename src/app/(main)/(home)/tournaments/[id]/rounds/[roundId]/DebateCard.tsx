@@ -34,6 +34,7 @@ import type { EditorDebate, TeamData, JudgeData, VenueData, DebateWarning } from
 import { DraggableItem } from './DraggableItem';
 import { DroppableSlot } from './DroppableSlot';
 import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 import Link from 'next/link';
 
 // =============================================================================
@@ -63,7 +64,7 @@ interface DebateCardProps {
 
 function getJudgeName(judge: JudgeData | null | undefined): string {
   if (!judge) return 'Unknown';
-  return judge.user?.username || judge.user?.email || 'Unknown Judge';
+  return displayNameFromDbUser(judge.user) || 'Unknown Judge';
 }
 
 function computeWarnings(

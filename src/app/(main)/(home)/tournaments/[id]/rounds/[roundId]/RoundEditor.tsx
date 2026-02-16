@@ -31,6 +31,7 @@ import { DebateCard } from './DebateCard';
 import { DraggableItem } from './DraggableItem';
 import { DroppablePanel } from './DroppablePanel';
 import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 
 // =============================================================================
 // Types
@@ -167,7 +168,7 @@ export function RoundEditor({
       setActiveDrag({
         type: 'judge',
         id,
-        name: judge?.user?.username || judge?.user?.email || 'Judge',
+        name: displayNameFromDbUser(judge?.user) || 'Judge',
       });
     }
   }
@@ -266,7 +267,7 @@ export function RoundEditor({
 
     if (chairJudgeParticipantId && judgeConflictsWithDebate(chairJudgeParticipantId, debate)) {
       const judge = judgeMap.get(chairJudgeParticipantId);
-      removedNames.push(judge?.user?.username || judge?.user?.email || 'Chair judge');
+      removedNames.push(displayNameFromDbUser(judge?.user) || 'Chair judge');
       chairJudgeParticipantId = null;
     }
 
@@ -274,7 +275,7 @@ export function RoundEditor({
     for (const pid of panelistJudgeParticipantIds) {
       if (judgeConflictsWithDebate(pid, debate)) {
         const judge = judgeMap.get(pid);
-        removedNames.push(judge?.user?.username || judge?.user?.email || 'Panelist');
+        removedNames.push(displayNameFromDbUser(judge?.user) || 'Panelist');
       } else {
         validPanelists.push(pid);
       }
@@ -683,7 +684,7 @@ export function RoundEditor({
                       >
                         <div className="p-2 bg-background border rounded-md text-sm">
                           <div className="font-medium">
-                            {judge.user?.username || judge.user?.email || 'Unknown'}
+                            {displayNameFromDbUser(judge.user) || 'Unknown'}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {judge.institution?.name || 'No institution'}

@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { EventMode, TournamentRoundStatus } from "@prisma/client";
+import { displayNameFromDbUser } from "@/lib/users/displayName";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,7 +114,7 @@ export async function listDebateCallMembers(
             include: {
               participant: {
                 include: {
-                  user: { select: { id: true, username: true, imageUrl: true } },
+                  user: { select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true } },
                 },
               },
             },
@@ -126,7 +127,7 @@ export async function listDebateCallMembers(
             include: {
               participant: {
                 include: {
-                  user: { select: { id: true, username: true, imageUrl: true } },
+                  user: { select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true } },
                 },
               },
             },
@@ -137,7 +138,7 @@ export async function listDebateCallMembers(
         include: {
           participant: {
             include: {
-              user: { select: { id: true, username: true, imageUrl: true } },
+              user: { select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true } },
             },
           },
         },
@@ -158,7 +159,7 @@ export async function listDebateCallMembers(
       members.push({
         userId: u.id,
         role: "debater",
-        name: u.username ?? undefined,
+        name: displayNameFromDbUser(u),
         imageUrl: u.imageUrl ?? undefined,
       });
     }
@@ -172,7 +173,7 @@ export async function listDebateCallMembers(
       members.push({
         userId: u.id,
         role: "debater",
-        name: u.username ?? undefined,
+        name: displayNameFromDbUser(u),
         imageUrl: u.imageUrl ?? undefined,
       });
     }
@@ -186,7 +187,7 @@ export async function listDebateCallMembers(
       members.push({
         userId: u.id,
         role: "judge",
-        name: u.username ?? undefined,
+        name: displayNameFromDbUser(u),
         imageUrl: u.imageUrl ?? undefined,
       });
     }

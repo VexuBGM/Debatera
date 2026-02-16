@@ -21,7 +21,8 @@ export interface JudgeData {
   institutionId: string;
   user: {
     id: string;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     imageUrl: string | null;
   } | null;

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users } from 'lucide-react';
 import type { TeamWithMembers } from '@/actions/teams.actions';
+import { displayNameFromDbUser, initialsFromDbUser } from '@/lib/users/displayName';
 
 interface AllTeamsListProps {
     allTeams: {
@@ -88,11 +89,8 @@ export function AllTeamsList({ allTeams, teamMinSize, teamMaxSize }: AllTeamsLis
                                             {team.members.length > 0 && (
                                                 <div className="flex flex-wrap gap-2">
                                                     {team.members.map(member => {
-                                                        const displayName =
-                                                            member.participant.user.username ||
-                                                            member.participant.user.email?.split('@')[0] ||
-                                                            'Unknown';
-                                                        const initials = displayName.slice(0, 2).toUpperCase();
+                                                        const displayName = displayNameFromDbUser(member.participant.user);
+                                                        const initials = initialsFromDbUser(member.participant.user);
 
                                                         return (
                                                             <div

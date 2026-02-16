@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Trophy, ArrowLeft, MapPin, Scale, Swords, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 
 interface Tournament {
   id: string;
@@ -17,7 +18,8 @@ interface Tournament {
   createdAt: string;
   createdBy: {
     id: string;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
   };
   settings?: {
@@ -39,7 +41,8 @@ type OrganizerRegistrationListItem = {
   requestedBy: {
     id: string;
     email: string | null;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
     imageUrl: string | null;
   };
 };
@@ -178,7 +181,7 @@ export default function TournamentDetailPage() {
             <h1 className="text-2xl font-semibold">{tournament.name}</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Created by {tournament.createdBy?.username || tournament.createdBy?.email || 'Unknown'}
+            Created by {displayNameFromDbUser(tournament.createdBy)}
           </p>
         </div>
       </div>
@@ -263,7 +266,7 @@ export default function TournamentDetailPage() {
                         <div>
                           <div className="font-medium">{r.institution.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            Requested by {r.requestedBy.username || r.requestedBy.email || r.requestedBy.id} •{' '}
+                            Requested by {displayNameFromDbUser(r.requestedBy)} •{' '}
                             {new Date(r.createdAt).toLocaleString()}
                           </div>
                         </div>

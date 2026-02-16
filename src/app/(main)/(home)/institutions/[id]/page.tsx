@@ -67,6 +67,7 @@ import {
   promoteMemberToAdmin,
   deleteInstitution,
 } from '@/actions/invitation.actions';
+import { displayNameFromDbUser, initialsFromDbUser } from '@/lib/users/displayName';
 
 interface InstitutionMember {
   id: string;
@@ -75,7 +76,8 @@ interface InstitutionMember {
   createdAt: string;
   user: {
     id: string;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     imageUrl: string | null;
   };
@@ -89,13 +91,15 @@ interface PendingInvitation {
   invitedUser: {
     id: string;
     email: string | null;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
     imageUrl: string | null;
   };
   createdBy: {
     id: string;
     email: string | null;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
   };
 }
 
@@ -174,7 +178,7 @@ export default function InstitutionDetailPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteIdentifier.trim()) {
-      toast.error('Please enter an email or username');
+      toast.error('Please enter an email address');
       return;
     }
 
@@ -458,18 +462,18 @@ export default function InstitutionDetailPage() {
               Invite Members
             </CardTitle>
             <CardDescription>
-              Invite new members by their email address or username
+              Invite new members by their email address
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <Label htmlFor="identifier" className="sr-only">
-                  Email or Username
+                  Email
                 </Label>
                 <Input
                   id="identifier"
-                  placeholder="Enter email or username..."
+                  placeholder="Enter email address..."
                   value={inviteIdentifier}
                   onChange={(e) => setInviteIdentifier(e.target.value)}
                   className="w-full"
@@ -528,7 +532,7 @@ export default function InstitutionDetailPage() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">
-                        {invitation.invitedUser.username || invitation.invitedUser.email || 'Unknown user'}
+                        {displayNameFromDbUser(invitation.invitedUser)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Invited as {invitation.role.toLowerCase()} •{' '}
@@ -587,11 +591,11 @@ export default function InstitutionDetailPage() {
                       <TableCell className="text-xs sm:text-sm">
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                            {(member.user?.username || member.user?.email || '?')[0].toUpperCase()}
+                            {initialsFromDbUser(member.user)}
                           </div>
                           <div>
                             <div className="font-medium truncate max-w-[120px] sm:max-w-none">
-                              {member.user?.username || member.user?.email || 'Unknown'}
+                              {displayNameFromDbUser(member.user)}
                             </div>
                             {member.userId === userId && (
                               <span className="text-[10px] sm:text-xs text-muted-foreground">(You)</span>

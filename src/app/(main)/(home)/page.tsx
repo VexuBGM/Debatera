@@ -121,7 +121,7 @@ const HomePage = () => {
       {/* Welcome Header */}
       <div className="space-y-1">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
-          Welcome back, {user?.firstName || user?.username || 'Debater'}!
+          Welcome back, {user?.firstName || 'Debater'}!
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
           Here's what's happening with your debates today

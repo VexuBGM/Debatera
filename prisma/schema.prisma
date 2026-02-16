@@ -12,10 +12,14 @@ datasource db {
 model User {
   id        String   @id @db.VarChar(128) // Clerk user ID
   email     String?  @unique
-  username  String?  @unique
+  firstName String?
+  lastName  String?
   imageUrl  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // @deprecated – username is no longer used; kept temporarily for backward compat
+  username String?
 
   // Relationships
   institutionMemberships InstitutionMember[]
@@ -28,7 +32,6 @@ model User {
   teamsCreated           TournamentTeam[]        @relation("TeamsCreated")
 
   @@index([email])
-  @@index([username])
 }
 
 // ============================================================================

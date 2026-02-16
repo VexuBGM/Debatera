@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,
@@ -46,7 +47,8 @@ type InstitutionMember = {
   createdAt: string;
   user: {
     id: string;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     imageUrl: string | null;
   };
@@ -69,7 +71,8 @@ type TournamentParticipant = {
   createdAt: string;
   user: {
     id: string;
-    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     imageUrl: string | null;
   };
@@ -85,7 +88,7 @@ async function readJsonOrError(res: Response): Promise<any> {
 }
 
 function displayUser(u: InstitutionMember['user'] | TournamentParticipant['user']) {
-  return u.username || u.email || u.id;
+  return displayNameFromDbUser(u);
 }
 
 export function TournamentMembersRegistrationPage({ tournamentId }: { tournamentId: string }) {
@@ -215,7 +218,7 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
     const q = membersSearch.trim().toLowerCase();
     if (!q) return members;
     return members.filter(m => {
-      const label = `${m.user.username ?? ''} ${m.user.email ?? ''} ${m.user.id}`.toLowerCase();
+      const label = `${m.user.firstName ?? ''} ${m.user.lastName ?? ''} ${m.user.email ?? ''} ${m.user.id}`.toLowerCase();
       return label.includes(q);
     });
   }, [members, membersSearch]);

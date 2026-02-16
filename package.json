@@ -8,7 +8,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "backfill:user-names": "tsx scripts/backfill-user-names.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.9",

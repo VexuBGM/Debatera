@@ -27,13 +27,15 @@ export async function ensureLocalUserFromClerk() {
     where: { id: userId },
     update: {
       email: email?.toLowerCase() ?? undefined,
-      username: clerkUser.username?.toLowerCase() ?? undefined,
+      firstName: clerkUser.firstName ?? undefined,
+      lastName: clerkUser.lastName ?? undefined,
       imageUrl: clerkUser.imageUrl ?? undefined,
     },
     create: {
       id: userId,
       email: email?.toLowerCase() ?? undefined,
-      username: clerkUser.username?.toLowerCase() ?? undefined,
+      firstName: clerkUser.firstName ?? undefined,
+      lastName: clerkUser.lastName ?? undefined,
       imageUrl: clerkUser.imageUrl ?? undefined,
     },
   });
@@ -42,24 +44,16 @@ export async function ensureLocalUserFromClerk() {
 }
 
 /**
- * Resolve a user by email OR username.
- * - If identifier contains "@": treat as email (case-insensitive).
- * - Else treat as username (case-insensitive).
+ * Resolve a user by email.
+ * Usernames are no longer used; all lookups are by email.
  */
 async function resolveUserByIdentifier(identifier: string) {
   const trimmed = identifier.trim().toLowerCase();
-  
-  if (trimmed.includes('@')) {
-    // Treat as email
-    return prisma.user.findUnique({
-      where: { email: trimmed },
-    });
-  } else {
-    // Treat as username
-    return prisma.user.findUnique({
-      where: { username: trimmed },
-    });
-  }
+
+  // Always treat as email lookup
+  return prisma.user.findUnique({
+    where: { email: trimmed },
+  });
 }
 
 // ============================================================================
@@ -80,7 +74,7 @@ interface CreateInvitationResult {
 
 /**
  * Create an institution invitation.
- * Resolves the user by email or username, creates the invitation and a notification.
+ * Resolves the user by email, creates the invitation and a notification.
  */
 export async function createInstitutionInvitation(
   institutionId: string,
@@ -432,10 +426,10 @@ export async function getInstitutionPendingInvitations(institutionId: string) {
     },
     include: {
       invitedUser: {
-        select: { id: true, email: true, username: true, imageUrl: true },
+        select: { id: true, email: true, firstName: true, lastName: true, imageUrl: true },
       },
       createdBy: {
-        select: { id: true, email: true, username: true },
+        select: { id: true, email: true, firstName: true, lastName: true },
       },
     },
     orderBy: { createdAt: 'desc' },

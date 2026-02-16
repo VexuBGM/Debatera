@@ -238,7 +238,7 @@ export async function getInstitutionTeamState(
             },
             orderBy: {
                 user: {
-                    username: 'asc',
+                    firstName: 'asc',
                 },
             },
         });

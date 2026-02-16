@@ -211,7 +211,7 @@ export async function getJudgesForTournament(tournamentId: string) {
     },
     orderBy: [
       { institution: { name: 'asc' } },
-      { user: { username: 'asc' } },
+      { user: { firstName: 'asc' } },
     ],
   });
 }

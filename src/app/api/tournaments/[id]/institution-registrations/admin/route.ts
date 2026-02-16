@@ -73,7 +73,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           select: {
             id: true,
             email: true,
-            username: true,
+            firstName: true,
+            lastName: true,
             imageUrl: true,
           },
         },

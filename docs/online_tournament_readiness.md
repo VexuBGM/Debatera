@@ -16,12 +16,12 @@ Online video calls via Stream are wired up. The gaps below range from **critical
 
 ## CRITICAL — Must fix before the tournament
 
-### 1. No "Join Call" link on My Debates page
+### 1. No "Join Call" link on My Debates page ✅
 - **Where:** `src/app/(main)/(home)/tournaments/[id]/my-debates/page.tsx`
 - **Problem:** Debaters and judges see their debate assignments but have **no button to join the video call**. The "Join Call" button only exists inside the round editor's `DebateCard.tsx`, which is the admin pairings view. Participants have no obvious way to enter their debate room.
 - **Fix:** Add a "Join Call" link/button on each debate card in the My Debates page that navigates to `/tournaments/[id]/rounds/[roundId]/debates/[debateId]/call`.
 
-### 2. No motion/topic support
+### 2. No motion/topic support ✅
 - **Where:** `prisma/schema.prisma` (TournamentRound model), round editor UI
 - **Problem:** There is no `motion` field on `TournamentRound` and no UI to set or display the debate topic. Debaters won't know what they're debating.
 - **Fix:** Add a `motion` (and optionally `infoSlide`) text field to `TournamentRound`. Add input in the round editor for the organizer. Display the motion in the debate call room header and on the My Debates page.

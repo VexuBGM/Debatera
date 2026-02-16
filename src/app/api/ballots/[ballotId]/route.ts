@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 import {
   loadBallotAccessContext,
   canViewBallotDetails,
@@ -136,10 +137,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
         adjudicatorRole: ballot.adjudicator.role,
         adjudicator: {
           id: ballot.adjudicator.id,
-          name:
-            ballot.adjudicator.participant.user.username ??
-            ballot.adjudicator.participant.user.email ??
-            'Unknown',
+          name: displayNameFromDbUser(ballot.adjudicator.participant.user),
         },
         tournament: {
           id: debate.round.tournament.id,
@@ -162,10 +160,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
                 members: debate.propTeam.members.map((m) => ({
                   id: m.id,
                   participantId: m.participantId,
-                  name:
-                    m.participant.user.username ??
-                    m.participant.user.email ??
-                    'Unknown',
+                  name: displayNameFromDbUser(m.participant.user),
                 })),
               }
             : null,
@@ -177,10 +172,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
                 members: debate.oppTeam.members.map((m) => ({
                   id: m.id,
                   participantId: m.participantId,
-                  name:
-                    m.participant.user.username ??
-                    m.participant.user.email ??
-                    'Unknown',
+                  name: displayNameFromDbUser(m.participant.user),
                 })),
               }
             : null,
@@ -195,8 +187,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
           speakerId: s.speakerId,
           speakerName:
             s.speakerName ??
-            s.speaker?.participant.user.username ??
-            s.speaker?.participant.user.email ??
+            displayNameFromDbUser(s.speaker?.participant.user) ??
             null,
           score: s.score ? Number(s.score) : null,
           comment: s.comment,

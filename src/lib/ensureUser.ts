@@ -18,13 +18,15 @@ export async function ensureUserInDB() {
     where: { id: user.id },
     update: {
       email: email ?? undefined,
-      username: user.username ?? undefined,
+      firstName: user.firstName ?? undefined,
+      lastName: user.lastName ?? undefined,
       imageUrl: user.imageUrl ?? undefined,
     },
     create: {
       id: user.id,
       email: email ?? undefined,
-      username: user.username ?? undefined,
+      firstName: user.firstName ?? undefined,
+      lastName: user.lastName ?? undefined,
       imageUrl: user.imageUrl ?? undefined,
     },
   });

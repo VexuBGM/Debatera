@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { EventMode, TournamentRoundStatus } from "@prisma/client";
 import { getDebateRoleForUser } from "@/lib/stream/eligibility";
+import { displayNameFromDbUser } from "@/lib/users/displayName";
 import DebateCallRoom from "./DebateCallRoom";
 
 export const runtime = "nodejs";
@@ -57,7 +58,7 @@ export default async function DebateCallPage({ params }: PageProps) {
   // Fetch user info for Stream user object
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, username: true, imageUrl: true },
+    select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true },
   });
 
   return (
@@ -66,7 +67,7 @@ export default async function DebateCallPage({ params }: PageProps) {
       roundId={roundId}
       debateId={dId}
       userId={userId}
-      userName={user?.username ?? "User"}
+      userName={displayNameFromDbUser(user)}
       userImage={user?.imageUrl ?? undefined}
       role={role}
       roundName={debate.round.name}
