@@ -48,14 +48,14 @@ const sections: Section[] = [
   //     { label: 'Submit Feedback', href: '/judging/submit', icon: Send, count: 4 }, // Inbox of debates awaiting your ballot/sheet. // Structured rubric (speeches/categories), comments, ranks, speaker points; submit/undo; time limits if configured.
   //   ],
   // },
-  {
-    title: 'Admin',
-    items: [
-      { label: 'Verify Tournaments', href: '/admin/verify', icon: ShieldCheck, count: 3 }, // Queue of submitted tournaments awaiting verification. // Checklist: organizer identity, ruleset, schedule, anti-abuse. Approve/Reject with notes.
-//      { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 }, // Platform metrics: active users, debate minutes, region usage, average judges per round, reliability. // Tournament-level analytics for organizers.
-//      { label: 'Moderation', href: '/admin/moderation', icon: ShieldAlert }, //  Reports, bans/timeouts, room audit logs, permission overrides. // Reported content: debates, messages, users. // Actions: warn, suspend, ban; note history; filter by type, date, status.
-    ],
-  },
+//   {
+//     title: 'Admin',
+//     items: [
+//       { label: 'Verify Tournaments', href: '/admin/verify', icon: ShieldCheck, count: 3 }, // Queue of submitted tournaments awaiting verification. // Checklist: organizer identity, ruleset, schedule, anti-abuse. Approve/Reject with notes.
+//       { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 }, // Platform metrics: active users, debate minutes, region usage, average judges per round, reliability. // Tournament-level analytics for organizers.
+//       { label: 'Moderation', href: '/admin/moderation', icon: ShieldAlert }, //  Reports, bans/timeouts, room audit logs, permission overrides. // Reported content: debates, messages, users. // Actions: warn, suspend, ban; note history; filter by type, date, status.
+//     ],
+//   },
 ];
 
 interface SidebarProps {
