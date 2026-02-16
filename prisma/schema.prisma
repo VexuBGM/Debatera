@@ -242,6 +242,8 @@ model TournamentRound {
   tournamentId String                @db.VarChar(128)
   number       Int                   // Sequential round number within tournament
   name         String                // Display name, e.g., "Round 1" or "Quarterfinals"
+  motion       String?               // Debate motion / topic for this round
+  infoSlide    String?               // Optional context slide shown before the debate
   status       TournamentRoundStatus @default(DRAFT)
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt

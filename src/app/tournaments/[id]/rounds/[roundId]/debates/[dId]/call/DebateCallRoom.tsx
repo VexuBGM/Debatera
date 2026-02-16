@@ -22,7 +22,7 @@ import {
   type Call,
   type User as StreamUser,
 } from "@stream-io/video-react-sdk";
-import { Loader2, ArrowLeft, Video } from "lucide-react";
+import { Loader2, ArrowLeft, Video, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import type { DebateStreamRole } from "@/lib/stream/eligibility";
@@ -41,6 +41,8 @@ interface DebateCallRoomProps {
   role: DebateStreamRole;
   roundName: string;
   tournamentName: string;
+  motion?: string;
+  infoSlide?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,6 +59,8 @@ export default function DebateCallRoom({
   role,
   roundName,
   tournamentName,
+  motion,
+  infoSlide,
 }: DebateCallRoomProps) {
   const router = useRouter();
   const [client, setClient] = useState<StreamVideoClient | null>(null);
@@ -239,6 +243,21 @@ export default function DebateCallRoom({
           {role}
         </span>
       </div>
+
+      {/* Motion banner */}
+      {motion && (
+        <div className="px-4 py-2 bg-slate-800 text-white border-b border-slate-700">
+          <div className="flex items-start gap-2 max-w-4xl mx-auto">
+            <MessageSquare className="h-4 w-4 mt-0.5 shrink-0 text-cyan-400" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium">{motion}</p>
+              {infoSlide && (
+                <p className="text-xs text-slate-400 whitespace-pre-wrap">{infoSlide}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stream call UI */}
       <div className="flex-1">

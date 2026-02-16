@@ -32,6 +32,8 @@ export type CreateRoundInput = z.infer<typeof CreateRoundSchema>;
 export const UpdateRoundSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   status: TournamentRoundStatusSchema.optional(),
+  motion: z.string().max(1000).nullable().optional(),
+  infoSlide: z.string().max(5000).nullable().optional(),
 });
 
 export type UpdateRoundInput = z.infer<typeof UpdateRoundSchema>;

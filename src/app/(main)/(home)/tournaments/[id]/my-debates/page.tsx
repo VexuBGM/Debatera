@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   PlayCircle,
   Video,
+  MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -64,6 +65,8 @@ interface DebateListItem {
     number: number;
     name: string;
     status: RoundStatus;
+    motion: string | null;
+    infoSlide: string | null;
   };
   propTeam: DebateTeam | null;
   oppTeam: DebateTeam | null;
@@ -252,6 +255,21 @@ function DebateCard({
             </div>
           )}
         </div>
+
+        {/* Motion */}
+        {debate.round.motion && (
+          <div className="flex items-start gap-2 bg-muted/50 rounded p-2">
+            <MessageSquare className="h-4 w-4 mt-0.5 shrink-0 text-cyan-500" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium">{debate.round.motion}</p>
+              {debate.round.infoSlide && (
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                  {debate.round.infoSlide}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Row 2: Teams */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

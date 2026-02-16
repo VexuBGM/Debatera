@@ -61,6 +61,8 @@ export async function GET(req: Request) {
         number: debate.round.number,
         name: debate.round.name,
         status: debate.round.status,
+        motion: debate.round.motion,
+        infoSlide: debate.round.infoSlide,
       },
       propTeam: debate.propTeam
         ? {

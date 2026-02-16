@@ -109,11 +109,21 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
 
-    const updateData: { name?: string; status?: TournamentRoundStatus } = {};
+    const updateData: { name?: string; status?: TournamentRoundStatus; motion?: string | null; infoSlide?: string | null } = {};
 
     // Handle name update
     if (validation.data.name !== undefined) {
       updateData.name = validation.data.name;
+    }
+
+    // Handle motion update
+    if (validation.data.motion !== undefined) {
+      updateData.motion = validation.data.motion;
+    }
+
+    // Handle infoSlide update
+    if (validation.data.infoSlide !== undefined) {
+      updateData.infoSlide = validation.data.infoSlide;
     }
 
     // Handle status transition

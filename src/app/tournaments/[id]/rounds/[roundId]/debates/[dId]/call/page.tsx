@@ -71,6 +71,8 @@ export default async function DebateCallPage({ params }: PageProps) {
       role={role}
       roundName={debate.round.name}
       tournamentName={debate.round.tournament.name}
+      motion={debate.round.motion ?? undefined}
+      infoSlide={debate.round.infoSlide ?? undefined}
     />
   );
 }

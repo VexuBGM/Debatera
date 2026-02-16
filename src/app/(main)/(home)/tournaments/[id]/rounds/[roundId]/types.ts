@@ -63,6 +63,8 @@ export interface RoundData {
   tournamentId: string;
   number: number;
   name: string;
+  motion: string | null;
+  infoSlide: string | null;
   status: RoundStatus;
   tournament: {
     id: string;

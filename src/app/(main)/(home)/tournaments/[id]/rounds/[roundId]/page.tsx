@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ import {
   ChevronDown,
   Edit2,
   MapPin,
+  MessageSquare,
   Play,
   Save,
   Shuffle,
@@ -105,6 +107,12 @@ export default function RoundEditorPage() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
 
+  // Motion editing
+  const [isEditingMotion, setIsEditingMotion] = useState(false);
+  const [editedMotion, setEditedMotion] = useState('');
+  const [editedInfoSlide, setEditedInfoSlide] = useState('');
+  const [savingMotion, setSavingMotion] = useState(false);
+
   // Operation states
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -143,6 +151,8 @@ export default function RoundEditorPage() {
       setAllJudges(data.allJudges);
       setIsAdmin(data.isAdmin);
       setEditedName(data.round.name);
+      setEditedMotion(data.round.motion ?? '');
+      setEditedInfoSlide(data.round.infoSlide ?? '');
 
       // Stream call data
       setEventMode(data.eventMode ?? 'IRL');
@@ -355,6 +365,42 @@ export default function RoundEditorPage() {
     }
   }
 
+  async function handleMotionSave() {
+    if (!round) return;
+
+    const newMotion = editedMotion.trim() || null;
+    const newInfoSlide = editedInfoSlide.trim() || null;
+
+    if (newMotion === (round.motion ?? null) && newInfoSlide === (round.infoSlide ?? null)) {
+      setIsEditingMotion(false);
+      return;
+    }
+
+    setSavingMotion(true);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/rounds/${roundId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motion: newMotion, infoSlide: newInfoSlide }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to update motion');
+
+      setRound((prev) =>
+        prev ? { ...prev, motion: newMotion, infoSlide: newInfoSlide } : null
+      );
+      toast.success('Motion updated');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update motion');
+      setEditedMotion(round.motion ?? '');
+      setEditedInfoSlide(round.infoSlide ?? '');
+    } finally {
+      setSavingMotion(false);
+      setIsEditingMotion(false);
+    }
+  }
+
   // =============================================================================
   // Validation
   // =============================================================================
@@ -492,6 +538,86 @@ export default function RoundEditorPage() {
           )}
         </div>
       </div>
+
+      {/* Motion / Topic */}
+      <Card>
+        <CardHeader className="py-3 pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-cyan-500" />
+            Motion
+            {isAdmin && !isEditingMotion && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 ml-1"
+                onClick={() => setIsEditingMotion(true)}
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-0 pb-3">
+          {isEditingMotion ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Motion
+                </label>
+                <Textarea
+                  value={editedMotion}
+                  onChange={(e) => setEditedMotion(e.target.value)}
+                  placeholder="e.g. This House would ban social media for under-16s"
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Info Slide (optional)
+                </label>
+                <Textarea
+                  value={editedInfoSlide}
+                  onChange={(e) => setEditedInfoSlide(e.target.value)}
+                  placeholder="Background context for the motion..."
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleMotionSave} disabled={savingMotion}>
+                  {savingMotion ? 'Saving...' : 'Save'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditedMotion(round.motion ?? '');
+                    setEditedInfoSlide(round.infoSlide ?? '');
+                    setIsEditingMotion(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : round.motion ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{round.motion}</p>
+              {round.infoSlide && (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2 whitespace-pre-wrap">
+                  {round.infoSlide}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              No motion set for this round.
+              {isAdmin && ' Click the edit button to add one.'}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Action Buttons */}
       {isAdmin && (
