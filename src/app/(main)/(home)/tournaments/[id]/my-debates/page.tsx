@@ -15,7 +15,10 @@ import {
   Clock,
   CheckCircle2,
   PlayCircle,
+  Video,
 } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 // ============================================================================
@@ -115,6 +118,7 @@ export default function MyDebatesPage() {
   const { userId } = useAuth();
 
   const [debates, setDebates] = useState<DebateListItem[]>([]);
+  const [eventMode, setEventMode] = useState<'IRL' | 'ONLINE'>('IRL');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -128,7 +132,8 @@ export default function MyDebatesPage() {
       const res = await fetch(`/api/debates/my?tournamentId=${tournamentId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to fetch debates');
-      setDebates(data);
+      setEventMode(data.eventMode ?? 'IRL');
+      setDebates(data.debates);
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to load debates'
@@ -185,7 +190,12 @@ export default function MyDebatesPage() {
 
       <div className="space-y-3">
         {debates.map((debate) => (
-          <DebateCard key={debate.id} debate={debate} />
+          <DebateCard
+            key={debate.id}
+            debate={debate}
+            tournamentId={tournamentId!}
+            isOnline={eventMode === 'ONLINE'}
+          />
         ))}
       </div>
     </div>
@@ -196,8 +206,20 @@ export default function MyDebatesPage() {
 // Debate Card
 // ============================================================================
 
-function DebateCard({ debate }: { debate: DebateListItem }) {
+function DebateCard({
+  debate,
+  tournamentId,
+  isOnline,
+}: {
+  debate: DebateListItem;
+  tournamentId: string;
+  isOnline: boolean;
+}) {
   const status = deriveDebateStatus(debate.round.status);
+  const canJoinCall =
+    isOnline &&
+    !debate.isBye &&
+    (debate.round.status === 'PUBLISHED' || debate.round.status === 'IN_PROGRESS');
 
   return (
     <Card>
@@ -275,6 +297,20 @@ function DebateCard({ debate }: { debate: DebateListItem }) {
             <span>{debate.venue?.name ?? 'TBA'}</span>
           </div>
         </div>
+
+        {/* Join Call button — visible for ONLINE tournaments with PUBLISHED/IN_PROGRESS rounds */}
+        {canJoinCall && (
+          <div className="pt-3 border-t flex justify-end">
+            <Link
+              href={`/tournaments/${tournamentId}/rounds/${debate.round.id}/debates/${debate.id}/call`}
+            >
+              <Button size="sm" className="gap-2">
+                <Video className="h-4 w-4" />
+                Join Call
+              </Button>
+            </Link>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

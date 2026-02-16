@@ -42,6 +42,12 @@ export async function GET(req: Request) {
       );
     }
 
+    // Fetch tournament event mode to determine if "Join Call" should appear
+    const tournamentSettings = await prisma.tournamentSettings.findUnique({
+      where: { tournamentId },
+      select: { eventMode: true },
+    });
+
     const debates = await getDebatesForDebater(userId, tournamentId);
 
     // Map to a safe response shape
@@ -114,7 +120,10 @@ export async function GET(req: Request) {
         : null,
     }));
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(
+      { eventMode: tournamentSettings?.eventMode ?? 'IRL', debates: response },
+      { status: 200 }
+    );
   } catch (err) {
     console.error('Error fetching my debates:', err);
     return NextResponse.json(
