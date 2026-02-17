@@ -146,3 +146,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Ensure Stream Video SDK wrappers fill available height */
+.str-video {
+  height: 100%;
+}
+
+/* Make the speaker layout fill the container and let spotlight grow */
+.str-video__speaker-layout {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Spotlight area takes all available space */
+.str-video__speaker-layout__spotlight {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* Participants bar hugs the bottom, no extra space */
+.str-video__speaker-layout__participants-bar-buttons-wrapper {
+  flex-shrink: 0;
+}

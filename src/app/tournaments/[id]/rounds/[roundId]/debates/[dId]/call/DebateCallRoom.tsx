@@ -22,7 +22,7 @@ import {
   type Call,
   type User as StreamUser,
 } from "@stream-io/video-react-sdk";
-import { Loader2, ArrowLeft, Video, MessageSquare } from "lucide-react";
+import { Loader2, ArrowLeft, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import type { DebateStreamRole } from "@/lib/stream/eligibility";
@@ -130,9 +130,11 @@ export default function DebateCallRoom({
 
         if (!mounted) { await videoClient.disconnectUser(); return; }
 
-        // 3. Create call handle & join
+        // 3. Create call handle & join (cam & mic off by default)
         videoCall = videoClient.call("debate", `debate_${debateId}`);
         await videoCall.join();
+        await videoCall.camera.disable();
+        await videoCall.microphone.disable();
 
         if (!mounted) {
           await videoCall.leave();
@@ -222,9 +224,9 @@ export default function DebateCallRoom({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 text-white border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 text-white border-b border-slate-700 shrink-0">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -238,37 +240,32 @@ export default function DebateCallRoom({
           <span className="text-sm text-muted-foreground">
             {tournamentName} · {roundName}
           </span>
+          {motion && (
+            <>
+              <span className="text-sm text-slate-600">·</span>
+              <span className="text-sm text-white font-medium truncate max-w-md">
+                {motion}
+              </span>
+            </>
+          )}
         </div>
         <span className="text-xs px-2 py-1 rounded bg-slate-800 capitalize">
           {role}
         </span>
       </div>
 
-      {/* Motion banner */}
-      {motion && (
-        <div className="px-4 py-2 bg-slate-800 text-white border-b border-slate-700">
-          <div className="flex items-start gap-2 max-w-4xl mx-auto">
-            <MessageSquare className="h-4 w-4 mt-0.5 shrink-0 text-cyan-400" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium">{motion}</p>
-              {infoSlide && (
-                <p className="text-xs text-slate-400 whitespace-pre-wrap">{infoSlide}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Stream call UI */}
-      <div className="flex-1">
+      <div className="flex-1 min-h-0 relative">
         <StreamVideo client={client}>
           <StreamCall call={call}>
-            <StreamTheme>
-              <div className="h-[calc(100vh-3rem)] flex flex-col">
-                <div className="flex-1">
+            <StreamTheme className="h-full">
+              <div className="h-full flex flex-col">
+                <div className="flex-1 min-h-0">
                   <SpeakerLayout />
                 </div>
-                <CallControls onLeave={handleLeave} />
+                <div className="shrink-0 flex justify-center bg-[#1c1c1e] border-t">
+                  <CallControls onLeave={handleLeave} />
+                </div>
               </div>
             </StreamTheme>
           </StreamCall>
