@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 
 import type { DebateStreamRole } from "@/lib/stream/eligibility";
 import DebateInfoPanel, { type DebateContext } from "./DebateInfoPanel";
+import SyncedStopwatch from "@/components/debate/SyncedStopwatch";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -254,6 +255,9 @@ export default function DebateCallRoom({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {call && (
+            <SyncedStopwatch debateId={debateId} call={call} role={role} />
+          )}
           <span className="text-xs px-2 py-1 rounded bg-slate-800 capitalize">
             {role}
           </span>

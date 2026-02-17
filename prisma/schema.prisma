@@ -277,10 +277,11 @@ model TournamentDebate {
   propTeam TournamentTeam?          @relation("PropTeam", fields: [propTeamId], references: [id], onDelete: SetNull)
   oppTeam  TournamentTeam?          @relation("OppTeam", fields: [oppTeamId], references: [id], onDelete: SetNull)
   venue    Venue?                   @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  judges   TournamentDebateJudge[]
-  ballots  Ballot[]
+  judges    TournamentDebateJudge[]
+  ballots   Ballot[]
   result    DebateResult?
   videoCall VideoCall?
+  stopwatch DebateStopwatch?
 
   @@unique([roundId, order])
   @@index([roundId])
@@ -510,6 +511,25 @@ model DebateResult {
 
   @@index([debateId])
   @@index([winningTeamId])
+}
+
+// ============================================================================
+// DEBATE STOPWATCH (synced timer for debate calls)
+// ============================================================================
+
+model DebateStopwatch {
+  id            String   @id @default(cuid())
+  debateId      String   @unique @db.VarChar(128) // 1:1 with TournamentDebate
+  running       Boolean  @default(false)
+  startedAtMs   BigInt?  // Unix ms when last started (server time)
+  baseElapsedMs BigInt   @default(0) // Accumulated elapsed while previously running
+  version       Int      @default(0) // Monotonic; increments on every state change
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  debate TournamentDebate @relation(fields: [debateId], references: [id], onDelete: Cascade)
+
+  @@index([debateId])
 }
 
 // ============================================================================
