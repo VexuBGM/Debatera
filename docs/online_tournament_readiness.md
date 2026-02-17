@@ -26,7 +26,7 @@ Online video calls via Stream are wired up. The gaps below range from **critical
 - **Problem:** There is no `motion` field on `TournamentRound` and no UI to set or display the debate topic. Debaters won't know what they're debating.
 - **Fix:** Add a `motion` (and optionally `infoSlide`) text field to `TournamentRound`. Add input in the round editor for the organizer. Display the motion in the debate call room header and on the My Debates page.
 
-### 3. Debate room shows only video — no context
+### 3. Debate room shows only video — no context ✅
 - **Where:** `src/app/tournaments/[id]/rounds/[roundId]/debates/[dId]/call/DebateCallRoom.tsx`
 - **Problem:** The call room only renders the Stream video layout + a small header with tournament/round name. **Missing:** team names and members, judges list, motion/topic, timer, side assignments (Prop/Opp).
 - **Fix:** Add a sidebar or header panel showing: debate motion, Proposition team + members, Opposition team + members, judges, and side assignment clearly.

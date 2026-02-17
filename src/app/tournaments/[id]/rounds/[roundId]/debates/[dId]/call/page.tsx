@@ -25,7 +25,7 @@ export default async function DebateCallPage({ params }: PageProps) {
 
   if (!userId) redirect("/sign-in");
 
-  // Load debate + round + tournament settings
+  // Load debate + round + tournament settings + teams/judges
   const debate = await prisma.tournamentDebate.findUnique({
     where: { id: dId },
     include: {
@@ -33,6 +33,35 @@ export default async function DebateCallPage({ params }: PageProps) {
         include: {
           tournament: {
             include: { settings: true },
+          },
+        },
+      },
+      propTeam: {
+        include: {
+          members: {
+            include: {
+              participant: {
+                include: { user: { select: { firstName: true, lastName: true, email: true } } },
+              },
+            },
+          },
+        },
+      },
+      oppTeam: {
+        include: {
+          members: {
+            include: {
+              participant: {
+                include: { user: { select: { firstName: true, lastName: true, email: true } } },
+              },
+            },
+          },
+        },
+      },
+      judges: {
+        include: {
+          participant: {
+            include: { user: { select: { firstName: true, lastName: true, email: true } } },
           },
         },
       },
@@ -61,6 +90,26 @@ export default async function DebateCallPage({ params }: PageProps) {
     select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true },
   });
 
+  // Build debate context for the info sidebar
+  const debateContext = {
+    propTeam: debate.propTeam
+      ? {
+          name: debate.propTeam.name,
+          members: debate.propTeam.members.map((m) => displayNameFromDbUser(m.participant.user)),
+        }
+      : null,
+    oppTeam: debate.oppTeam
+      ? {
+          name: debate.oppTeam.name,
+          members: debate.oppTeam.members.map((m) => displayNameFromDbUser(m.participant.user)),
+        }
+      : null,
+    judges: debate.judges.map((j) => ({
+      name: displayNameFromDbUser(j.participant.user),
+      role: j.role as string,
+    })),
+  };
+
   return (
     <DebateCallRoom
       tournamentId={id}
@@ -74,6 +123,7 @@ export default async function DebateCallPage({ params }: PageProps) {
       tournamentName={debate.round.tournament.name}
       motion={debate.round.motion ?? undefined}
       infoSlide={debate.round.infoSlide ?? undefined}
+      debateContext={debateContext}
     />
   );
 }

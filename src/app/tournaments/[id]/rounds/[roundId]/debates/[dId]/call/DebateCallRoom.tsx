@@ -22,10 +22,11 @@ import {
   type Call,
   type User as StreamUser,
 } from "@stream-io/video-react-sdk";
-import { Loader2, ArrowLeft, Video } from "lucide-react";
+import { Loader2, ArrowLeft, Video, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import type { DebateStreamRole } from "@/lib/stream/eligibility";
+import DebateInfoPanel, { type DebateContext } from "./DebateInfoPanel";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -43,6 +44,7 @@ interface DebateCallRoomProps {
   tournamentName: string;
   motion?: string;
   infoSlide?: string;
+  debateContext: DebateContext;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +63,7 @@ export default function DebateCallRoom({
   tournamentName,
   motion,
   infoSlide,
+  debateContext,
 }: DebateCallRoomProps) {
   const router = useRouter();
   const [client, setClient] = useState<StreamVideoClient | null>(null);
@@ -69,6 +72,7 @@ export default function DebateCallRoom({
     "loading" | "ready" | "error" | "left"
   >("loading");
   const [errorMsg, setErrorMsg] = useState("");
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const cleanedUp = useRef(false);
 
   // -------------------------------------------------------------------------
@@ -249,13 +253,24 @@ export default function DebateCallRoom({
             </>
           )}
         </div>
-        <span className="text-xs px-2 py-1 rounded bg-slate-800 capitalize">
-          {role}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2 py-1 rounded bg-slate-800 capitalize">
+            {role}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setInfoPanelOpen(true)}
+            className="text-white hover:text-white hover:bg-slate-800"
+            title="Debate Info"
+          >
+            <PanelRightOpen className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Stream call UI */}
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 relative overflow-hidden">
         <StreamVideo client={client}>
           <StreamCall call={call}>
             <StreamTheme className="h-full">
@@ -270,6 +285,16 @@ export default function DebateCallRoom({
             </StreamTheme>
           </StreamCall>
         </StreamVideo>
+
+        {/* Debate Info Sidebar */}
+        <DebateInfoPanel
+          open={infoPanelOpen}
+          onClose={() => setInfoPanelOpen(false)}
+          motion={motion}
+          infoSlide={infoSlide}
+          debateContext={debateContext}
+          roundName={roundName}
+        />
       </div>
     </div>
   );
