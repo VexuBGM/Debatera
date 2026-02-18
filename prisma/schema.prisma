@@ -21,6 +21,13 @@ model User {
   // @deprecated – username is no longer used; kept temporarily for backward compat
   username String?
 
+  // Profile fields (editable by user)
+  bio              String?   @db.Text
+  pronouns         String?   @db.VarChar(64)
+  displayName      String?   @db.VarChar(128)
+  publicEmail      Boolean   @default(false)
+  updatedProfileAt DateTime?
+
   // Relationships
   institutionMemberships InstitutionMember[]
   tournamentsCreated     Tournament[]
