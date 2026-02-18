@@ -3,7 +3,8 @@
  *
  * POST /api/tournaments/[id]/rounds/[roundId]/generate
  *
- * Generates random pairings for a round.
+ * Generates pairings for a round using the tournament's configured
+ * pairing system (SWISS by default, RANDOM as fallback).
  * Admin only, DRAFT rounds only.
  */
 
@@ -11,6 +12,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { ensureUserInDB } from '@/lib/ensureUser';
 import { isTournamentAdmin, generatePairings, getRoundById } from '@/lib/tournamentRounds';
+import { generateSwissPairings } from '@/lib/pairings';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -19,7 +22,7 @@ type RouteParams = { params: Promise<{ id: string; roundId: string }> };
 /**
  * POST /api/tournaments/[id]/rounds/[roundId]/generate
  *
- * Auto-generates pairings using random shuffle.
+ * Auto-generates pairings based on the tournament's pairing system setting.
  * Replaces all existing debates and judge assignments.
  */
 export async function POST(req: Request, { params }: RouteParams) {
@@ -44,7 +47,28 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
 
-    // Generate pairings
+    // Determine pairing system from tournament settings
+    const settings = await prisma.tournamentSettings.findUnique({
+      where: { tournamentId },
+      select: { pairingSystem: true },
+    });
+
+    const pairingSystem = settings?.pairingSystem ?? 'SWISS';
+
+    if (pairingSystem === 'SWISS') {
+      // Swiss-system pairings
+      const result = await generateSwissPairings({ tournamentId, roundId });
+      return NextResponse.json(
+        {
+          success: true,
+          debatesCreated: result.debatesCreated,
+          warnings: result.warnings,
+        },
+        { status: 200 },
+      );
+    }
+
+    // Fallback: RANDOM pairing (original algorithm)
     const result = await generatePairings(roundId, tournamentId);
 
     if (!result.success) {
@@ -53,7 +77,7 @@ export async function POST(req: Request, { params }: RouteParams) {
           error: result.error || 'Failed to generate pairings',
           warnings: result.warnings,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,10 +87,11 @@ export async function POST(req: Request, { params }: RouteParams) {
         debatesCreated: result.debatesCreated,
         warnings: result.warnings,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (err) {
     console.error('Error generating pairings:', err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Internal Server Error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
