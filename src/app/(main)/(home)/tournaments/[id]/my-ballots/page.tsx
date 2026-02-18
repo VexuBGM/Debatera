@@ -117,7 +117,7 @@ export default function MyBallotsPage() {
 
       <div className="space-y-3">
         {ballots.map((ballot) => (
-          <BallotCard key={ballot.id} ballot={ballot} />
+          <BallotCard key={ballot.id} ballot={ballot} eventMode={eventMode} />
         ))}
       </div>
     </div>
@@ -128,7 +128,7 @@ export default function MyBallotsPage() {
 // Ballot Card
 // ============================================================================
 
-function BallotCard({ ballot }: { ballot: BallotListItem }) {
+function BallotCard({ ballot, eventMode }: { ballot: BallotListItem; eventMode: 'IRL' | 'ONLINE' }) {
   const isSubmitted = ballot.status === 'SUBMITTED';
 
   return (

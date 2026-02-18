@@ -31,7 +31,7 @@ Online video calls via Stream are wired up. The gaps below range from **critical
 - **Problem:** The call room only renders the Stream video layout + a small header with tournament/round name. **Missing:** team names and members, judges list, motion/topic, timer, side assignments (Prop/Opp).
 - **Fix:** Add a sidebar or header panel showing: debate motion, Proposition team + members, Opposition team + members, judges, and side assignment clearly.
 
-### 4. No debate timer
+### 4. No debate timer ✅
 - **Where:** No timer component exists anywhere in the codebase
 - **Problem:** WSDC format has strict speech times (8 min constructive, 4 min reply). Without a timer, participants must use external tools — defeating the purpose of the platform.
 - **Fix:** Implement at minimum a **client-side countdown timer** in the debate room with configurable WSDC speech presets (8:00 constructive, 4:00 reply). Nice-to-have: synced timer via Stream custom events or SSE.
