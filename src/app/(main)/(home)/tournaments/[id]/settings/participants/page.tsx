@@ -24,7 +24,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Copy, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { ArrowLeft, Copy, Plus, RefreshCw, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface InstitutionOption {
@@ -89,6 +96,7 @@ export default function TournamentParticipantsManagementPage() {
   const [placeholderName, setPlaceholderName] = useState('');
   const [creatingPlaceholder, setCreatingPlaceholder] = useState(false);
   const [linkByParticipantId, setLinkByParticipantId] = useState<Record<string, string>>({});
+  const [deletingId, setDeletingId] = useState('');
 
   useEffect(() => {
     if (!tournamentId) return;
@@ -292,6 +300,31 @@ export default function TournamentParticipantsManagementPage() {
     }
     await navigator.clipboard.writeText(`${window.location.origin}${link}`);
     toast.success('Private URL copied');
+  }
+
+  async function handleDeleteParticipant(participantId: string) {
+    const confirmed = window.confirm('Are you sure you want to delete this participant?');
+    if (!confirmed) return;
+
+    setDeletingId(participantId);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/participants/${participantId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json?.error || 'Failed to delete participant');
+      }
+
+      toast.success('Participant deleted');
+      await loadData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete participant');
+    } finally {
+      setDeletingId('');
+    }
   }
 
   if (loading) {
@@ -499,14 +532,26 @@ export default function TournamentParticipantsManagementPage() {
                         <RefreshCw className="mr-1 h-4 w-4" />
                         Regenerate
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handlePrivateLinkAction(p.id, 'revoke')}
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" />
-                        Revoke
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handlePrivateLinkAction(p.id, 'revoke')}>
+                            Revoke Link
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteParticipant(p.id)}
+                            disabled={deletingId === p.id}
+                            className="text-red-600"
+                          >
+                            {deletingId === p.id ? 'Deleting...' : 'Delete'}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
