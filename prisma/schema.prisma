@@ -21,6 +21,13 @@ model User {
   // @deprecated – username is no longer used; kept temporarily for backward compat
   username String?
 
+  // Profile fields (editable by user)
+  bio              String?   @db.Text
+  pronouns         String?   @db.VarChar(64)
+  displayName      String?   @db.VarChar(128)
+  publicEmail      Boolean   @default(false)
+  updatedProfileAt DateTime?
+
   // Relationships
   institutionMemberships InstitutionMember[]
   tournamentsCreated     Tournament[]
@@ -168,17 +175,24 @@ enum EventMode {
   IRL
 }
 
+enum PairingSystem {
+  SWISS
+  RANDOM
+  MANUAL
+}
+
 model TournamentSettings {
-  id                   String       @id @default(cuid())
-  tournamentId         String       @unique @db.VarChar(128)
+  id                   String        @id @default(cuid())
+  tournamentId         String        @unique @db.VarChar(128)
   registrationOpensAt  DateTime?
   registrationClosesAt DateTime?
-  teamSizeMin          Int          @default(2)
-  teamSizeMax          Int          @default(5)
-  debateFormat         DebateFormat @default(WSDC)
-  eventMode            EventMode    @default(IRL)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  teamSizeMin          Int           @default(2)
+  teamSizeMax          Int           @default(5)
+  debateFormat         DebateFormat  @default(WSDC)
+  eventMode            EventMode     @default(IRL)
+  pairingSystem        PairingSystem @default(SWISS)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 

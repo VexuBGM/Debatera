@@ -288,7 +288,19 @@ export default function TournamentRoundsPage() {
   if (!tournament) {
     return (
       <main className="max-w-4xl mx-auto p-4">
-        <p>Tournament not found</p>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4 text-center">
+          <Trophy className="h-16 w-16 text-muted-foreground" />
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Tournament Not Found</h1>
+            <p className="max-w-md text-muted-foreground">
+              The tournament you&apos;re looking for doesn&apos;t exist or may have
+              been removed.
+            </p>
+          </div>
+          <Link href="/">
+            <Button>Browse Tournaments</Button>
+          </Link>
+        </div>
       </main>
     );
   }
