@@ -40,7 +40,7 @@ export async function getDebatesForDebater(
           members: {
             include: {
               participant: {
-                include: { user: true },
+                include: { user: true, person: true },
               },
             },
           },
@@ -52,7 +52,7 @@ export async function getDebatesForDebater(
           members: {
             include: {
               participant: {
-                include: { user: true },
+                include: { user: true, person: true },
               },
             },
           },
@@ -62,7 +62,7 @@ export async function getDebatesForDebater(
       judges: {
         include: {
           participant: {
-            include: { user: true },
+            include: { user: true, person: true },
           },
         },
         orderBy: { role: 'asc' }, // CHAIR first, then PANELIST

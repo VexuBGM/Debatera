@@ -1,12 +1,19 @@
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { ensureClaimsForCurrentUser } from '@/lib/identity/claimFlow';
 
 export async function ensureUserInDB() {
   const { userId } = await auth();
   if (!userId) return;
 
   const existing = await prisma.user.findUnique({ where: { id: userId } });
-  if (existing) return;
+  if (existing) {
+    // User already in DB – run claim flow in case they have unclaimed Person rows
+    await ensureClaimsForCurrentUser().catch((err) => {
+      console.error('[ensureUser] Claim flow error (non-fatal):', err);
+    });
+    return;
+  }
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
@@ -29,5 +36,10 @@ export async function ensureUserInDB() {
       lastName: user.lastName ?? undefined,
       imageUrl: user.imageUrl ?? undefined,
     },
+  });
+
+  // Run claim flow for newly created user
+  await ensureClaimsForCurrentUser().catch((err) => {
+    console.error('[ensureUser] Claim flow error (non-fatal):', err);
   });
 }

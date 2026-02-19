@@ -26,7 +26,7 @@ export async function getBallotsForAdjudicator(
       adjudicator: {
         include: {
           participant: {
-            include: { user: true },
+            include: { user: true, person: true },
           },
           debate: {
             include: {
@@ -59,7 +59,7 @@ export async function getBallotWithContext(ballotId: string) {
           speaker: {
             include: {
               participant: {
-                include: { user: true },
+                include: { user: true, person: true },
               },
             },
           },
@@ -68,7 +68,7 @@ export async function getBallotWithContext(ballotId: string) {
       adjudicator: {
         include: {
           participant: {
-            include: { user: true },
+            include: { user: true, person: true },
           },
           debate: {
             include: {
@@ -81,7 +81,7 @@ export async function getBallotWithContext(ballotId: string) {
                   members: {
                     include: {
                       participant: {
-                        include: { user: true },
+                        include: { user: true, person: true },
                       },
                     },
                   },
@@ -93,7 +93,7 @@ export async function getBallotWithContext(ballotId: string) {
                   members: {
                     include: {
                       participant: {
-                        include: { user: true },
+                        include: { user: true, person: true },
                       },
                     },
                   },
@@ -103,7 +103,7 @@ export async function getBallotWithContext(ballotId: string) {
               judges: {
                 include: {
                   participant: {
-                    include: { user: true },
+                    include: { user: true, person: true },
                   },
                 },
               },
@@ -126,7 +126,7 @@ export async function getBallotsForDebate(debateId: string) {
       adjudicator: {
         include: {
           participant: {
-            include: { user: true },
+            include: { user: true, person: true },
           },
         },
       },

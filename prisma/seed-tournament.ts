@@ -7,7 +7,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const TOURNAMENT_ID = "tourn_f5d5ff94-434e-44be-a94b-96b4481ec9ef";
+const TOURNAMENT_ID = "tourn_fe91bfdf-0dd7-4c58-a7b9-e045bf7cacfc";
 
 async function main() {
   console.log("🌱 Seeding tournament data...");
@@ -85,16 +85,32 @@ async function main() {
     });
   }
 
-  // Upsert all users
+  // Upsert all users and create corresponding Person records
+  const userPersonMap = new Map<string, string>(); // userId -> personId
   for (const user of users) {
     await prisma.user.upsert({
       where: { id: user.id },
       update: { email: user.email, username: user.username },
       create: { id: user.id, email: user.email, username: user.username },
     });
+
+    // Create/find Person for this user
+    const emailNorm = user.email.toLowerCase().trim();
+    const person = await prisma.person.upsert({
+      where: { emailNormalized: emailNorm },
+      update: {},
+      create: {
+        emailNormalized: emailNorm,
+        firstName: user.username.replace(/_/g, ' '),
+        lastName: '',
+        claimedByUserId: user.id,
+        claimedAt: new Date(),
+      },
+    });
+    userPersonMap.set(user.id, person.id);
   }
 
-  console.log(`✅ Created/updated ${users.length} users`);
+  console.log(`✅ Created/updated ${users.length} users + Person records`);
 
   // Register institutions with tournament
   for (const institution of institutions) {
@@ -129,6 +145,7 @@ async function main() {
   for (let i = 0; i < debaterUsers.length; i++) {
     const instIndex = Math.floor(i / 3);
     const institution = institutions[instIndex];
+    const personId = userPersonMap.get(debaterUsers[i].id)!;
 
     await prisma.tournamentParticipant.upsert({
       where: {
@@ -141,6 +158,7 @@ async function main() {
       create: {
         tournamentId: TOURNAMENT_ID,
         userId: debaterUsers[i].id,
+        personId,
         institutionId: institution.id,
         role: "DEBATER",
       },
@@ -151,6 +169,8 @@ async function main() {
 
   // Register judges (assign to first institution for simplicity)
   for (const judge of judgeUsers) {
+    const personId = userPersonMap.get(judge.id)!;
+
     await prisma.tournamentParticipant.upsert({
       where: {
         tournamentId_userId: {
@@ -162,6 +182,7 @@ async function main() {
       create: {
         tournamentId: TOURNAMENT_ID,
         userId: judge.id,
+        personId,
         institutionId: institutions[0].id,
         role: "JUDGE",
       },

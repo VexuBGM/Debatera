@@ -40,7 +40,7 @@ export async function getRoundsForTournament(
               judges: {
                 include: {
                   participant: {
-                    include: { user: true, institution: true },
+                    include: { user: true, person: true, institution: true },
                   },
                 },
                 orderBy: { role: 'asc' }, // CHAIR first, then PANELIST
@@ -72,7 +72,7 @@ export async function getRoundById(roundId: string) {
           judges: {
             include: {
               participant: {
-                include: { user: true, institution: true },
+                include: { user: true, person: true, institution: true },
               },
             },
             orderBy: { role: 'asc' }, // CHAIR first, then PANELIST
@@ -187,7 +187,7 @@ export async function getTeamsForTournament(tournamentId: string) {
       members: {
         include: {
           participant: {
-            include: { user: true },
+            include: { user: true, person: true },
           },
         },
       },
@@ -207,11 +207,12 @@ export async function getJudgesForTournament(tournamentId: string) {
     },
     include: {
       user: true,
+      person: true,
       institution: true,
     },
     orderBy: [
       { institution: { name: 'asc' } },
-      { user: { firstName: 'asc' } },
+      { person: { lastName: 'asc' } },
     ],
   });
 }
@@ -239,7 +240,7 @@ export async function getPairingsForRound(roundId: string) {
           judges: {
             include: {
               participant: {
-                include: { user: true, institution: true },
+                include: { user: true, person: true, institution: true },
               },
             },
             orderBy: { role: 'asc' }, // CHAIR first, then PANELIST

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { displayNameFromDbUser } from '@/lib/users/displayName';
+import { displayNameFromDbUser, displayNameFromParticipant } from '@/lib/users/displayName';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,
@@ -69,13 +69,19 @@ type TournamentParticipant = {
   id: string;
   role: 'DEBATER' | 'JUDGE';
   createdAt: string;
+  person: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    emailNormalized: string | null;
+  } | null;
   user: {
     id: string;
     firstName: string | null;
     lastName: string | null;
     email: string | null;
     imageUrl: string | null;
-  };
+  } | null;
 };
 
 async function readJsonOrError(res: Response): Promise<any> {
@@ -89,6 +95,10 @@ async function readJsonOrError(res: Response): Promise<any> {
 
 function displayUser(u: InstitutionMember['user'] | TournamentParticipant['user']) {
   return displayNameFromDbUser(u);
+}
+
+function displayParticipant(p: TournamentParticipant) {
+  return displayNameFromParticipant(p.person, p.user);
 }
 
 export function TournamentMembersRegistrationPage({ tournamentId }: { tournamentId: string }) {
@@ -224,7 +234,7 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
   }, [members, membersSearch]);
 
   const registeredUserIdSet = useMemo(() => {
-    return new Set(participants.map(p => p.user.id));
+    return new Set(participants.filter(p => p.user).map(p => p.user!.id));
   }, [participants]);
 
   async function requestRegistration() {
@@ -559,8 +569,8 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
                       participants.map(p => (
                         <TableRow key={p.id}>
                           <TableCell>
-                            <div className="font-medium">{displayUser(p.user)}</div>
-                            <div className="text-xs text-muted-foreground">{p.user.id}</div>
+                            <div className="font-medium">{displayParticipant(p)}</div>
+                            <div className="text-xs text-muted-foreground">{p.user?.id ?? p.person?.id ?? ''}</div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{p.role}</Badge>

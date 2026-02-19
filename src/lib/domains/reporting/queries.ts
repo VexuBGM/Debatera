@@ -81,8 +81,8 @@ export async function isTournamentParticipant(
   userId: string,
   tournamentId: string
 ): Promise<boolean> {
-  const participant = await prisma.tournamentParticipant.findUnique({
-    where: { tournamentId_userId: { tournamentId, userId } },
+  const participant = await prisma.tournamentParticipant.findFirst({
+    where: { tournamentId, userId },
     select: { id: true },
   });
   return participant !== null;

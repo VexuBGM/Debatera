@@ -19,6 +19,11 @@ export interface TeamData {
 export interface JudgeData {
   id: string; // participantId
   institutionId: string;
+  person: {
+    firstName: string | null;
+    lastName: string | null;
+    emailNormalized: string | null;
+  } | null;
   user: {
     id: string;
     firstName: string | null;

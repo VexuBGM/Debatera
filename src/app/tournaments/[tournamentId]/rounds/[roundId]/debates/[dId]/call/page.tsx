@@ -1,5 +1,5 @@
 /**
- * /tournaments/[id]/rounds/[roundId]/debates/[dId]/call
+ * /tournaments/[tournamentId]/rounds/[roundId]/debates/[dId]/call
  *
  * Server component: validates access, loads metadata, then renders the
  * client-side <DebateCallRoom />.
@@ -16,11 +16,11 @@ import DebateCallRoom from "./DebateCallRoom";
 export const runtime = "nodejs";
 
 interface PageProps {
-  params: Promise<{ id: string; roundId: string; dId: string }>;
+  params: Promise<{ tournamentId: string; roundId: string; dId: string }>;
 }
 
 export default async function DebateCallPage({ params }: PageProps) {
-  const { id: tournamentId, roundId, dId } = await params;
+  const { tournamentId, roundId, dId } = await params;
   const { userId } = await auth();
 
   if (!userId) redirect("/sign-in");
