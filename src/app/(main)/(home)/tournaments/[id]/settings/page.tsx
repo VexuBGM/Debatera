@@ -165,6 +165,18 @@ export default function TournamentSettingsPage() {
 
             <Card>
                 <CardHeader>
+                    <CardTitle>Participants Management</CardTitle>
+                    <CardDescription>Manage unregistered participants and private links.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Link href={`/tournaments/${tournamentId}/settings/participants`}>
+                        <Button>Open Participants Manager</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
                     <CardTitle>Registration & Teams</CardTitle>
                     <CardDescription>Configure registration windows and team size limits.</CardDescription>
                 </CardHeader>

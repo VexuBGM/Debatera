@@ -2,19 +2,21 @@
  * Guest Ballot API
  *
  * GET  /api/tournaments/[id]/guest-ballots/[ballotId]?token=...
- * PUT  /api/tournaments/[id]/guest-ballots/[ballotId]?token=...
+ * PUT  /api/tournaments/[id]/guest-ballots/[ballotId]
  *
- * These endpoints authenticate via private URL token instead of Clerk.
+ * GET may accept a private URL token. Writes require a guest session cookie.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validatePrivateToken } from '@/lib/identity/privateLinkManagement';
 import { checkRateLimit, getIpFromRequest } from '@/lib/identity/rateLimit';
+import { validateGuestSessionCookie } from '@/lib/identity/guestSession';
+import { validateGuestCsrf } from '@/lib/identity/guestCsrf';
+import { isSameOrigin } from '@/lib/identity/requestOrigin';
 import { displayNameForPerson } from '@/lib/identity/displayHelpers';
 import {
   SaveBallotDraftSchema,
-  SPEECH_ROLE_SIDE,
   PROP_ROLES,
   OPP_ROLES,
   WSDC_SPEECH_ORDER,
@@ -40,12 +42,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     const { id: tournamentId, ballotId } = await params;
     const token = req.nextUrl.searchParams.get('token');
-
-    if (!token) {
-      return NextResponse.json({ error: 'Missing token' }, { status: 401 });
-    }
-
-    const validated = await validatePrivateToken(token, tournamentId);
+    const sessionValidated = await validateGuestSessionCookie(req, tournamentId);
+    const validated = sessionValidated ?? (token ? await validatePrivateToken(token, tournamentId) : null);
     if (!validated) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
@@ -224,21 +222,23 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
 export async function PUT(req: NextRequest, { params }: RouteParams) {
   try {
+    if (!isSameOrigin(req)) {
+      return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
+    if (!validateGuestCsrf(req)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const ip = getIpFromRequest(req);
     if (!checkRateLimit(`guest-ballot-put:${ip}`, { maxAttempts: 30, windowMs: 60_000 })) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
     const { id: tournamentId, ballotId } = await params;
-    const token = req.nextUrl.searchParams.get('token');
-
-    if (!token) {
-      return NextResponse.json({ error: 'Missing token' }, { status: 401 });
-    }
-
-    const validated = await validatePrivateToken(token, tournamentId);
+    const validated = await validateGuestSessionCookie(req, tournamentId);
     if (!validated) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+      return NextResponse.json({ error: 'Missing or invalid guest session' }, { status: 401 });
     }
 
     const { participant } = validated;

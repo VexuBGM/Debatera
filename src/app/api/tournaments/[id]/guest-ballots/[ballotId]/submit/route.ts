@@ -1,7 +1,7 @@
 /**
  * Guest Ballot Submit API
  *
- * POST /api/tournaments/[id]/guest-ballots/[ballotId]/submit?token=...
+ * POST /api/tournaments/[id]/guest-ballots/[ballotId]/submit
  *
  * Validates, computes totals, locks ballot as SUBMITTED.
  * Then attempts to compute the debate result if all ballots are in.
@@ -9,8 +9,10 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { validatePrivateToken } from '@/lib/identity/privateLinkManagement';
 import { checkRateLimit, getIpFromRequest } from '@/lib/identity/rateLimit';
+import { validateGuestSessionCookie } from '@/lib/identity/guestSession';
+import { validateGuestCsrf } from '@/lib/identity/guestCsrf';
+import { isSameOrigin } from '@/lib/identity/requestOrigin';
 import {
   SubmitBallotSchema,
   validateBallotSubmission,
@@ -28,21 +30,23 @@ type RouteParams = {
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
+    if (!isSameOrigin(req)) {
+      return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
+    if (!validateGuestCsrf(req)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const ip = getIpFromRequest(req);
     if (!checkRateLimit(`guest-ballot-submit:${ip}`, { maxAttempts: 10, windowMs: 60_000 })) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
     const { id: tournamentId, ballotId } = await params;
-    const token = req.nextUrl.searchParams.get('token');
-
-    if (!token) {
-      return NextResponse.json({ error: 'Missing token' }, { status: 401 });
-    }
-
-    const validated = await validatePrivateToken(token, tournamentId);
+    const validated = await validateGuestSessionCookie(req, tournamentId);
     if (!validated) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+      return NextResponse.json({ error: 'Missing or invalid guest session' }, { status: 401 });
     }
 
     const { participant } = validated;

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import { generateToken, hashToken, normalizeEmail } from "../src/lib/identity/tokenUtils";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -11,6 +12,24 @@ const prisma = new PrismaClient({ adapter });
 // CONFIGURE THIS: Set your tournament ID here
 // ============================================================================
 const TOURNAMENT_ID = "tourn_822fb134-6751-4dcf-a2e1-0eba1599f259";
+
+async function ensurePrivateLink(participantId: string) {
+  const existing = await prisma.participantPrivateLink.findUnique({
+    where: { tournamentParticipantId: participantId },
+  });
+  if (existing) return null;
+
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  await prisma.participantPrivateLink.create({
+    data: {
+      tournamentParticipantId: participantId,
+      tokenHash,
+    },
+  });
+
+  return rawToken;
+}
 
 async function main() {
   console.log("🌱 Seeding 4 teams with 3 participants each...");
@@ -76,6 +95,7 @@ async function main() {
 
   // Create users and track them
   const usersByInstitution: string[][] = [];
+  const userPersonMap = new Map<string, string>();
 
   for (let i = 0; i < institutions.length; i++) {
     const instShort = institutionData[i].short;
@@ -102,6 +122,20 @@ async function main() {
           bio: `Passionate debater from ${institutions[i].name}`,
         },
       });
+
+      const emailNorm = normalizeEmail(debater.email);
+      const person = await prisma.person.upsert({
+        where: { emailNormalized: emailNorm ?? undefined },
+        update: {},
+        create: {
+          emailNormalized: emailNorm,
+          firstName: debater.first,
+          lastName: debater.last,
+          claimedByUserId: userId,
+          claimedAt: new Date(),
+        },
+      });
+      userPersonMap.set(userId, person.id);
 
       userIds.push(userId);
     }
@@ -140,7 +174,7 @@ async function main() {
     const institution = institutions[i];
 
     for (const userId of usersByInstitution[i]) {
-      await prisma.tournamentParticipant.upsert({
+      const participant = await prisma.tournamentParticipant.upsert({
         where: {
           tournamentId_userId: {
             tournamentId: tournament.id,
@@ -151,14 +185,40 @@ async function main() {
         create: {
           tournamentId: tournament.id,
           userId: userId,
+          personId: userPersonMap.get(userId)!,
           institutionId: institution.id,
           role: "DEBATER",
         },
       });
+
+      await ensurePrivateLink(participant.id);
     }
   }
 
   console.log(`✅ Registered ${institutions.length * 3} participants`);
+
+  // Create one guest judge with a private link
+  const guestPerson = await prisma.person.create({
+    data: {
+      emailNormalized: normalizeEmail("guest.judge@example.com"),
+      firstName: "Guest",
+      lastName: "Judge",
+    },
+  });
+
+  const guestParticipant = await prisma.tournamentParticipant.create({
+    data: {
+      tournamentId: tournament.id,
+      personId: guestPerson.id,
+      institutionId: institutions[0].id,
+      role: "JUDGE",
+    },
+  });
+
+  const guestToken = await ensurePrivateLink(guestParticipant.id);
+  if (guestToken) {
+    console.log(`🔗 Guest judge private URL: /tournaments/${tournament.id}/p/${guestToken}`);
+  }
 
   // Create teams - one per institution
   const teams = [];
