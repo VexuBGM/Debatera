@@ -31,16 +31,14 @@ export async function getViewerRole(
   if (tournament?.createdByUserId === userId) return 'organizer';
 
   // Check if registered as a judge in this tournament
-  const judgeParticipant = await prisma.tournamentParticipant.findFirst({
+  const judgeParticipant = await prisma.tournamentParticipant.findUnique({
     where: {
-      tournamentId,
-      userId,
-      role: TournamentParticipantRole.JUDGE,
+      tournamentId_userId: { tournamentId, userId },
     },
     select: { role: true },
   });
 
-  if (judgeParticipant) {
+  if (judgeParticipant?.role === TournamentParticipantRole.JUDGE) {
     return 'adjudicator';
   }
 
@@ -53,8 +51,7 @@ export async function getViewerRole(
 
 interface BallotAccessContext {
   ballotStatus: BallotStatus;
-  /** The userId of the adjudicator who owns this ballot; null for unregistered judges */
-  ballotAdjudicatorParticipantUserId: string | null;
+  ballotAdjudicatorParticipantUserId: string;
   roundStatus: TournamentRoundStatus;
   tournamentCreatorUserId: string;
 }
@@ -71,7 +68,6 @@ export function canEditBallot(
 ): boolean {
   if (context.ballotStatus === BallotStatus.SUBMITTED) return false;
   if (context.roundStatus !== TournamentRoundStatus.IN_PROGRESS) return false;
-  if (!context.ballotAdjudicatorParticipantUserId) return false;
   return context.ballotAdjudicatorParticipantUserId === userId;
 }
 
@@ -96,13 +92,8 @@ export function canViewBallotDetails(
     return false;
   }
 
-  // Owning adjudicator can view their own ballot (only if they have a userId)
-  if (
-    context.ballotAdjudicatorParticipantUserId &&
-    context.ballotAdjudicatorParticipantUserId === userId
-  ) {
-    return true;
-  }
+  // Owning adjudicator can view their own ballot
+  if (context.ballotAdjudicatorParticipantUserId === userId) return true;
 
   return false;
 }
@@ -118,7 +109,7 @@ export async function loadBallotAccessContext(ballotId: string) {
       adjudicator: {
         include: {
           participant: {
-            include: { user: true, person: true },
+            include: { user: true },
           },
           debate: {
             include: {

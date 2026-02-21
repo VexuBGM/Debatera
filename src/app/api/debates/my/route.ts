@@ -8,7 +8,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
-import { displayNameFromParticipant } from '@/lib/users/displayName';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { getDebatesForDebater } from '@/lib/debates';
 
 export const runtime = 'nodejs';
@@ -72,7 +72,7 @@ export async function GET(req: Request) {
             institution: debate.propTeam.institution.name,
             members: debate.propTeam.members.map((m) => ({
               id: m.id,
-              name: displayNameFromParticipant(m.participant.person, m.participant.user),
+              name: displayNameFromDbUser(m.participant.user),
             })),
           }
         : null,
@@ -83,7 +83,7 @@ export async function GET(req: Request) {
             institution: debate.oppTeam.institution.name,
             members: debate.oppTeam.members.map((m) => ({
               id: m.id,
-              name: displayNameFromParticipant(m.participant.person, m.participant.user),
+              name: displayNameFromDbUser(m.participant.user),
             })),
           }
         : null,
@@ -96,7 +96,7 @@ export async function GET(req: Request) {
       judges: debate.judges.map((j) => ({
         id: j.id,
         role: j.role,
-        name: displayNameFromParticipant(j.participant.person, j.participant.user),
+        name: displayNameFromDbUser(j.participant.user),
       })),
       result: debate.result
         ? {

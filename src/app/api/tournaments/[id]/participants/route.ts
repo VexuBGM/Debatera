@@ -9,7 +9,6 @@ import {
 } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { assertRegistrationOpen, TournamentSettingsLike } from '@/lib/guards/tournamentSettingsGuards';
-import { getOrCreatePerson } from '@/lib/identity';
 
 export const runtime = 'nodejs';
 
@@ -153,24 +152,10 @@ export async function POST(
     }
 
     try {
-      // Find user to get email/name for Person record
-      const targetUser = await prisma.user.findUnique({
-        where: { id: targetUserId },
-        select: { email: true, firstName: true, lastName: true },
-      });
-
-      // Create or find matching Person for this user
-      const person = await getOrCreatePerson({
-        email: targetUser?.email ?? undefined,
-        firstName: targetUser?.firstName ?? undefined,
-        lastName: targetUser?.lastName ?? undefined,
-      });
-
       const participant = await prisma.tournamentParticipant.create({
         data: {
           tournamentId,
           userId: targetUserId,
-          personId: person.id,
           institutionId,
           role,
         },
@@ -248,14 +233,6 @@ export async function GET(
         id: true,
         role: true,
         createdAt: true,
-        person: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            emailNormalized: true,
-          },
-        },
         user: {
           select: {
             id: true,

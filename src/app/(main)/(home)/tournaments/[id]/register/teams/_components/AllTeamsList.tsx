@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users } from 'lucide-react';
 import type { TeamWithMembers } from '@/actions/teams.actions';
-import { displayNameFromParticipant, initialsFromParticipant } from '@/lib/users/displayName';
+import { displayNameFromDbUser, initialsFromDbUser } from '@/lib/users/displayName';
 
 interface AllTeamsListProps {
     allTeams: {
@@ -89,8 +89,8 @@ export function AllTeamsList({ allTeams, teamMinSize, teamMaxSize }: AllTeamsLis
                                             {team.members.length > 0 && (
                                                 <div className="flex flex-wrap gap-2">
                                                     {team.members.map(member => {
-                                                        const displayName = displayNameFromParticipant(member.participant.person, member.participant.user);
-                                                        const initials = initialsFromParticipant(member.participant.person, member.participant.user);
+                                                        const displayName = displayNameFromDbUser(member.participant.user);
+                                                        const initials = initialsFromDbUser(member.participant.user);
 
                                                         return (
                                                             <div
@@ -99,7 +99,7 @@ export function AllTeamsList({ allTeams, teamMinSize, teamMaxSize }: AllTeamsLis
                                                             >
                                                                 <Avatar className="h-5 w-5">
                                                                     <AvatarImage
-                                                                        src={member.participant.user?.imageUrl ?? undefined}
+                                                                        src={member.participant.user.imageUrl ?? undefined}
                                                                         alt={displayName}
                                                                     />
                                                                     <AvatarFallback className="bg-cyan-500/20 text-cyan-400 text-[10px]">

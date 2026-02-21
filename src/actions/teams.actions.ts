@@ -13,7 +13,6 @@ export type TeamWithMembers = Prisma.TournamentTeamGetPayload<{
                 participant: {
                     include: {
                         user: true;
-                        person: true;
                     };
                 };
             };
@@ -24,7 +23,6 @@ export type TeamWithMembers = Prisma.TournamentTeamGetPayload<{
 export type DebaterParticipant = Prisma.TournamentParticipantGetPayload<{
     include: {
         user: true;
-        person: true;
         teamMembership: true;
     };
 }>;
@@ -77,7 +75,6 @@ export async function getTournamentTeamsPageData(
                         participant: {
                             include: {
                                 user: true,
-                                person: true,
                             },
                         },
                     },
@@ -218,7 +215,6 @@ export async function getInstitutionTeamState(
                         participant: {
                             include: {
                                 user: true,
-                                person: true,
                             },
                         },
                     },
@@ -238,11 +234,10 @@ export async function getInstitutionTeamState(
             },
             include: {
                 user: true,
-                person: true,
                 teamMembership: true,
             },
             orderBy: {
-                person: {
+                user: {
                     firstName: 'asc',
                 },
             },
@@ -359,7 +354,6 @@ export async function createTeam({
                         participant: {
                             include: {
                                 user: true,
-                                person: true,
                             },
                         },
                     },

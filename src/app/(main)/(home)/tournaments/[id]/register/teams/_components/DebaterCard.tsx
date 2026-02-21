@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GripVertical } from 'lucide-react';
 import type { DebaterParticipant } from '@/actions/teams.actions';
-import { displayNameFromParticipant, initialsFromParticipant } from '@/lib/users/displayName';
+import { displayNameFromDbUser, initialsFromDbUser } from '@/lib/users/displayName';
 
 interface DebaterCardProps {
     debater: DebaterParticipant;
@@ -36,8 +36,8 @@ export function DebaterCard({ debater, disabled = false, isDragging = false }: D
         transition,
     };
 
-    const displayName = displayNameFromParticipant(debater.person, debater.user);
-    const initials = initialsFromParticipant(debater.person, debater.user);
+    const displayName = displayNameFromDbUser(debater.user);
+    const initials = initialsFromDbUser(debater.user);
 
     const isCurrentlyDragging = isDragging || isSortableDragging;
 
@@ -62,7 +62,7 @@ export function DebaterCard({ debater, disabled = false, isDragging = false }: D
 
             {/* Avatar */}
             <Avatar className="h-8 w-8">
-                <AvatarImage src={debater.user?.imageUrl ?? undefined} alt={displayName} />
+                <AvatarImage src={debater.user.imageUrl ?? undefined} alt={displayName} />
                 <AvatarFallback className="bg-cyan-500/20 text-cyan-400 text-xs">
                     {initials}
                 </AvatarFallback>

@@ -37,81 +37,24 @@ model User {
   invitationsCreated     InstitutionInvitation[] @relation("InvitationCreator")
   notifications          Notification[]
   teamsCreated           TournamentTeam[]        @relation("TeamsCreated")
-  claimedPersons         Person[]                @relation("PersonClaimedByUser")
-  institutionsCreated    Institution[]           @relation("InstitutionCreatedByUser")
-  rosterEntriesCreated   InstitutionRosterEntry[] @relation("RosterEntryCreator")
-  privateLinksCreated    ParticipantPrivateLink[] @relation("PrivateLinkCreator")
 
   @@index([email])
 }
 
 // ============================================================================
-// PERSON MODEL (identity that may or may not have a Clerk account)
-// ============================================================================
-model Person {
-  id                String    @id @default(cuid())
-  emailNormalized   String?   @unique // lowercase trimmed; NULL allowed (multiple NULLs OK in Postgres)
-  firstName         String
-  lastName          String
-  claimedByUserId   String?   @db.VarChar(128)
-  claimedAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  // Relationships
-  claimedBy          User?                    @relation("PersonClaimedByUser", fields: [claimedByUserId], references: [id], onDelete: SetNull)
-  rosterEntries      InstitutionRosterEntry[]
-  tournamentParticipants TournamentParticipant[]
-
-  @@index([emailNormalized])
-  @@index([claimedByUserId])
-}
-
-// ============================================================================
 // INSTITUTION MODELS
 // ============================================================================
-enum InstitutionSource {
-  SELF_REGISTERED
-  ORGANIZER_CREATED
-}
-
 model Institution {
-  id              String            @id @default(dbgenerated("('inst_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
-  name            String            @unique
-  source          InstitutionSource @default(SELF_REGISTERED)
-  createdByUserId String?           @db.VarChar(128)
-  createdAt       DateTime          @default(now())
+  id        String   @id @default(dbgenerated("('inst_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
+  name      String   @unique
+  createdAt DateTime @default(now())
 
   // Relationships
-  createdBy              User?                    @relation("InstitutionCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
   members                InstitutionMember[]
   invitations            InstitutionInvitation[]
   tournamentInstitutions TournamentInstitution[]
   tournamentParticipants TournamentParticipant[]
   tournamentTeams        TournamentTeam[]
-  rosterEntries          InstitutionRosterEntry[]
-
-  @@index([createdByUserId])
-}
-
-// ============================================================================
-// INSTITUTION ROSTER (unregistered people belonging to an institution)
-// ============================================================================
-model InstitutionRosterEntry {
-  id              String   @id @default(cuid())
-  institutionId   String   @db.VarChar(128)
-  personId        String
-  createdByUserId String?  @db.VarChar(128)
-  createdAt       DateTime @default(now())
-
-  // Relationships
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  person      Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
-  createdBy   User?       @relation("RosterEntryCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-
-  @@unique([institutionId, personId])
-  @@index([institutionId])
-  @@index([personId])
 }
 
 enum InstitutionRole {
@@ -235,50 +178,23 @@ model TournamentInstitution {
 model TournamentParticipant {
   id            String                    @id @default(cuid())
   tournamentId  String                    @db.VarChar(128)
-  personId      String
-  userId        String?                   @db.VarChar(128)
+  userId        String                    @db.VarChar(128)
   institutionId String                    @db.VarChar(128)
   role          TournamentParticipantRole
   createdAt     DateTime                  @default(now())
 
   tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  person      Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
-  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   // A participant can be in at most one team per tournament
-  teamMembership   TournamentTeamMember?
+  teamMembership TournamentTeamMember?
   judgeAssignments TournamentDebateJudge[]
-  privateLink      ParticipantPrivateLink?
 
-  @@unique([tournamentId, personId])
   @@unique([tournamentId, userId])
   @@index([tournamentId])
-  @@index([personId])
   @@index([userId])
   @@index([institutionId])
-}
-
-// ============================================================================
-// PARTICIPANT PRIVATE LINK (Tabbycat-style secret URL)
-// ============================================================================
-model ParticipantPrivateLink {
-  id                      String    @id @default(cuid())
-  tournamentParticipantId String    @unique
-  tokenHash               String    @db.VarChar(128) // SHA-256 hex of raw token
-  createdAt               DateTime  @default(now())
-  lastUsedAt              DateTime?
-  expiresAt               DateTime?
-  revokedAt               DateTime?
-  createdByUserId         String?   @db.VarChar(128)
-
-  // Relationships
-  participant TournamentParticipant @relation(fields: [tournamentParticipantId], references: [id], onDelete: Cascade)
-  createdBy   User?                @relation("PrivateLinkCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-
-  @@index([tokenHash])
-  @@index([expiresAt])
-  @@index([revokedAt])
 }
 
 // ============================================================================

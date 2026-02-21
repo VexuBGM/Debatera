@@ -6,7 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { EventMode, TournamentRoundStatus } from "@prisma/client";
-import { displayNameFromParticipant } from "@/lib/users/displayName";
+import { displayNameFromDbUser } from "@/lib/users/displayName";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,7 +114,6 @@ export async function listDebateCallMembers(
             include: {
               participant: {
                 include: {
-                  person: { select: { firstName: true, lastName: true, emailNormalized: true } },
                   user: { select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true } },
                 },
               },
@@ -128,7 +127,6 @@ export async function listDebateCallMembers(
             include: {
               participant: {
                 include: {
-                  person: { select: { firstName: true, lastName: true, emailNormalized: true } },
                   user: { select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true } },
                 },
               },
@@ -140,7 +138,6 @@ export async function listDebateCallMembers(
         include: {
           participant: {
             include: {
-              person: { select: { firstName: true, lastName: true, emailNormalized: true } },
               user: { select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true } },
             },
           },
@@ -162,7 +159,7 @@ export async function listDebateCallMembers(
       members.push({
         userId: u.id,
         role: "debater",
-        name: displayNameFromParticipant(m.participant.person, u),
+        name: displayNameFromDbUser(u),
         imageUrl: u.imageUrl ?? undefined,
       });
     }
@@ -176,7 +173,7 @@ export async function listDebateCallMembers(
       members.push({
         userId: u.id,
         role: "debater",
-        name: displayNameFromParticipant(m.participant.person, u),
+        name: displayNameFromDbUser(u),
         imageUrl: u.imageUrl ?? undefined,
       });
     }
@@ -190,7 +187,7 @@ export async function listDebateCallMembers(
       members.push({
         userId: u.id,
         role: "judge",
-        name: displayNameFromParticipant(j.participant.person, u),
+        name: displayNameFromDbUser(u),
         imageUrl: u.imageUrl ?? undefined,
       });
     }

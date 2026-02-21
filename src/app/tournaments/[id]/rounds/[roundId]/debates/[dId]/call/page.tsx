@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { EventMode, TournamentRoundStatus } from "@prisma/client";
 import { getDebateRoleForUser } from "@/lib/stream/eligibility";
-import { displayNameFromDbUser, displayNameFromParticipant } from "@/lib/users/displayName";
+import { displayNameFromDbUser } from "@/lib/users/displayName";
 import DebateCallRoom from "./DebateCallRoom";
 
 export const runtime = "nodejs";
@@ -20,7 +20,7 @@ interface PageProps {
 }
 
 export default async function DebateCallPage({ params }: PageProps) {
-  const { id: tournamentId, roundId, dId } = await params;
+  const { id, roundId, dId } = await params;
   const { userId } = await auth();
 
   if (!userId) redirect("/sign-in");
@@ -41,10 +41,7 @@ export default async function DebateCallPage({ params }: PageProps) {
           members: {
             include: {
               participant: {
-                include: {
-                  person: { select: { firstName: true, lastName: true, emailNormalized: true } },
-                  user: { select: { firstName: true, lastName: true, email: true } },
-                },
+                include: { user: { select: { firstName: true, lastName: true, email: true } } },
               },
             },
           },
@@ -55,10 +52,7 @@ export default async function DebateCallPage({ params }: PageProps) {
           members: {
             include: {
               participant: {
-                include: {
-                  person: { select: { firstName: true, lastName: true, emailNormalized: true } },
-                  user: { select: { firstName: true, lastName: true, email: true } },
-                },
+                include: { user: { select: { firstName: true, lastName: true, email: true } } },
               },
             },
           },
@@ -67,10 +61,7 @@ export default async function DebateCallPage({ params }: PageProps) {
       judges: {
         include: {
           participant: {
-            include: {
-              person: { select: { firstName: true, lastName: true, emailNormalized: true } },
-              user: { select: { firstName: true, lastName: true, email: true } },
-            },
+            include: { user: { select: { firstName: true, lastName: true, email: true } } },
           },
         },
       },
@@ -78,20 +69,20 @@ export default async function DebateCallPage({ params }: PageProps) {
   });
 
   // Validate
-  if (!debate) redirect(`/tournaments/${tournamentId}/rounds/${roundId}`);
-  if (debate.roundId !== roundId) redirect(`/tournaments/${tournamentId}/rounds/${roundId}`);
-  if (debate.round.tournament.id !== tournamentId) redirect(`/tournaments/${tournamentId}/rounds/${roundId}`);
+  if (!debate) redirect(`/tournaments/${id}/rounds/${roundId}`);
+  if (debate.roundId !== roundId) redirect(`/tournaments/${id}/rounds/${roundId}`);
+  if (debate.round.tournament.id !== id) redirect(`/tournaments/${id}/rounds/${roundId}`);
 
   const settings = debate.round.tournament.settings;
   if (!settings || settings.eventMode !== EventMode.ONLINE)
-    redirect(`/tournaments/${tournamentId}/rounds/${roundId}`);
+    redirect(`/tournaments/${id}/rounds/${roundId}`);
   if (debate.round.status === TournamentRoundStatus.DRAFT)
-    redirect(`/tournaments/${tournamentId}/rounds/${roundId}`);
-  if (debate.isBye) redirect(`/tournaments/${tournamentId}/rounds/${roundId}`);
+    redirect(`/tournaments/${id}/rounds/${roundId}`);
+  if (debate.isBye) redirect(`/tournaments/${id}/rounds/${roundId}`);
 
   // Check eligibility
   const role = await getDebateRoleForUser({ debateId: dId, userId });
-  if (!role) redirect(`/tournaments/${tournamentId}/rounds/${roundId}`);
+  if (!role) redirect(`/tournaments/${id}/rounds/${roundId}`);
 
   // Fetch user info for Stream user object
   const user = await prisma.user.findUnique({
@@ -104,24 +95,24 @@ export default async function DebateCallPage({ params }: PageProps) {
     propTeam: debate.propTeam
       ? {
           name: debate.propTeam.name,
-          members: debate.propTeam.members.map((m) => displayNameFromParticipant(m.participant.person, m.participant.user)),
+          members: debate.propTeam.members.map((m) => displayNameFromDbUser(m.participant.user)),
         }
       : null,
     oppTeam: debate.oppTeam
       ? {
           name: debate.oppTeam.name,
-          members: debate.oppTeam.members.map((m) => displayNameFromParticipant(m.participant.person, m.participant.user)),
+          members: debate.oppTeam.members.map((m) => displayNameFromDbUser(m.participant.user)),
         }
       : null,
     judges: debate.judges.map((j) => ({
-      name: displayNameFromParticipant(j.participant.person, j.participant.user),
+      name: displayNameFromDbUser(j.participant.user),
       role: j.role as string,
     })),
   };
 
   return (
     <DebateCallRoom
-      tournamentId={tournamentId}
+      tournamentId={id}
       roundId={roundId}
       debateId={dId}
       userId={userId}

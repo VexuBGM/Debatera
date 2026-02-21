@@ -8,7 +8,7 @@
  * - Hardest-to-staff debates (fewest eligible judges) are assigned first
  */
 
-import { displayNameFromParticipant } from '@/lib/users/displayName';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 
 import { prisma } from '@/lib/prisma';
 import { TournamentRoundStatus, JudgeRole } from '@prisma/client';
@@ -98,7 +98,7 @@ export async function generatePairings(
   const judges: JudgeData[] = judgesRaw.map((j) => ({
     id: j.id,
     institutionId: j.institutionId,
-    userName: displayNameFromParticipant(j.person, j.user) || null,
+    userName: displayNameFromDbUser(j.user) || null,
   }));
 
   // Step 3: Validate minimums
