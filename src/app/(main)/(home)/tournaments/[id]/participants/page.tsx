@@ -25,7 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Upload, Trash2, UserPlus } from 'lucide-react';
+import { Users, Plus, Upload, Trash2, UserPlus, Link2, Copy, ExternalLink, AlertTriangle } from 'lucide-react';
+import {
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   getTournamentParticipants,
@@ -76,6 +80,15 @@ export default function ParticipantsPage() {
   >(null);
 
   const [removeLoadingId, setRemoveLoadingId] = useState<string | null>(null);
+
+  // Portal link state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<{ url: string; judgeName: string } | null>(null);
+  const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null);
+  const [allLinksDialogOpen, setAllLinksDialogOpen] = useState(false);
+  const [allLinks, setAllLinks] = useState<Array<{ participantId: string; judgeName: string; url: string }>>([]);
+  const [generatingAllLinks, setGeneratingAllLinks] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!tournamentId) return;
@@ -179,6 +192,54 @@ export default function ParticipantsPage() {
     }
   }
 
+  async function handleGenerateLink(participantId: string) {
+    if (!tournamentId) return;
+    setGeneratingLinkId(participantId);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/portal/generate-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to generate link');
+      setGeneratedLink({ url: data.url, judgeName: data.judgeName });
+      setLinkDialogOpen(true);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate link');
+    } finally {
+      setGeneratingLinkId(null);
+    }
+  }
+
+  async function handleGenerateAllLinks() {
+    if (!tournamentId) return;
+    setGeneratingAllLinks(true);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/portal/generate-all-links`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to generate links');
+      setAllLinks(data.links);
+      setAllLinksDialogOpen(true);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate links');
+    } finally {
+      setGeneratingAllLinks(false);
+    }
+  }
+
+  function handleCopyLink(url: string, id?: string) {
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Link copied to clipboard');
+      if (id) {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      }
+    });
+  }
+
   if (loading) {
     return (
       <main className="max-w-5xl mx-auto p-4 space-y-4">
@@ -236,15 +297,29 @@ export default function ParticipantsPage() {
               </div>
             </div>
             {canManage && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => handleRemove(p.id)}
-                disabled={removeLoadingId === p.id}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {role === 'JUDGE' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-blue-500"
+                    onClick={() => handleGenerateLink(p.id)}
+                    disabled={generatingLinkId === p.id}
+                    title="Generate portal link"
+                  >
+                    <Link2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleRemove(p.id)}
+                  disabled={removeLoadingId === p.id}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
         ))}
@@ -415,6 +490,61 @@ export default function ParticipantsPage() {
         )}
       </div>
 
+      {/* Portal Link Dialogs */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Judge Portal Link</DialogTitle>
+            <DialogDescription>
+              Private portal link for <strong>{generatedLink?.judgeName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-2 rounded-md border bg-muted/50 p-3">
+              <code className="text-xs flex-1 break-all select-all">{generatedLink?.url}</code>
+              <Button size="icon" variant="outline" className="shrink-0" onClick={() => generatedLink && handleCopyLink(generatedLink.url)}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-xs">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>Anyone with this link can submit ballots as this judge. Keep it private.</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={allLinksDialogOpen} onOpenChange={setAllLinksDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>All Judge Portal Links</DialogTitle>
+            <DialogDescription>
+              {allLinks.length} link(s) generated. Each link gives full ballot access.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 pt-2">
+            <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-xs mb-3">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>Anyone with these links can submit ballots. Keep them private.</span>
+            </div>
+            {allLinks.map((link) => (
+              <div key={link.participantId} className="flex items-center gap-2 rounded-md border p-2">
+                <span className="font-medium text-sm min-w-30">{link.judgeName}</span>
+                <code className="text-[11px] flex-1 break-all text-muted-foreground select-all">{link.url}</code>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="shrink-0 h-7 w-7"
+                  onClick={() => handleCopyLink(link.url, link.participantId)}
+                >
+                  {copiedId === link.participantId ? <span className="text-green-500 text-xs">✓</span> : <Copy className="h-3 w-3" />}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Tabs: Judges / Debaters */}
       <Tabs defaultValue="judges">
         <TabsList>
@@ -427,6 +557,19 @@ export default function ParticipantsPage() {
         </TabsList>
 
         <TabsContent value="judges">
+          {canManage && judges.length > 0 && (
+            <div className="mb-3 flex justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGenerateAllLinks}
+                disabled={generatingAllLinks}
+              >
+                <Link2 className="h-4 w-4 mr-2" />
+                {generatingAllLinks ? 'Generating…' : 'Generate Links for All Judges'}
+              </Button>
+            </div>
+          )}
           <Card>
             <CardContent className="pt-4">
               {renderParticipantList(judges, 'JUDGE')}

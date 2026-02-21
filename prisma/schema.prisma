@@ -103,6 +103,7 @@ model Tournament {
   venues                 Venue[]
   venueCategories        VenueCategory[]
   videoCalls             VideoCall[]
+  accessLinks            TournamentParticipantAccessLink[]
 }
 
 // ============================================================================
@@ -189,8 +190,9 @@ model TournamentParticipant {
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   // A participant can be in at most one team per tournament
-  teamMembership TournamentTeamMember?
+  teamMembership   TournamentTeamMember?
   judgeAssignments TournamentDebateJudge[]
+  accessLink       TournamentParticipantAccessLink?
 
   @@unique([tournamentId, userId])
   @@index([tournamentId])
@@ -428,6 +430,29 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@index([entityType, entityId])
+}
+
+// ============================================================================
+// PARTICIPANT ACCESS LINKS (Judge Portal)
+// ============================================================================
+
+// One access link per tournament participant (token-based portal access)
+model TournamentParticipantAccessLink {
+  id            String    @id @default(cuid())
+  tournamentId  String    @db.VarChar(128)
+  participantId String    @unique // One link per participant
+  tokenHash     String    @unique // SHA-256 hash of the token (never store plaintext)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastUsedAt    DateTime?
+  revokedAt     DateTime?
+
+  // Relationships
+  tournament  Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  participant TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@index([tokenHash])
 }
 
 // ============================================================================
