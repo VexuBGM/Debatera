@@ -8,14 +8,8 @@
  */
 
 import { notFound } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { validatePrivateToken } from '@/lib/identity/privateLinkManagement';
-import {
-  buildGuestSessionCookieValue,
-  guestSessionCookieName,
-  guestSessionMaxAgeSeconds,
-} from '@/lib/identity/guestSession';
 import { TournamentRoundStatus } from '@prisma/client';
 import Link from 'next/link';
 
@@ -34,16 +28,6 @@ export default async function GuestParticipantPage({ params }: PageProps) {
   }
 
   const { participant, person, institution, tournament } = validated;
-
-  const sessionValue = buildGuestSessionCookieValue(validated.link, tournamentId);
-  const cookieStore = cookies();
-  cookieStore.set(guestSessionCookieName, sessionValue, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: guestSessionMaxAgeSeconds,
-    path: '/',
-  });
 
   // Fetch assignments based on role
   const isJudge = participant.role === 'JUDGE';

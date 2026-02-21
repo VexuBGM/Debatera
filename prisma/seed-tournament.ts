@@ -2,31 +2,12 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { generateToken, hashToken, normalizeEmail } from "../src/lib/identity/tokenUtils";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 const TOURNAMENT_ID = "tourn_fe91bfdf-0dd7-4c58-a7b9-e045bf7cacfc";
-
-async function ensurePrivateLink(participantId: string) {
-  const existing = await prisma.participantPrivateLink.findUnique({
-    where: { tournamentParticipantId: participantId },
-  });
-  if (existing) return null;
-
-  const rawToken = generateToken();
-  const tokenHash = hashToken(rawToken);
-  await prisma.participantPrivateLink.create({
-    data: {
-      tournamentParticipantId: participantId,
-      tokenHash,
-    },
-  });
-
-  return rawToken;
-}
 
 async function main() {
   console.log("🌱 Seeding tournament data...");
@@ -114,7 +95,7 @@ async function main() {
     });
 
     // Create/find Person for this user
-    const emailNorm = normalizeEmail(user.email) ?? user.email.toLowerCase().trim();
+    const emailNorm = user.email.toLowerCase().trim();
     const person = await prisma.person.upsert({
       where: { emailNormalized: emailNorm },
       update: {},
@@ -166,7 +147,7 @@ async function main() {
     const institution = institutions[instIndex];
     const personId = userPersonMap.get(debaterUsers[i].id)!;
 
-    const participant = await prisma.tournamentParticipant.upsert({
+    await prisma.tournamentParticipant.upsert({
       where: {
         tournamentId_userId: {
           tournamentId: TOURNAMENT_ID,
@@ -182,8 +163,6 @@ async function main() {
         role: "DEBATER",
       },
     });
-
-    await ensurePrivateLink(participant.id);
   }
 
   console.log(`✅ Registered ${debaterUsers.length} debaters`);
@@ -192,7 +171,7 @@ async function main() {
   for (const judge of judgeUsers) {
     const personId = userPersonMap.get(judge.id)!;
 
-    const participant = await prisma.tournamentParticipant.upsert({
+    await prisma.tournamentParticipant.upsert({
       where: {
         tournamentId_userId: {
           tournamentId: TOURNAMENT_ID,
@@ -208,34 +187,9 @@ async function main() {
         role: "JUDGE",
       },
     });
-
-    await ensurePrivateLink(participant.id);
   }
 
   console.log(`✅ Registered ${judgeUsers.length} judges`);
-
-  // Add a guest judge with a private link
-  const guestPerson = await prisma.person.create({
-    data: {
-      emailNormalized: normalizeEmail("guest.judge@example.com"),
-      firstName: "Guest",
-      lastName: "Judge",
-    },
-  });
-
-  const guestParticipant = await prisma.tournamentParticipant.create({
-    data: {
-      tournamentId: TOURNAMENT_ID,
-      personId: guestPerson.id,
-      institutionId: institutions[0].id,
-      role: "JUDGE",
-    },
-  });
-
-  const guestToken = await ensurePrivateLink(guestParticipant.id);
-  if (guestToken) {
-    console.log(`🔗 Guest judge private URL: /tournaments/${TOURNAMENT_ID}/p/${guestToken}`);
-  }
 
   // Create teams (1 team per institution with 3 members each = 6 teams)
   const teams: { id: string; institutionId: string; name: string }[] = [];

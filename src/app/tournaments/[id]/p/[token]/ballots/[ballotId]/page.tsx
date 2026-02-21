@@ -7,19 +7,12 @@
  */
 
 import { notFound } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { validatePrivateToken } from '@/lib/identity/privateLinkManagement';
 import { displayNameForPerson } from '@/lib/identity/displayHelpers';
-import { WSDC_SPEECH_ORDER } from '@/lib/ballots';
+import { WSDC_SPEECH_ORDER, SPEECH_ROLE_SIDE } from '@/lib/ballots';
 import { TournamentRoundStatus, BallotStatus } from '@prisma/client';
-import GuestBallotClient from './GuestBallotClient';
-import {
-  buildGuestSessionCookieValue,
-  guestSessionCookieName,
-  guestSessionMaxAgeSeconds,
-} from '@/lib/identity/guestSession';
-import { createGuestCsrfToken, guestCsrfCookieName } from '@/lib/identity/guestCsrf';
+import GuestBallotForm from './GuestBallotForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,25 +34,6 @@ export default async function GuestBallotPage({ params }: PageProps) {
   }
 
   const { participant, person, tournament } = validated;
-
-  const cookieStore = cookies();
-  const sessionValue = buildGuestSessionCookieValue(validated.link, tournamentId);
-  cookieStore.set(guestSessionCookieName, sessionValue, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: guestSessionMaxAgeSeconds,
-    path: '/',
-  });
-
-  const csrfToken = createGuestCsrfToken();
-  cookieStore.set(guestCsrfCookieName, csrfToken, {
-    httpOnly: false,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: guestSessionMaxAgeSeconds,
-    path: '/',
-  });
 
   // Load ballot with full context
   const ballot = await prisma.ballot.findUnique({
@@ -240,10 +214,10 @@ export default async function GuestBallotPage({ params }: PageProps) {
         )}
 
         {/* Ballot Form */}
-        <GuestBallotClient
+        <GuestBallotForm
           ballot={ballotData}
           tournamentId={tournamentId}
-          csrfToken={csrfToken}
+          token={token}
           isEditable={isEditable}
           isSubmitted={isSubmitted}
         />

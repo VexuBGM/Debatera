@@ -38,8 +38,6 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     const { id: institutionId } = await params;
-    const url = new URL(req.url);
-    const tournamentId = url.searchParams.get('tournamentId');
 
     // Check admin membership
     const membership = await prisma.institutionMember.findUnique({
@@ -47,26 +45,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       select: { role: true },
     });
 
-    let canManage = membership?.role === InstitutionRole.ADMIN;
-
-    if (!canManage && tournamentId) {
-      const tournament = await prisma.tournament.findUnique({
-        where: { id: tournamentId },
-        select: { createdByUserId: true },
-      });
-
-      if (tournament?.createdByUserId === userId) {
-        const registration = await prisma.tournamentInstitution.findUnique({
-          where: { tournamentId_institutionId: { tournamentId, institutionId } },
-          select: { id: true },
-        });
-        if (registration) {
-          canManage = true;
-        }
-      }
-    }
-
-    if (!canManage) {
+    if (!membership || membership.role !== InstitutionRole.ADMIN) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -121,8 +100,6 @@ export async function GET(req: Request, { params }: RouteParams) {
     }
 
     const { id: institutionId } = await params;
-    const url = new URL(req.url);
-    const tournamentId = url.searchParams.get('tournamentId');
 
     // Check membership (any role can view roster)
     const membership = await prisma.institutionMember.findUnique({
@@ -130,26 +107,7 @@ export async function GET(req: Request, { params }: RouteParams) {
       select: { role: true },
     });
 
-    let canView = !!membership;
-
-    if (!canView && tournamentId) {
-      const tournament = await prisma.tournament.findUnique({
-        where: { id: tournamentId },
-        select: { createdByUserId: true },
-      });
-
-      if (tournament?.createdByUserId === userId) {
-        const registration = await prisma.tournamentInstitution.findUnique({
-          where: { tournamentId_institutionId: { tournamentId, institutionId } },
-          select: { id: true },
-        });
-        if (registration) {
-          canView = true;
-        }
-      }
-    }
-
-    if (!canView) {
+    if (!membership) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

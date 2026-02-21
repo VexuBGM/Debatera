@@ -9,7 +9,7 @@ import {
 } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { assertRegistrationOpen, TournamentSettingsLike } from '@/lib/guards/tournamentSettingsGuards';
-import { ensureParticipantPrivateLink, getOrCreatePerson } from '@/lib/identity';
+import { getOrCreatePerson } from '@/lib/identity';
 
 export const runtime = 'nodejs';
 
@@ -176,15 +176,7 @@ export async function POST(
         },
       });
 
-      const linkResult = await ensureParticipantPrivateLink(participant.id, requesterUserId);
-
-      return NextResponse.json(
-        {
-          ...participant,
-          privateLinkCreated: !!linkResult,
-        },
-        { status: 201 }
-      );
+      return NextResponse.json(participant, { status: 201 });
     } catch (err: unknown) {
       // Concurrency/unique constraint enforcement
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

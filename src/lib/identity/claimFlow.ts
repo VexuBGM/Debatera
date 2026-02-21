@@ -33,57 +33,36 @@ export async function ensureClaimsForCurrentUser(): Promise<void> {
   const normalizedEmail = normalizeEmail(primaryEmail);
   if (!normalizedEmail) return;
 
-  // Find candidate Person rows with matching email
-  const candidates = await prisma.person.findMany({
+  // Find unclaimed Person rows with matching email
+  const matchingPersons = await prisma.person.findMany({
     where: {
       emailNormalized: normalizedEmail,
-      OR: [{ claimedByUserId: null }, { claimedByUserId: userId }],
+      OR: [
+        { claimedByUserId: null },
+        { claimedByUserId: userId }, // already claimed by this user
+      ],
     },
-    include: {
-      _count: { select: { tournamentParticipants: true } },
-    },
+    orderBy: { createdAt: 'asc' },
   });
 
-  if (candidates.length === 0) return;
+  if (matchingPersons.length === 0) return;
 
-  const sortedCandidates = [...candidates].sort((a, b) => {
-    const countDiff = b._count.tournamentParticipants - a._count.tournamentParticipants;
-    if (countDiff !== 0) return countDiff;
-    const updatedDiff = b.updatedAt.getTime() - a.updatedAt.getTime();
-    if (updatedDiff !== 0) return updatedDiff;
-    const createdDiff = b.createdAt.getTime() - a.createdAt.getTime();
-    if (createdDiff !== 0) return createdDiff;
-    return a.id.localeCompare(b.id);
-  });
+  // Claim unclaimed persons
+  const unclaimedPersons = matchingPersons.filter((p) => !p.claimedByUserId);
 
-  const chosen = sortedCandidates[0];
-
-  if (sortedCandidates.length > 1) {
+  if (unclaimedPersons.length > 1) {
     console.warn(
-      `[claim-flow] Multiple Person rows for email`,
-      {
-        userId,
-        emailNormalized: normalizedEmail,
-        candidatePersonIds: sortedCandidates.map((p) => p.id),
-        chosenPersonId: chosen.id,
-      }
+      `[claim-flow] Multiple unclaimed Person rows for email=${normalizedEmail}, userId=${userId}. ` +
+        `Claiming all. IDs: ${unclaimedPersons.map((p) => p.id).join(', ')}`
     );
   }
 
-  const alreadyClaimedByUser = sortedCandidates.filter(
-    (person) => person.claimedByUserId === userId
-  );
-
-  const eligiblePersonIds = Array.from(
-    new Set([chosen.id, ...alreadyClaimedByUser.map((p) => p.id)])
-  );
-
   // Use a transaction to atomically claim + backfill
   await prisma.$transaction(async (tx) => {
-    // Step 1: Claim chosen person if unclaimed
-    if (!chosen.claimedByUserId) {
+    // Step 1: Claim all unclaimed persons with matching email
+    for (const person of unclaimedPersons) {
       await tx.person.update({
-        where: { id: chosen.id },
+        where: { id: person.id },
         data: {
           claimedByUserId: userId,
           claimedAt: new Date(),
@@ -91,15 +70,19 @@ export async function ensureClaimsForCurrentUser(): Promise<void> {
       });
     }
 
-    // Step 2: Backfill TournamentParticipant.userId for eligible persons
+    // Step 2: Backfill TournamentParticipant.userId for all this user's claimed persons
+    const allClaimedPersonIds = matchingPersons.map((p) => p.id);
+
+    // Find participants without userId that belong to claimed persons
     const participantsToBackfill = await tx.tournamentParticipant.findMany({
       where: {
-        personId: { in: eligiblePersonIds },
+        personId: { in: allClaimedPersonIds },
         userId: null,
       },
       select: { id: true, tournamentId: true },
     });
 
+    // Find existing participants that already have this userId (to avoid unique violations)
     const existingUserParticipants = await tx.tournamentParticipant.findMany({
       where: { userId },
       select: { tournamentId: true },
@@ -108,6 +91,7 @@ export async function ensureClaimsForCurrentUser(): Promise<void> {
       existingUserParticipants.map((p) => p.tournamentId)
     );
 
+    // Backfill only where there's no unique constraint violation
     for (const participant of participantsToBackfill) {
       if (tournamentsWithUser.has(participant.tournamentId)) {
         console.warn(
@@ -122,6 +106,7 @@ export async function ensureClaimsForCurrentUser(): Promise<void> {
         data: { userId },
       });
 
+      // Track so subsequent iterations won't duplicate
       tournamentsWithUser.add(participant.tournamentId);
     }
   });

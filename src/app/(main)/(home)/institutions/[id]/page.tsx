@@ -373,14 +373,6 @@ export default function InstitutionDetailPage() {
                 </Dialog>
               )}
               {isAdmin && (
-                <Link href={`/institutions/${institutionId}/roster`}>
-                  <Button variant="outline" size="sm">
-                    <Users className="mr-1 h-3 w-3" />
-                    Roster
-                  </Button>
-                </Link>
-              )}
-              {isAdmin && (
                 <Dialog open={showDeleteDialog} onOpenChange={(open) => {
                   setShowDeleteDialog(open);
                   if (!open) setDeleteConfirmName('');
