@@ -122,14 +122,6 @@ function computeWarnings(
     }
   }
 
-  // Even panel
-  if (allJudgeIds.length > 0 && allJudgeIds.length % 2 === 0) {
-    warnings.push({
-      type: 'even-panel',
-      message: `Even number of judges (${allJudgeIds.length})`,
-    });
-  }
-
   return warnings;
 }
 
