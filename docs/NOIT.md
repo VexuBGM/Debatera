@@ -74,7 +74,6 @@
 - **Tournament Settings** – дебатен формат (WSDC), режим (ONLINE/IRL), размер на отборите, регистрационни прозорци ([prisma/schema.prisma](prisma/schema.prisma) → TournamentSettings)
 - **Регистрация на институции** – институциите кандидатстват за участие (PENDING/APPROVED/REJECTED) ([src/app/api/tournaments/[id]/institution-registrations/route.ts](src/app/api/tournaments/[id]/institution-registrations/route.ts))
 - **Регистрация на участници** – с роли DEBATER/JUDGE ([src/app/api/tournaments/[id]/participants/route.ts](src/app/api/tournaments/[id]/participants/route.ts))
-- **Участници без профил** – добавяне на участници с минимални данни (име/роля) без Clerk акаунт
 - **Team size constraints** – min/max дебатьори в отбор
 
 #### Отбори
@@ -104,7 +103,6 @@
 - **Voting** – всеки съдия избира winning side (PROPOSITION/OPPOSITION)
 - **DebateResult** – автоматично изчислен резултат (win count + average scores) ([prisma/schema.prisma](prisma/schema.prisma) → DebateResult)
 - **Chair tiebreaker** – decidedByChair flag при равен брой гласове
-- **Статистика „Най-добър говорител“** – класиране по средни точки от всички речи
 - **API endpoints** – GET/PUT ballot, POST submit ([src/app/api/ballots](src/app/api/ballots))
 
 #### Видео повиквания
@@ -192,7 +190,6 @@
 | Tournament settings (формат, размер отбори, регистрация) | ✅ Готово | TournamentSettings model |
 | Onboarding на институции | ✅ Готово | PENDING/APPROVED/REJECTED |
 | Регистрация на дебатьори/съдии | ✅ Готово | TournamentParticipant с роля |
-| Участници без профил | ✅ Готово | Quick add с име/роля без акаунт |
 | Заключване на регистрация (deadline) | ✅ Готово | registrationClosesAt constraint |
 
 ### 👥 Отбори
@@ -238,8 +235,7 @@
 | Submit ballot | ✅ Готово | POST /api/ballots/[ballotId]/submit |
 | Автоматично изчисляване на winner | ✅ Готово | DebateResult computed |
 | Chair tiebreaker | ✅ Готово | decidedByChair flag |
-| Статистика „Най-добър говорител“ | ✅ Готово | Средни точки от всички речи |
-| Standings/класиране | ✅ Готово | Model готов |
+| Standings/класиране | 🚧 Липсва UI | Model готов |
 
 ### 🏢 Venues (стаи за IRL)
 
