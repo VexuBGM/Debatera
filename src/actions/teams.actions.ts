@@ -6,9 +6,18 @@ import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { assertRegistrationOpen, assertValidTeamSize, TournamentSettingsLike } from '@/lib/guards/tournamentSettingsGuards';
 import { isTournamentAdmin } from '@/lib/tournamentRounds/authorization';
+import {
+  ensureInstitutionForTournament,
+  getApprovedInstitutions,
+} from '@/lib/services/institutions';
+import {
+  bulkAddDebatersToTeamSchema,
+  createTeamWithInstitutionSchema,
+} from '@/lib/validations/participants';
 
 export type TeamWithMembers = Prisma.TournamentTeamGetPayload<{
     include: {
+        institution: { select: { id: true; name: true } };
         members: {
             include: {
                 participant: {
@@ -70,7 +79,7 @@ export async function getTournamentTeamsPageData(
         const teams = await prisma.tournamentTeam.findMany({
             where: { tournamentId },
             include: {
-                institution: true,
+                institution: { select: { id: true, name: true } },
                 members: {
                     include: {
                         participant: {
@@ -211,6 +220,7 @@ export async function getInstitutionTeamState(
                 institutionId,
             },
             include: {
+                institution: { select: { id: true, name: true } },
                 members: {
                     include: {
                         participant: {
@@ -350,6 +360,7 @@ export async function createTeam({
                 createdByUserId: userId,
             },
             include: {
+                institution: { select: { id: true, name: true } },
                 members: {
                     include: {
                         participant: {
@@ -579,50 +590,78 @@ async function requireTeamManager(
 /**
  * Create a team for the organizer (tournament creator can create for any institution).
  * Unlike `createTeam`, this doesn't require registration to be open.
+ * Now supports inline institution creation via `institutionName`.
  */
 export async function createTeamAsOrganizer({
     tournamentId,
     institutionId,
+    institutionName,
     name,
 }: {
     tournamentId: string;
-    institutionId: string;
+    institutionId?: string;
+    institutionName?: string;
     name?: string;
 }): Promise<ActionResponse<{ team: TeamWithMembers }>> {
     try {
-        const userId = await requireTeamManager(tournamentId, institutionId);
+        // Validate: must have either institutionId or institutionName
+        if (!institutionId && !institutionName) {
+            return { success: false, error: 'Institution is required' };
+        }
 
-        const institution = await prisma.institution.findUnique({
-            where: { id: institutionId },
-            select: { name: true },
+        const { userId } = await auth();
+        if (!userId) return { success: false, error: 'Unauthorized' };
+
+        // Tournament creator can create for any institution
+        const isCreator = await isTournamentAdmin(tournamentId, userId);
+        if (!isCreator) {
+            // Non-creators need to be admin of the given institution
+            if (institutionId) {
+                const membership = await prisma.institutionMember.findUnique({
+                    where: { institutionId_userId: { institutionId, userId } },
+                });
+                if (membership?.role !== 'ADMIN') {
+                    return { success: false, error: 'Forbidden' };
+                }
+            } else {
+                return { success: false, error: 'Forbidden: Only tournament creators can create new institutions inline' };
+            }
+        }
+
+        // Resolve / create institution
+        const resolved = await ensureInstitutionForTournament(tournamentId, userId, {
+            institutionId,
+            institutionName,
         });
-        if (!institution) return { success: false, error: 'Institution not found' };
+        const resolvedInstId = resolved.institutionId;
+        const resolvedInstName = resolved.institutionName;
 
         // Auto-generate name if not provided
         let teamName = name?.trim();
         if (!teamName) {
             const existingTeams = await prisma.tournamentTeam.findMany({
-                where: { tournamentId, institutionId },
+                where: { tournamentId, institutionId: resolvedInstId },
                 select: { name: true },
             });
 
             let nextNum = 1;
-            teamName = `${institution.name} ${nextNum}`;
+            teamName = `${resolvedInstName} ${nextNum}`;
             const usedNames = new Set(existingTeams.map((t) => t.name));
             while (usedNames.has(teamName)) {
                 nextNum++;
-                teamName = `${institution.name} ${nextNum}`;
+                teamName = `${resolvedInstName} ${nextNum}`;
             }
         }
 
         const team = await prisma.tournamentTeam.create({
             data: {
                 tournamentId,
-                institutionId,
+                institutionId: resolvedInstId,
                 name: teamName,
                 createdByUserId: userId,
             },
             include: {
+                institution: { select: { id: true, name: true } },
                 members: {
                     include: {
                         participant: {
@@ -823,6 +862,7 @@ export async function getTeamManagementData(
         const teams = await prisma.tournamentTeam.findMany({
             where: { tournamentId },
             include: {
+                institution: { select: { id: true, name: true } },
                 members: {
                     include: {
                         participant: {
@@ -868,5 +908,140 @@ export async function getTeamManagementData(
     } catch (error) {
         console.error('Error fetching team management data:', error);
         return { success: false, error: 'Internal server error' };
+    }
+}
+
+// =============================================================================
+// Bulk-add debaters directly into a team
+// =============================================================================
+
+function generateGuestUserId(): string {
+    return `guest_${crypto.randomUUID()}`;
+}
+
+function splitName(displayName: string): { firstName: string; lastName: string | null } {
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length === 1) {
+        return { firstName: parts[0], lastName: null };
+    }
+    return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+}
+
+/**
+ * Bulk-add guest debaters directly into an existing team.
+ * Creates guest User + TournamentParticipant (inheriting team.institutionId) + TournamentTeamMember.
+ */
+export async function bulkAddDebatersToTeam(
+    input: { tournamentId: string; teamId: string; names: string },
+): Promise<ActionResponse<{
+    results: Array<{ line: number; name: string; success: boolean; error?: string }>;
+    totalCreated: number;
+}>> {
+    try {
+        const parsed = bulkAddDebatersToTeamSchema.parse(input);
+        const { userId } = await auth();
+        if (!userId) return { success: false, error: 'Unauthorized' };
+
+        // Load team
+        const team = await prisma.tournamentTeam.findUnique({
+            where: { id: parsed.teamId },
+            include: { members: true },
+        });
+        if (!team || team.tournamentId !== parsed.tournamentId) {
+            return { success: false, error: 'Team not found' };
+        }
+
+        // Auth: tournament creator or institution admin
+        const isCreator = await isTournamentAdmin(parsed.tournamentId, userId);
+        if (!isCreator) {
+            const membership = await prisma.institutionMember.findUnique({
+                where: { institutionId_userId: { institutionId: team.institutionId, userId } },
+            });
+            if (membership?.role !== 'ADMIN') {
+                return { success: false, error: 'Forbidden' };
+            }
+        }
+
+        // Team size constraints
+        const tournament = await prisma.tournament.findUnique({
+            where: { id: parsed.tournamentId },
+            include: { settings: true },
+        });
+        if (!tournament) return { success: false, error: 'Tournament not found' };
+
+        const settings: TournamentSettingsLike = tournament.settings ?? {
+            registrationOpensAt: null,
+            registrationClosesAt: null,
+            teamSizeMin: 2,
+            teamSizeMax: 5,
+        };
+        const maxSize = settings.teamSizeMax;
+        let currentMemberCount = team.members.length;
+
+        // Parse lines
+        const lines = parsed.names.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+        if (lines.length === 0) return { success: false, error: 'No valid names provided' };
+
+        const results: Array<{ line: number; name: string; success: boolean; error?: string }> = [];
+        let totalCreated = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const name = lines[i];
+
+            if (name.length > 128) {
+                results.push({ line: i + 1, name, success: false, error: 'Name too long (max 128)' });
+                continue;
+            }
+
+            if (currentMemberCount >= maxSize) {
+                results.push({ line: i + 1, name, success: false, error: `Team full (max ${maxSize})` });
+                continue;
+            }
+
+            try {
+                const guestUserId = generateGuestUserId();
+                const { firstName, lastName } = splitName(name);
+
+                await prisma.user.create({
+                    data: {
+                        id: guestUserId,
+                        email: null,
+                        displayName: name,
+                        firstName,
+                        lastName,
+                    },
+                });
+
+                const participant = await prisma.tournamentParticipant.create({
+                    data: {
+                        tournamentId: parsed.tournamentId,
+                        userId: guestUserId,
+                        institutionId: team.institutionId, // inherit from team
+                        role: 'DEBATER',
+                    },
+                });
+
+                await prisma.tournamentTeamMember.create({
+                    data: {
+                        teamId: team.id,
+                        participantId: participant.id,
+                    },
+                });
+
+                currentMemberCount++;
+                totalCreated++;
+                results.push({ line: i + 1, name, success: true });
+            } catch (error: any) {
+                results.push({ line: i + 1, name, success: false, error: error.message || 'Failed' });
+            }
+        }
+
+        revalidatePath(`/tournaments/${parsed.tournamentId}/teams`);
+        return { success: true, data: { results, totalCreated } };
+    } catch (error: any) {
+        if (error.message === 'Unauthorized') return { success: false, error: 'Unauthorized' };
+        if (error.message === 'Forbidden') return { success: false, error: 'Forbidden' };
+        console.error('bulkAddDebatersToTeam error:', error);
+        return { success: false, error: error.message || 'Failed to add debaters' };
     }
 }

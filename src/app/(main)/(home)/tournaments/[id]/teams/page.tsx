@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -23,13 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Trash2, UserPlus, UserMinus, Shield } from 'lucide-react';
+import { Users, Plus, Trash2, UserPlus, UserMinus, Shield, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getTeamManagementData,
   createTeamAsOrganizer,
   deleteTeamAsOrganizer,
   assignDebaterToTeam,
+  bulkAddDebatersToTeam,
   type TeamWithMembers,
   type DebaterParticipant,
 } from '@/actions/teams.actions';
@@ -62,8 +64,19 @@ export default function TeamsManagementPage() {
   // Create team dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createInstitutionId, setCreateInstitutionId] = useState('');
+  const [createNewInstName, setCreateNewInstName] = useState('');
   const [createTeamName, setCreateTeamName] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
+
+  // Add debaters to team dialog
+  const [addDebatersDialogOpen, setAddDebatersDialogOpen] = useState(false);
+  const [addDebatersTeamId, setAddDebatersTeamId] = useState<string | null>(null);
+  const [addDebatersTeamName, setAddDebatersTeamName] = useState('');
+  const [addDebatersNames, setAddDebatersNames] = useState('');
+  const [addDebatersLoading, setAddDebatersLoading] = useState(false);
+  const [addDebatersResults, setAddDebatersResults] = useState<
+    Array<{ line: number; name: string; success: boolean; error?: string }> | null
+  >(null);
 
   // Assign dialog
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -100,16 +113,22 @@ export default function TeamsManagementPage() {
 
   async function handleCreateTeam() {
     if (!tournamentId) return;
-    const instId = createInstitutionId || institutions[0]?.id;
-    if (!instId) {
-      toast.error('No institution available. Add participants first.');
+
+    const isNew = createInstitutionId === '__new__';
+    const instId = isNew ? undefined : createInstitutionId || undefined;
+    const instName = isNew ? createNewInstName.trim() : undefined;
+
+    if (!instId && !instName) {
+      toast.error('Please select or create an institution.');
       return;
     }
+
     setCreateLoading(true);
     try {
       const result = await createTeamAsOrganizer({
         tournamentId,
         institutionId: instId,
+        institutionName: instName,
         name: createTeamName.trim() || undefined,
       });
       if (!result.success) {
@@ -119,6 +138,8 @@ export default function TeamsManagementPage() {
       toast.success(`Team "${result.data?.team.name}" created`);
       setCreateDialogOpen(false);
       setCreateTeamName('');
+      setCreateInstitutionId('');
+      setCreateNewInstName('');
       await fetchData();
     } catch {
       toast.error('Failed to create team');
@@ -163,6 +184,43 @@ export default function TeamsManagementPage() {
       toast.error('Failed to update assignment');
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  // ── Bulk add debaters to team ─────────────────────
+  function openAddDebatersDialog(teamId: string, teamName: string) {
+    setAddDebatersTeamId(teamId);
+    setAddDebatersTeamName(teamName);
+    setAddDebatersNames('');
+    setAddDebatersResults(null);
+    setAddDebatersDialogOpen(true);
+  }
+
+  async function handleBulkAddDebaters() {
+    if (!tournamentId || !addDebatersTeamId || !addDebatersNames.trim()) return;
+    setAddDebatersLoading(true);
+    setAddDebatersResults(null);
+    try {
+      const result = await bulkAddDebatersToTeam({
+        tournamentId,
+        teamId: addDebatersTeamId,
+        names: addDebatersNames,
+      });
+      if (!result.success) {
+        toast.error(result.error || 'Failed to add debaters');
+        return;
+      }
+      if (result.data) {
+        setAddDebatersResults(result.data.results);
+        toast.success(`Added ${result.data.totalCreated} debater(s)`);
+        if (result.data.totalCreated > 0) {
+          await fetchData();
+        }
+      }
+    } catch {
+      toast.error('Failed to add debaters');
+    } finally {
+      setAddDebatersLoading(false);
     }
   }
 
@@ -231,23 +289,34 @@ export default function TeamsManagementPage() {
                 <DialogTitle>Create Team</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
-                {institutions.length > 1 && (
-                  <div className="space-y-2">
-                    <Label>Institution</Label>
-                    <Select value={createInstitutionId} onValueChange={setCreateInstitutionId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={institutions[0]?.name || 'Select'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {institutions.map((inst) => (
-                          <SelectItem key={inst.id} value={inst.id}>
-                            {inst.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label>Institution</Label>
+                  <Select value={createInstitutionId} onValueChange={setCreateInstitutionId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select institution…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {institutions.map((inst) => (
+                        <SelectItem key={inst.id} value={inst.id}>
+                          {inst.name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new__">
+                        <span className="flex items-center gap-1">
+                          <Plus className="h-3 w-3" /> Create new institution…
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {createInstitutionId === '__new__' && (
+                    <Input
+                      placeholder="Institution name"
+                      value={createNewInstName}
+                      onChange={(e) => setCreateNewInstName(e.target.value)}
+                      autoFocus
+                    />
+                  )}
+                </div>
                 <div className="space-y-2">
                   <Label>Team Name (optional, auto-generated if empty)</Label>
                   <Input
@@ -290,19 +359,37 @@ export default function TeamsManagementPage() {
                 <Card key={team.id}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{team.name}</CardTitle>
+                      <div>
+                        <CardTitle className="text-base">{team.name}</CardTitle>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Building2 className="h-3 w-3" />
+                          {team.institution.name}
+                        </p>
+                      </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={status.variant}>{status.label}</Badge>
                         {canManage && (
                           <>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openAssignDialog(team.id, team.name)}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs"
+                              onClick={() => openAddDebatersDialog(team.id, team.name)}
                             >
-                              <UserPlus className="h-4 w-4" />
+                              <UserPlus className="h-3.5 w-3.5 mr-1" />
+                              Add Debaters
                             </Button>
+                            {unassignedDebaters.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Assign existing debater"
+                                onClick={() => openAssignDialog(team.id, team.name)}
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -409,11 +496,58 @@ export default function TeamsManagementPage() {
         </div>
       </div>
 
-      {/* Assign debaters dialog */}
+      {/* ── Bulk Add Debaters dialog ────────────────── */}
+      <Dialog
+        open={addDebatersDialogOpen}
+        onOpenChange={(open) => {
+          setAddDebatersDialogOpen(open);
+          if (!open) setAddDebatersResults(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Debaters to {addDebatersTeamName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Enter one name per line. Debaters will inherit the team&apos;s institution automatically.
+            </p>
+            <Textarea
+              placeholder={'Ivan Ivanov\nMaria Petrova\nGeorgi Dimitrov'}
+              value={addDebatersNames}
+              onChange={(e) => setAddDebatersNames(e.target.value)}
+              rows={6}
+            />
+            <p className="text-xs text-muted-foreground">
+              {addDebatersNames.split('\n').filter((l) => l.trim()).length} name(s) entered
+            </p>
+            <Button
+              className="w-full"
+              onClick={handleBulkAddDebaters}
+              disabled={addDebatersLoading || !addDebatersNames.trim()}
+            >
+              {addDebatersLoading ? 'Adding…' : 'Add Debaters'}
+            </Button>
+
+            {addDebatersResults && (
+              <div className="max-h-48 overflow-y-auto space-y-1 text-sm border rounded p-2">
+                {addDebatersResults.map((r) => (
+                  <div key={r.line} className={`flex justify-between ${r.success ? 'text-green-600' : 'text-red-500'}`}>
+                    <span>{r.line}. {r.name}</span>
+                    <span>{r.success ? '✓' : r.error || 'Failed'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Assign existing debaters dialog ─────────── */}
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Members to {assignTeamName}</DialogTitle>
+            <DialogTitle>Assign Debater to {assignTeamName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 pt-2 max-h-72 overflow-y-auto">
             {unassignedDebaters.length === 0 ? (

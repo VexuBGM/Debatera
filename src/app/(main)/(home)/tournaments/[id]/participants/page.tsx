@@ -58,18 +58,18 @@ export default function ParticipantsPage() {
   const [tournament, setTournament] = useState<{ id: string; name: string; createdByUserId: string } | null>(null);
   const [isOrganizer, setIsOrganizer] = useState(false);
 
-  // Single add state
+  // Single add state (judges only from this page)
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addRole, setAddRole] = useState<'DEBATER' | 'JUDGE'>('DEBATER');
   const [addName, setAddName] = useState('');
-  const [addInstitutionId, setAddInstitutionId] = useState<string>('__auto__');
+  const [addInstitutionId, setAddInstitutionId] = useState<string>('');
+  const [addNewInstName, setAddNewInstName] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
-  // Bulk add state
+  // Bulk add state (judges only from this page)
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [bulkRole, setBulkRole] = useState<'DEBATER' | 'JUDGE'>('DEBATER');
   const [bulkNames, setBulkNames] = useState('');
-  const [bulkInstitutionId, setBulkInstitutionId] = useState<string>('__auto__');
+  const [bulkInstitutionId, setBulkInstitutionId] = useState<string>('');
+  const [bulkNewInstName, setBulkNewInstName] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResults, setBulkResults] = useState<
     Array<{ line: number; name: string; success: boolean; error?: string }> | null
@@ -104,23 +104,26 @@ export default function ParticipantsPage() {
   async function handleAddSingle() {
     if (!tournamentId || !addName.trim()) return;
     setAddLoading(true);
+
+    const isNew = addInstitutionId === '__new__';
     try {
       const result = await addGuestParticipant({
         tournamentId,
-        role: addRole,
+        role: 'JUDGE',
         displayName: addName.trim(),
-        institutionId: addInstitutionId === '__auto__' ? undefined : addInstitutionId || undefined,
+        institutionId: isNew || !addInstitutionId || addInstitutionId === '__default__' ? undefined : addInstitutionId,
+        institutionName: isNew ? addNewInstName.trim() || undefined : undefined,
       });
       if (!result.success) {
-        toast.error(result.error || 'Failed to add participant');
+        toast.error(result.error || 'Failed to add judge');
         return;
       }
-      toast.success(`Added ${addRole.toLowerCase()} "${addName.trim()}"`);
+      toast.success(`Added judge "${addName.trim()}"`);
       setAddName('');
       setAddDialogOpen(false);
       await fetchData();
     } catch {
-      toast.error('Failed to add participant');
+      toast.error('Failed to add judge');
     } finally {
       setAddLoading(false);
     }
@@ -130,12 +133,15 @@ export default function ParticipantsPage() {
     if (!tournamentId || !bulkNames.trim()) return;
     setBulkLoading(true);
     setBulkResults(null);
+
+    const isNew = bulkInstitutionId === '__new__';
     try {
       const result = await bulkAddGuestParticipants({
         tournamentId,
-        role: bulkRole,
+        role: 'JUDGE',
         names: bulkNames,
-        institutionId: bulkInstitutionId === '__auto__' ? undefined : bulkInstitutionId || undefined,
+        institutionId: isNew || !bulkInstitutionId || bulkInstitutionId === '__default__' ? undefined : bulkInstitutionId,
+        institutionName: isNew ? bulkNewInstName.trim() || undefined : undefined,
       });
       if (!result.success) {
         toast.error(result.error || 'Failed to bulk add');
@@ -143,13 +149,13 @@ export default function ParticipantsPage() {
       }
       if (result.data) {
         setBulkResults(result.data.results);
-        toast.success(`Created ${result.data.totalCreated} ${bulkRole.toLowerCase()}(s)`);
+        toast.success(`Created ${result.data.totalCreated} judge(s)`);
         if (result.data.totalCreated > 0) {
           await fetchData();
         }
       }
     } catch {
-      toast.error('Failed to bulk add participants');
+      toast.error('Failed to bulk add judges');
     } finally {
       setBulkLoading(false);
     }
@@ -262,31 +268,19 @@ export default function ParticipantsPage() {
 
         {canManage && (
           <div className="flex gap-2">
-            {/* Single Add Dialog */}
+            {/* Single Add Judge Dialog */}
             <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Add
+                  Add Judge
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add Participant</DialogTitle>
+                  <DialogTitle>Add Judge</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
-                  <div className="space-y-2">
-                    <Label>Role</Label>
-                    <Select value={addRole} onValueChange={(v) => setAddRole(v as 'DEBATER' | 'JUDGE')}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DEBATER">Debater</SelectItem>
-                        <SelectItem value="JUDGE">Judge</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="space-y-2">
                     <Label>Name</Label>
                     <Input
@@ -298,36 +292,47 @@ export default function ParticipantsPage() {
                       }}
                     />
                   </div>
-                  {institutions.length > 1 && (
-                    <div className="space-y-2">
-                      <Label>Institution (optional)</Label>
-                      <Select value={addInstitutionId} onValueChange={setAddInstitutionId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Auto (Guests)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__auto__">Auto (Guests)</SelectItem>
-                          {institutions.map((inst) => (
-                            <SelectItem key={inst.id} value={inst.id}>
-                              {inst.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label>Institution</Label>
+                    <Select value={addInstitutionId} onValueChange={setAddInstitutionId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Independent Adjudicators (default)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">Independent Adjudicators (default)</SelectItem>
+                        {institutions.map((inst) => (
+                          <SelectItem key={inst.id} value={inst.id}>
+                            {inst.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__">
+                          <span className="flex items-center gap-1">
+                            <Plus className="h-3 w-3" /> Create new…
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {addInstitutionId === '__new__' && (
+                      <Input
+                        placeholder="Institution name"
+                        value={addNewInstName}
+                        onChange={(e) => setAddNewInstName(e.target.value)}
+                        autoFocus
+                      />
+                    )}
+                  </div>
                   <Button
                     className="w-full"
                     onClick={handleAddSingle}
                     disabled={addLoading || !addName.trim()}
                   >
-                    {addLoading ? 'Adding…' : 'Add Participant'}
+                    {addLoading ? 'Adding…' : 'Add Judge'}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
 
-            {/* Bulk Add Dialog */}
+            {/* Bulk Add Judges Dialog */}
             <Dialog open={bulkDialogOpen} onOpenChange={(open) => {
               setBulkDialogOpen(open);
               if (!open) setBulkResults(null);
@@ -335,44 +340,43 @@ export default function ParticipantsPage() {
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
                   <Upload className="h-4 w-4 mr-2" />
-                  Bulk Add
+                  Bulk Add Judges
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Bulk Add Participants</DialogTitle>
+                  <DialogTitle>Bulk Add Judges</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
                   <div className="space-y-2">
-                    <Label>Role</Label>
-                    <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as 'DEBATER' | 'JUDGE')}>
+                    <Label>Institution</Label>
+                    <Select value={bulkInstitutionId} onValueChange={setBulkInstitutionId}>
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Independent Adjudicators (default)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DEBATER">Debaters</SelectItem>
-                        <SelectItem value="JUDGE">Judges</SelectItem>
+                        <SelectItem value="__default__">Independent Adjudicators (default)</SelectItem>
+                        {institutions.map((inst) => (
+                          <SelectItem key={inst.id} value={inst.id}>
+                            {inst.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__">
+                          <span className="flex items-center gap-1">
+                            <Plus className="h-3 w-3" /> Create new…
+                          </span>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
+                    {bulkInstitutionId === '__new__' && (
+                      <Input
+                        placeholder="Institution name"
+                        value={bulkNewInstName}
+                        onChange={(e) => setBulkNewInstName(e.target.value)}
+                        autoFocus
+                      />
+                    )}
                   </div>
-                  {institutions.length > 1 && (
-                    <div className="space-y-2">
-                      <Label>Institution (optional)</Label>
-                      <Select value={bulkInstitutionId} onValueChange={setBulkInstitutionId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Auto (Guests)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__auto__">Auto (Guests)</SelectItem>
-                          {institutions.map((inst) => (
-                            <SelectItem key={inst.id} value={inst.id}>
-                              {inst.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   <div className="space-y-2">
                     <Label>Names (one per line)</Label>
                     <Textarea
@@ -390,7 +394,7 @@ export default function ParticipantsPage() {
                     onClick={handleBulkAdd}
                     disabled={bulkLoading || !bulkNames.trim()}
                   >
-                    {bulkLoading ? 'Adding…' : 'Add All'}
+                    {bulkLoading ? 'Adding…' : 'Add All Judges'}
                   </Button>
 
                   {/* Bulk results */}
@@ -411,29 +415,34 @@ export default function ParticipantsPage() {
         )}
       </div>
 
-      {/* Tabs: Debaters / Judges */}
-      <Tabs defaultValue="debaters">
+      {/* Tabs: Judges / Debaters */}
+      <Tabs defaultValue="judges">
         <TabsList>
-          <TabsTrigger value="debaters">
-            Debaters ({debaters.length})
-          </TabsTrigger>
           <TabsTrigger value="judges">
             Judges ({judges.length})
           </TabsTrigger>
+          <TabsTrigger value="debaters">
+            Debaters ({debaters.length})
+          </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="debaters">
-          <Card>
-            <CardContent className="pt-4">
-              {renderParticipantList(debaters, 'DEBATER')}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="judges">
           <Card>
             <CardContent className="pt-4">
               {renderParticipantList(judges, 'JUDGE')}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="debaters">
+          {canManage && (
+            <div className="mb-3 p-3 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 text-sm text-blue-700 dark:text-blue-300">
+              To add debaters, go to the <strong>Teams</strong> page and use &quot;Add Debaters&quot; on each team. Debaters inherit the team&apos;s institution automatically.
+            </div>
+          )}
+          <Card>
+            <CardContent className="pt-4">
+              {renderParticipantList(debaters, 'DEBATER')}
             </CardContent>
           </Card>
         </TabsContent>

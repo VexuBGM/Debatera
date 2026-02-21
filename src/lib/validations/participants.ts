@@ -5,6 +5,7 @@ export const addGuestParticipantSchema = z.object({
   role: z.enum(['DEBATER', 'JUDGE']),
   displayName: z.string().min(1, 'Name is required').max(128),
   institutionId: z.string().optional(),
+  institutionName: z.string().max(200).optional(),
 });
 
 export const bulkAddGuestParticipantsSchema = z.object({
@@ -12,6 +13,22 @@ export const bulkAddGuestParticipantsSchema = z.object({
   role: z.enum(['DEBATER', 'JUDGE']),
   names: z.string().min(1, 'At least one name is required'),
   institutionId: z.string().optional(),
+  institutionName: z.string().max(200).optional(),
+});
+
+/** Bulk-add debaters directly into a team (names only, institution inherited). */
+export const bulkAddDebatersToTeamSchema = z.object({
+  tournamentId: z.string().min(1),
+  teamId: z.string().min(1),
+  names: z.string().min(1, 'At least one name is required'),
+});
+
+/** Create a team with institution resolution (id or inline name). */
+export const createTeamWithInstitutionSchema = z.object({
+  tournamentId: z.string().min(1),
+  institutionId: z.string().optional(),
+  institutionName: z.string().max(200).optional(),
+  teamName: z.string().max(200).optional(),
 });
 
 export type AddGuestParticipantInput = z.infer<typeof addGuestParticipantSchema>;

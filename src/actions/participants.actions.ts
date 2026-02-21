@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { isTournamentAdmin } from '@/lib/tournamentRounds/authorization';
 import {
+  ensureInstitutionForTournament,
+  ensureIndependentAdjudicatorsInstitution,
+} from '@/lib/services/institutions';
+import {
   addGuestParticipantSchema,
   bulkAddGuestParticipantsSchema,
   type AddGuestParticipantInput,
@@ -41,56 +45,31 @@ function splitName(displayName: string): { firstName: string; lastName: string |
 }
 
 /**
- * Ensure a "Guests" institution exists for a tournament.
- * If the tournament has no APPROVED TournamentInstitution entries,
- * auto-create one.
+ * Resolve the institution for a guest participant.
+ * - If both institutionId and institutionName are absent:
+ *   - JUDGE → default to "Independent Adjudicators"
+ *   - DEBATER → error (debaters should be added via a team)
+ * - Otherwise delegates to ensureInstitutionForTournament.
  */
-async function ensureGuestsInstitution(
+async function resolveInstitution(
   tournamentId: string,
-  tournamentName: string,
   currentUserId: string,
+  role: 'DEBATER' | 'JUDGE',
+  institutionId?: string,
+  institutionName?: string,
 ): Promise<string> {
-  // Check if there's already an approved tournament institution we can use
-  const approvedInstitutions = await prisma.tournamentInstitution.findMany({
-    where: { tournamentId, status: 'APPROVED' },
-    include: { institution: true },
-  });
-
-  // Look for an existing "Guests" institution for this tournament
-  const guestsInst = approvedInstitutions.find(
-    (ti) => ti.institution.name === `${tournamentName} Guests`,
-  );
-  if (guestsInst) return guestsInst.institutionId;
-
-  // If there are no approved institutions at all, create one
-  // Also create if a specific guests institution is needed
-  const guestsInstitutionName = `${tournamentName} Guests`;
-
-  // Upsert the institution (name is unique)
-  const institution = await prisma.institution.upsert({
-    where: { name: guestsInstitutionName },
-    update: {},
-    create: { name: guestsInstitutionName },
-  });
-
-  // Create the TournamentInstitution link with APPROVED status
-  await prisma.tournamentInstitution.upsert({
-    where: {
-      tournamentId_institutionId: {
-        tournamentId,
-        institutionId: institution.id,
-      },
-    },
-    update: { status: 'APPROVED' },
-    create: {
-      tournamentId,
-      institutionId: institution.id,
-      status: 'APPROVED',
-      requestedByUserId: currentUserId,
-    },
-  });
-
-  return institution.id;
+  if (institutionId || institutionName) {
+    const result = await ensureInstitutionForTournament(tournamentId, currentUserId, {
+      institutionId,
+      institutionName,
+    });
+    return result.institutionId;
+  }
+  // No institution specified — use role-based defaults
+  if (role === 'JUDGE') {
+    return ensureIndependentAdjudicatorsInstitution(tournamentId, currentUserId);
+  }
+  throw new Error('Institution is required for debaters. Add debaters via the Teams page.');
 }
 
 /**
@@ -147,15 +126,14 @@ export async function addGuestParticipant(
     });
     if (!tournament) return { success: false, error: 'Tournament not found' };
 
-    // Determine institution
-    let institutionId = parsed.institutionId;
-    if (!institutionId) {
-      institutionId = await ensureGuestsInstitution(
-        parsed.tournamentId,
-        tournament.name,
-        currentUserId,
-      );
-    }
+    // Determine institution via new resolver
+    const institutionId = await resolveInstitution(
+      parsed.tournamentId,
+      currentUserId,
+      parsed.role,
+      parsed.institutionId,
+      parsed.institutionName,
+    );
 
     // Create guest User
     const guestUserId = generateGuestUserId();
@@ -213,15 +191,14 @@ export async function bulkAddGuestParticipants(
     });
     if (!tournament) return { success: false, error: 'Tournament not found' };
 
-    // Determine institution
-    let institutionId = parsed.institutionId;
-    if (!institutionId) {
-      institutionId = await ensureGuestsInstitution(
-        parsed.tournamentId,
-        tournament.name,
-        currentUserId,
-      );
-    }
+    // Determine institution via new resolver
+    const institutionId = await resolveInstitution(
+      parsed.tournamentId,
+      currentUserId,
+      parsed.role,
+      parsed.institutionId,
+      parsed.institutionName,
+    );
 
     // Parse lines
     const lines = parsed.names
@@ -275,7 +252,7 @@ export async function bulkAddGuestParticipants(
           data: {
             tournamentId: parsed.tournamentId,
             userId: guestUserId,
-            institutionId: institutionId!,
+            institutionId: institutionId,
             role: parsed.role,
           },
         });
