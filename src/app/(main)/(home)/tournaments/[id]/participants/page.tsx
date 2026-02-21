@@ -32,8 +32,8 @@ import {
   addGuestParticipant,
   bulkAddGuestParticipants,
   removeParticipant,
-  type ParticipantWithUser,
 } from '@/actions/participants.actions';
+import type { ParticipantWithUser } from '@/lib/validations/participants';
 
 function getDisplayName(user: ParticipantWithUser['user']): string {
   if (user.displayName) return user.displayName;
@@ -62,14 +62,14 @@ export default function ParticipantsPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addRole, setAddRole] = useState<'DEBATER' | 'JUDGE'>('DEBATER');
   const [addName, setAddName] = useState('');
-  const [addInstitutionId, setAddInstitutionId] = useState<string>('');
+  const [addInstitutionId, setAddInstitutionId] = useState<string>('__auto__');
   const [addLoading, setAddLoading] = useState(false);
 
   // Bulk add state
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkRole, setBulkRole] = useState<'DEBATER' | 'JUDGE'>('DEBATER');
   const [bulkNames, setBulkNames] = useState('');
-  const [bulkInstitutionId, setBulkInstitutionId] = useState<string>('');
+  const [bulkInstitutionId, setBulkInstitutionId] = useState<string>('__auto__');
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResults, setBulkResults] = useState<
     Array<{ line: number; name: string; success: boolean; error?: string }> | null
@@ -109,7 +109,7 @@ export default function ParticipantsPage() {
         tournamentId,
         role: addRole,
         displayName: addName.trim(),
-        institutionId: addInstitutionId || undefined,
+        institutionId: addInstitutionId === '__auto__' ? undefined : addInstitutionId || undefined,
       });
       if (!result.success) {
         toast.error(result.error || 'Failed to add participant');
@@ -135,7 +135,7 @@ export default function ParticipantsPage() {
         tournamentId,
         role: bulkRole,
         names: bulkNames,
-        institutionId: bulkInstitutionId || undefined,
+        institutionId: bulkInstitutionId === '__auto__' ? undefined : bulkInstitutionId || undefined,
       });
       if (!result.success) {
         toast.error(result.error || 'Failed to bulk add');
@@ -306,7 +306,7 @@ export default function ParticipantsPage() {
                           <SelectValue placeholder="Auto (Guests)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Auto (Guests)</SelectItem>
+                          <SelectItem value="__auto__">Auto (Guests)</SelectItem>
                           {institutions.map((inst) => (
                             <SelectItem key={inst.id} value={inst.id}>
                               {inst.name}
@@ -363,7 +363,7 @@ export default function ParticipantsPage() {
                           <SelectValue placeholder="Auto (Guests)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Auto (Guests)</SelectItem>
+                          <SelectItem value="__auto__">Auto (Guests)</SelectItem>
                           {institutions.map((inst) => (
                             <SelectItem key={inst.id} value={inst.id}>
                               {inst.name}

@@ -3,8 +3,14 @@
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 import { isTournamentAdmin } from '@/lib/tournamentRounds/authorization';
+import {
+  addGuestParticipantSchema,
+  bulkAddGuestParticipantsSchema,
+  type AddGuestParticipantInput,
+  type BulkAddGuestParticipantsInput,
+  type ParticipantWithUser,
+} from '@/lib/validations/participants';
 
 // =============================================================================
 // Types
@@ -15,44 +21,6 @@ interface ActionResponse<T = undefined> {
   data?: T;
   error?: string;
 }
-
-export interface ParticipantWithUser {
-  id: string;
-  role: 'DEBATER' | 'JUDGE';
-  institutionId: string;
-  createdAt: Date;
-  user: {
-    id: string;
-    displayName: string | null;
-    firstName: string | null;
-    lastName: string | null;
-    email: string | null;
-    imageUrl: string | null;
-  };
-  institution: {
-    id: string;
-    name: string;
-  };
-  teamMembership: { id: string; teamId: string } | null;
-}
-
-// =============================================================================
-// Zod Schemas
-// =============================================================================
-
-export const addGuestParticipantSchema = z.object({
-  tournamentId: z.string().min(1),
-  role: z.enum(['DEBATER', 'JUDGE']),
-  displayName: z.string().min(1, 'Name is required').max(128),
-  institutionId: z.string().optional(),
-});
-
-export const bulkAddGuestParticipantsSchema = z.object({
-  tournamentId: z.string().min(1),
-  role: z.enum(['DEBATER', 'JUDGE']),
-  names: z.string().min(1, 'At least one name is required'),
-  institutionId: z.string().optional(),
-});
 
 // =============================================================================
 // Helpers
@@ -167,7 +135,7 @@ async function requireParticipantManager(
  * Add a single guest participant (debater or judge) to a tournament.
  */
 export async function addGuestParticipant(
-  input: z.infer<typeof addGuestParticipantSchema>,
+  input: AddGuestParticipantInput,
 ): Promise<ActionResponse<{ participantId: string }>> {
   try {
     const parsed = addGuestParticipantSchema.parse(input);
@@ -228,7 +196,7 @@ export async function addGuestParticipant(
  * Returns per-line results.
  */
 export async function bulkAddGuestParticipants(
-  input: z.infer<typeof bulkAddGuestParticipantsSchema>,
+  input: BulkAddGuestParticipantsInput,
 ): Promise<
   ActionResponse<{
     results: Array<{ line: number; name: string; success: boolean; error?: string; participantId?: string }>;

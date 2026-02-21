@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addGuestParticipantSchema, bulkAddGuestParticipantsSchema } from '@/actions/participants.actions';
+import { addGuestParticipantSchema, bulkAddGuestParticipantsSchema } from '@/lib/validations/participants';
 
 describe('addGuestParticipantSchema', () => {
   it('accepts valid input with required fields', () => {
