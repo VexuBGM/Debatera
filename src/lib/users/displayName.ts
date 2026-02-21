@@ -12,6 +12,7 @@
 
 /** Minimal shape coming from a Prisma `User` (or a select that includes these fields). */
 export interface DbUserLike {
+  displayName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
@@ -33,13 +34,17 @@ export interface ClerkUserLike {
  * Build a display name from a DB user record.
  *
  * Priority:
- *  1. "FirstName LastName" (both present)
- *  2. whichever of firstName / lastName exists
- *  3. email (before the @)
- *  4. "Unknown User"
+ *  1. displayName (used by guest/manual entries)
+ *  2. "FirstName LastName" (both present)
+ *  3. whichever of firstName / lastName exists
+ *  4. email (before the @)
+ *  5. "Unknown User"
  */
 export function displayNameFromDbUser(user: DbUserLike | null | undefined): string {
   if (!user) return 'Unknown User';
+
+  const display = user.displayName?.trim();
+  if (display) return display;
 
   const first = user.firstName?.trim();
   const last = user.lastName?.trim();

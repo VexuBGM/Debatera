@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, ArrowLeft, MapPin, Scale, Swords, BarChart3 } from 'lucide-react';
+import { Trophy, ArrowLeft, MapPin, Scale, Swords, BarChart3, Users, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
@@ -228,6 +228,22 @@ export default function TournamentDetailPage() {
             Standings
           </Button>
         </Link>
+        {isOwner && (
+          <Link href={`/tournaments/${tournament.id}/participants`} className="w-full sm:w-auto">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              <Users className="h-4 w-4 mr-2" />
+              Manage Participants
+            </Button>
+          </Link>
+        )}
+        {isOwner && (
+          <Link href={`/tournaments/${tournament.id}/teams`} className="w-full sm:w-auto">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              <Shield className="h-4 w-4 mr-2" />
+              Manage Teams
+            </Button>
+          </Link>
+        )}
         {isOwner && tournament.settings?.eventMode !== 'ONLINE' && (
           <Link href={`/tournaments/${tournament.id}/venues`} className="w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
