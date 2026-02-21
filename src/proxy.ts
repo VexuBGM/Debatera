@@ -5,7 +5,6 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/clerk-sync-keyless(.*)',
   '/api(.*)',
-  'http://localhost:3000/tournaments/tourn_6e2ea9fa-3352-4702-843c-af4882585c24/rounds/cmlwtln600000a4cweu3vc76y'
 ])
 
 export default clerkMiddleware(async (auth, req) => {
