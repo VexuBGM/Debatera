@@ -109,6 +109,7 @@ export async function PATCH(
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
+                ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
             },
             update: {
                 registrationOpensAt: data.registrationOpensAt ? new Date(data.registrationOpensAt) : null,
@@ -116,6 +117,7 @@ export async function PATCH(
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
+                ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
             },
         });
 

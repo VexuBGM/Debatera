@@ -134,6 +134,7 @@ model TournamentSettings {
   debateFormat         DebateFormat  @default(WSDC)
   eventMode            EventMode     @default(IRL)
   pairingSystem        PairingSystem @default(SWISS)
+  showDebaterNames     Boolean       @default(false)  // When true, display debater names instead of team names
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 

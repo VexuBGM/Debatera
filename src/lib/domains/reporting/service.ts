@@ -8,10 +8,12 @@
  */
 
 import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import type { StandingsTable, TeamInput, DebateWithResultInput } from './types';
 import { fetchTournamentTeams, fetchDebatesWithResults } from './queries';
 import { canViewTournamentStandings } from './policy';
 import { computeStandings } from './computeStandings';
+import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 
 // ============================================================================
 // Error types
@@ -42,15 +44,21 @@ export async function getTournamentStandings(
   if (!allowed) throw new StandingsForbiddenError();
 
   // 2. Fetch data (parallel – independent queries)
-  const [rawTeams, rawDebates] = await Promise.all([
+  const [rawTeams, rawDebates, settings] = await Promise.all([
     fetchTournamentTeams(tournamentId),
     fetchDebatesWithResults(tournamentId),
+    prisma.tournamentSettings.findUnique({
+      where: { tournamentId },
+      select: { showDebaterNames: true },
+    }),
   ]);
+
+  const showDebaterNames = settings?.showDebaterNames ?? false;
 
   // 3. Map to pure-computation inputs (convert Decimal → number safely)
   const teams: TeamInput[] = rawTeams.map((t) => ({
     id: t.id,
-    name: t.name,
+    name: getTeamDisplayName(t, showDebaterNames),
     institutionName: t.institution.name,
   }));
 

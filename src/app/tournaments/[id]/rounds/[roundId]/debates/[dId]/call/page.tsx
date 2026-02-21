@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { EventMode, TournamentRoundStatus } from "@prisma/client";
 import { getDebateRoleForUser } from "@/lib/stream/eligibility";
 import { displayNameFromDbUser } from "@/lib/users/displayName";
+import { getTeamDisplayName } from "@/lib/teams/teamDisplayName";
 import DebateCallRoom from "./DebateCallRoom";
 
 export const runtime = "nodejs";
@@ -90,17 +91,19 @@ export default async function DebateCallPage({ params }: PageProps) {
     select: { id: true, firstName: true, lastName: true, email: true, imageUrl: true },
   });
 
+  const showDebaterNames = settings?.showDebaterNames ?? false;
+
   // Build debate context for the info sidebar
   const debateContext = {
     propTeam: debate.propTeam
       ? {
-          name: debate.propTeam.name,
+          name: getTeamDisplayName(debate.propTeam, showDebaterNames),
           members: debate.propTeam.members.map((m) => displayNameFromDbUser(m.participant.user)),
         }
       : null,
     oppTeam: debate.oppTeam
       ? {
-          name: debate.oppTeam.name,
+          name: getTeamDisplayName(debate.oppTeam, showDebaterNames),
           members: debate.oppTeam.members.map((m) => displayNameFromDbUser(m.participant.user)),
         }
       : null,

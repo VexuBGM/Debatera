@@ -35,6 +35,7 @@ import { DraggableItem } from './DraggableItem';
 import { DroppableSlot } from './DroppableSlot';
 import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
+import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 import Link from 'next/link';
 
 // =============================================================================
@@ -56,6 +57,7 @@ interface DebateCardProps {
   roundStatus?: string;
   eventMode?: string;
   callRole?: string; // "judge" | "debater" | undefined
+  showDebaterNames?: boolean;
 }
 
 // =============================================================================
@@ -149,6 +151,7 @@ export function DebateCard({
   roundStatus,
   eventMode,
   callRole,
+  showDebaterNames = false,
 }: DebateCardProps) {
   const propTeam = debate.propTeamId ? teamMap.get(debate.propTeamId) : null;
   const oppTeam = debate.oppTeamId ? teamMap.get(debate.oppTeamId) : null;
@@ -251,7 +254,7 @@ export function DebateCard({
                 <div className={cn('text-xs font-medium uppercase tracking-wide', slotColor)}>
                   {slotLabel}
                 </div>
-                <div className="font-medium truncate">{team.name}</div>
+                <div className="font-medium truncate">{getTeamDisplayName(team, showDebaterNames)}</div>
                 <div className="text-xs text-muted-foreground truncate">
                   {team.institution.name}
                 </div>
@@ -286,7 +289,7 @@ export function DebateCard({
               </div>
               <div>
                 <Badge variant="outline" className="mb-1">BYE</Badge>
-                <div className="font-medium">{byeTeam?.name || 'No team'}</div>
+                <div className="font-medium">{getTeamDisplayName(byeTeam, showDebaterNames)}</div>
                 {byeTeam && (
                   <div className="text-xs text-muted-foreground">
                     {byeTeam.institution.name}

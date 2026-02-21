@@ -32,6 +32,7 @@ import { DraggableItem } from './DraggableItem';
 import { DroppablePanel } from './DroppablePanel';
 import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
+import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 
 // =============================================================================
 // Types
@@ -51,6 +52,7 @@ interface RoundEditorProps {
   roundStatus?: string;
   eventMode?: string;
   userCallEligibility?: Record<string, string>;
+  showDebaterNames?: boolean;
 }
 
 interface ActiveDrag {
@@ -76,6 +78,7 @@ export function RoundEditor({
   roundStatus,
   eventMode,
   userCallEligibility,
+  showDebaterNames = false,
 }: RoundEditorProps) {
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
 
@@ -161,7 +164,7 @@ export function RoundEditor({
       setActiveDrag({
         type: 'team',
         id,
-        name: team?.name || 'Team',
+        name: getTeamDisplayName(team, showDebaterNames),
       });
     } else if (dataType === 'judge') {
       const judge = judgeMap.get(id);
@@ -567,6 +570,7 @@ export function RoundEditor({
               roundStatus={roundStatus}
               eventMode={eventMode}
               callRole={userCallEligibility?.[debate.id]}
+              showDebaterNames={showDebaterNames}
             />
           ))
         )}
@@ -607,7 +611,7 @@ export function RoundEditor({
                         data={{ type: 'team' }}
                       >
                         <div className="p-2 bg-background border rounded-md text-sm">
-                          <div className="font-medium">{team.name}</div>
+                          <div className="font-medium">{getTeamDisplayName(team, showDebaterNames)}</div>
                           <div className="text-xs text-muted-foreground">
                             {team.institution.name}
                           </div>
@@ -653,6 +657,7 @@ export function RoundEditor({
                   roundStatus={roundStatus}
                   eventMode={eventMode}
                   callRole={userCallEligibility?.[debate.id]}
+                  showDebaterNames={showDebaterNames}
                 />
               ))}
             </SortableContext>

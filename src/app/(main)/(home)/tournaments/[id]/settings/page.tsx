@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -34,6 +35,7 @@ interface TournamentSettings {
     teamSizeMax: number;
     debateFormat: 'WSDC';
     eventMode: 'ONLINE' | 'IRL';
+    showDebaterNames: boolean;
 }
 
 export default function TournamentSettingsPage() {
@@ -52,6 +54,7 @@ export default function TournamentSettingsPage() {
         teamSizeMax: 5,
         debateFormat: 'WSDC',
         eventMode: 'IRL',
+        showDebaterNames: false,
     });
 
     useEffect(() => {
@@ -81,6 +84,7 @@ export default function TournamentSettingsPage() {
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
+                showDebaterNames: data.showDebaterNames ?? false,
             });
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Failed to load settings');
@@ -111,6 +115,7 @@ export default function TournamentSettingsPage() {
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
+                showDebaterNames: data.showDebaterNames ?? false,
             });
 
             toast.success('Settings updated successfully');
@@ -251,6 +256,26 @@ export default function TournamentSettingsPage() {
                                 </select>
                                 <p className="text-xs text-muted-foreground">Set at tournament creation and cannot be changed.</p>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t" />
+
+                    {/* Display Options */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-medium leading-none">Display Options</h3>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="showDebaterNames">Show debater names instead of team names</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    When enabled, teams are displayed using the names of their debaters (e.g. &quot;Alice &amp; Bob&quot;) instead of the team name.
+                                </p>
+                            </div>
+                            <Switch
+                                id="showDebaterNames"
+                                checked={settings.showDebaterNames}
+                                onCheckedChange={(checked) => setSettings(s => ({ ...s, showDebaterNames: checked }))}
+                            />
                         </div>
                     </div>
 

@@ -14,6 +14,17 @@ export interface TeamData {
     id: string;
     name: string;
   };
+  /** Members with user info — used when showDebaterNames is enabled */
+  members?: {
+    participant: {
+      user: {
+        firstName: string | null;
+        lastName: string | null;
+        email: string | null;
+        displayName?: string | null;
+      } | null;
+    };
+  }[];
 }
 
 export interface JudgeData {

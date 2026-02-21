@@ -12,7 +12,7 @@ import { prisma } from '@/lib/prisma';
 // ============================================================================
 
 /**
- * Fetch every team registered in the tournament, with institution name.
+ * Fetch every team registered in the tournament, with institution name and members.
  */
 export async function fetchTournamentTeams(tournamentId: string) {
   return prisma.tournamentTeam.findMany({
@@ -22,6 +22,22 @@ export async function fetchTournamentTeams(tournamentId: string) {
       name: true,
       institution: {
         select: { name: true },
+      },
+      members: {
+        select: {
+          participant: {
+            select: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
       },
     },
     orderBy: { name: 'asc' },

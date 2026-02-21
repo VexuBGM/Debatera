@@ -98,6 +98,7 @@ export default function RoundEditorPage() {
   // Stream call data
   const [eventMode, setEventMode] = useState<string>('IRL');
   const [userCallEligibility, setUserCallEligibility] = useState<Record<string, string>>({});
+  const [showDebaterNames, setShowDebaterNames] = useState(false);
 
   // Editor state - local copy of debates for editing
   const [editorDebates, setEditorDebates] = useState<EditorDebate[]>([]);
@@ -157,6 +158,7 @@ export default function RoundEditorPage() {
       // Stream call data
       setEventMode(data.eventMode ?? 'IRL');
       setUserCallEligibility(data.userCallEligibility ?? {});
+      setShowDebaterNames(data.showDebaterNames ?? false);
 
       // Initialize editor debates from server data
       const debates: EditorDebate[] = data.round.debates.map((d: RoundData['debates'][0]) => {
@@ -724,6 +726,7 @@ export default function RoundEditorPage() {
         roundStatus={round.status}
         eventMode={eventMode}
         userCallEligibility={userCallEligibility}
+        showDebaterNames={showDebaterNames}
       />
 
       {/* Generate Confirmation Dialog */}

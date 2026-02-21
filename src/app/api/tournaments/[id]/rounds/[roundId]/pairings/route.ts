@@ -84,9 +84,10 @@ export async function GET(req: Request, { params }: RouteParams) {
     // Fetch event mode for the tournament (for "Join Call" button)
     const settings = await prisma.tournamentSettings.findUnique({
       where: { tournamentId },
-      select: { eventMode: true },
+      select: { eventMode: true, showDebaterNames: true },
     });
     const eventMode = settings?.eventMode ?? 'IRL';
+    const showDebaterNames = settings?.showDebaterNames ?? false;
 
     // Build per-debate call eligibility for the current user
     let userCallEligibility: Record<string, DebateStreamRole> = {};
@@ -114,6 +115,7 @@ export async function GET(req: Request, { params }: RouteParams) {
         unassignedJudges,
         isAdmin,
         eventMode,
+        showDebaterNames,
         userCallEligibility,
       },
       { status: 200 }
