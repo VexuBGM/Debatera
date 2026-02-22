@@ -69,6 +69,7 @@ export async function getRoundById(roundId: string) {
           propTeam: { include: { institution: true } },
           oppTeam: { include: { institution: true } },
           venue: { select: { id: true, name: true, priority: true } },
+          teamSlots: { select: { position: true, teamId: true } },
           judges: {
             include: {
               participant: {

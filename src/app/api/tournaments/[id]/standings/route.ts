@@ -272,6 +272,7 @@ export async function GET(
     },
     select: {
       score: true,
+      role: true,
       speakerId: true,
       ballot: {
         select: {
@@ -326,20 +327,43 @@ export async function GET(
     },
   });
 
-  // Group by (debateId, speakerId) → compute average score per debate-speech
+  // Group by (debateId, speakerId, role) → compute average score per speech role
+  // across ballots (multiple judges). Then sum speech-role averages per (debateId, speakerId).
+  // This correctly handles Ironman (same speaker gives multiple speeches in one debate):
+  // each speech role gets its own average, and they are summed.
+  const debateSpeakerRoleKey = (debateId: string, speakerId: string, role: string) =>
+    `${debateId}::${speakerId}::${role}`;
+
+  const debateSpeakerRoleScores = new Map<string, number[]>();
+
+  for (const s of speeches) {
+    const key = debateSpeakerRoleKey(s.ballot.debateId, s.speakerId!, s.role);
+    let arr = debateSpeakerRoleScores.get(key);
+    if (!arr) {
+      arr = [];
+      debateSpeakerRoleScores.set(key, arr);
+    }
+    arr.push(safeDecimalToNumber(s.score));
+  }
+
+  // Now aggregate per (debateId, speakerId): sum the per-role averages
   const debateSpeakerKey = (debateId: string, speakerId: string) =>
     `${debateId}::${speakerId}`;
 
-  const debateSpeakerScores = new Map<string, number[]>();
+  const debateSpeakerTotals = new Map<string, { total: number; speechCount: number }>();
 
-  for (const s of speeches) {
-    const key = debateSpeakerKey(s.ballot.debateId, s.speakerId!);
-    let arr = debateSpeakerScores.get(key);
-    if (!arr) {
-      arr = [];
-      debateSpeakerScores.set(key, arr);
+  for (const [key, scores] of debateSpeakerRoleScores) {
+    const parts = key.split('::');
+    const dsKey = `${parts[0]}::${parts[1]}`;
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+    let acc = debateSpeakerTotals.get(dsKey);
+    if (!acc) {
+      acc = { total: 0, speechCount: 0 };
+      debateSpeakerTotals.set(dsKey, acc);
     }
-    arr.push(safeDecimalToNumber(s.score));
+    acc.total += avg;
+    acc.speechCount += 1;
   }
 
   // Now compute per-debate average, then group by speakerId
@@ -380,9 +404,8 @@ export async function GET(
     });
   }
 
-  for (const [key, scores] of debateSpeakerScores) {
+  for (const [key, totals] of debateSpeakerTotals) {
     const speakerId = key.split('::')[1];
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
     let acc = speakerAccMap.get(speakerId);
     if (!acc) {
@@ -396,8 +419,8 @@ export async function GET(
       };
       speakerAccMap.set(speakerId, acc);
     }
-    acc.totalPoints += avg;
-    acc.speechesCount += 1;
+    acc.totalPoints += totals.total;
+    acc.speechesCount += totals.speechCount;
   }
 
   // Sort: totalPoints DESC, name ASC

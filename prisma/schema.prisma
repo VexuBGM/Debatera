@@ -139,6 +139,7 @@ model TournamentSettings {
   showDebaterNames     Boolean       @default(false)  // When true, display debater names instead of team names
 
   // BP-specific settings
+  isIronman            Boolean       @default(false) // BP Ironman: 1 debater per team delivers all speeches
   speakerScaleMin      Int?          // Min speaker points (e.g. 65 for BP)
   speakerScaleMax      Int?          // Max speaker points (e.g. 85 for BP)
   rankPointsFirst      Int?          @default(3) // Team points for 1st place
@@ -682,7 +683,7 @@ model BpDebateTeamResult {
   position           DebateTeamPosition // BP_OG, BP_OO, BP_CG, BP_CO
   rank               Int                // Final rank (1..4), from chair ballot for MVP
   teamPoints         Int                // Points from rank mapping
-  totalSpeakerPoints Decimal            @db.Decimal(5, 1) // Sum of 2 speaker scores
+  totalSpeakerPoints Decimal            @db.Decimal(5, 1) // Sum of speaker scores for this position
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 

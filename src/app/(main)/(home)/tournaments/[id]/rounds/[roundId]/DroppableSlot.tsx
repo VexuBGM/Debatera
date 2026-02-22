@@ -14,7 +14,7 @@ interface DroppableSlotProps {
   id: string;
   type: 'team' | 'judge';
   debateId: string;
-  slot: 'prop' | 'opp' | 'chair' | 'panelists';
+  slot: string; // 'prop' | 'opp' | 'chair' | 'panelists' | BpPosition
   children: ReactNode;
   className?: string;
   isEmpty?: boolean;

@@ -5,10 +5,17 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { TournamentRoundStatus, TournamentParticipantRole, JudgeRole } from '@prisma/client';
+import { TournamentRoundStatus, TournamentParticipantRole, JudgeRole, DebateTeamPosition } from '@prisma/client';
 import type { DebatePairingInput } from './validation';
 import { hasInstitutionConflict, type InstitutionConflictDetail } from './institutionConflict';
 import { createBallotsForDebate } from '@/lib/ballots/createBallots';
+
+const BP_POSITIONS: DebateTeamPosition[] = [
+  DebateTeamPosition.BP_OG,
+  DebateTeamPosition.BP_OO,
+  DebateTeamPosition.BP_CG,
+  DebateTeamPosition.BP_CO,
+];
 
 // =============================================================================
 // Types
@@ -92,15 +99,27 @@ function validatePairings(
       }
     } else {
       // Normal debate: check if it's completely empty (no teams + no judges = placeholder slot)
-      const isEmpty = !debate.propTeamId && !debate.oppTeamId && allJudgeIds.length === 0;
+      const hasBpSlots = debate.bpSlots && Object.values(debate.bpSlots).some(Boolean);
+      const isEmpty = !debate.propTeamId && !debate.oppTeamId && !hasBpSlots && allJudgeIds.length === 0;
 
       if (!isEmpty) {
         // Partially or fully filled debate — validate completeness as warnings
-        if (!debate.propTeamId) {
-          warnings.push(`${debateLabel}: Missing proposition team.`);
-        }
-        if (!debate.oppTeamId) {
-          warnings.push(`${debateLabel}: Missing opposition team.`);
+        if (debate.bpSlots) {
+          // BP: check all 4 positions
+          for (const pos of BP_POSITIONS) {
+            if (!debate.bpSlots[pos]) {
+              const label = pos.replace('BP_', '');
+              warnings.push(`${debateLabel}: Missing ${label} team.`);
+            }
+          }
+        } else {
+          // WSDC: prop/opp
+          if (!debate.propTeamId) {
+            warnings.push(`${debateLabel}: Missing proposition team.`);
+          }
+          if (!debate.oppTeamId) {
+            warnings.push(`${debateLabel}: Missing opposition team.`);
+          }
         }
 
         if (allJudgeIds.length === 0) {
@@ -129,26 +148,29 @@ function validatePairings(
       usedVenueIds.add(debate.venueId);
     }
 
-    // Validate team IDs exist
-    if (debate.propTeamId && !validTeamIds.has(debate.propTeamId)) {
-      errors.push(`${debateLabel}: Invalid proposition team ID.`);
+    // Collect all team IDs for this debate
+    const debateTeamIds: string[] = [];
+    if (debate.propTeamId) debateTeamIds.push(debate.propTeamId);
+    if (debate.oppTeamId) debateTeamIds.push(debate.oppTeamId);
+    if (debate.bpSlots) {
+      for (const tid of Object.values(debate.bpSlots)) {
+        if (tid) debateTeamIds.push(tid);
+      }
     }
-    if (debate.oppTeamId && !validTeamIds.has(debate.oppTeamId)) {
-      errors.push(`${debateLabel}: Invalid opposition team ID.`);
+
+    // Validate team IDs exist
+    for (const tid of debateTeamIds) {
+      if (!validTeamIds.has(tid)) {
+        errors.push(`${debateLabel}: Invalid team ID.`);
+      }
     }
 
     // Check for duplicate teams across debates
-    if (debate.propTeamId) {
-      if (usedTeamIds.has(debate.propTeamId)) {
+    for (const tid of debateTeamIds) {
+      if (usedTeamIds.has(tid)) {
         errors.push(`${debateLabel}: Team assigned to multiple debates.`);
       }
-      usedTeamIds.add(debate.propTeamId);
-    }
-    if (debate.oppTeamId) {
-      if (usedTeamIds.has(debate.oppTeamId)) {
-        errors.push(`${debateLabel}: Team assigned to multiple debates.`);
-      }
-      usedTeamIds.add(debate.oppTeamId);
+      usedTeamIds.add(tid);
     }
 
     // Validate judge IDs and check for duplicates (across all debates in the round)
@@ -329,6 +351,20 @@ export async function savePairings(
           },
         },
       });
+
+      // Create BP team slot records if present
+      if (debate.bpSlots) {
+        const slotRecords = Object.entries(debate.bpSlots)
+          .filter(([, teamId]) => teamId != null)
+          .map(([position, teamId]) => ({
+            debateId: createdDebate.id,
+            teamId: teamId!,
+            position: position as DebateTeamPosition,
+          }));
+        if (slotRecords.length > 0) {
+          await tx.tournamentDebateTeamSlot.createMany({ data: slotRecords });
+        }
+      }
 
       // Create DRAFT ballots with 8 empty speech rows for each judge
       if (!debate.isBye && judgeRecords.length > 0) {

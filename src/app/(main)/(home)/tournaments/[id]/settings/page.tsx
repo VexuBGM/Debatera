@@ -37,6 +37,7 @@ interface TournamentSettings {
     eventMode: 'ONLINE' | 'IRL';
     showDebaterNames: boolean;
     // BP-specific
+    isIronman: boolean;
     speakerScaleMin: number | null;
     speakerScaleMax: number | null;
     rankPointsFirst: number | null;
@@ -62,6 +63,7 @@ export default function TournamentSettingsPage() {
         debateFormat: 'WSDC',
         eventMode: 'IRL',
         showDebaterNames: false,
+        isIronman: false,
         speakerScaleMin: null,
         speakerScaleMax: null,
         rankPointsFirst: null,
@@ -98,6 +100,7 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                isIronman: data.isIronman ?? false,
                 speakerScaleMin: data.speakerScaleMin ?? null,
                 speakerScaleMax: data.speakerScaleMax ?? null,
                 rankPointsFirst: data.rankPointsFirst ?? null,
@@ -135,6 +138,7 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                isIronman: data.isIronman ?? false,
                 speakerScaleMin: data.speakerScaleMin ?? null,
                 speakerScaleMax: data.speakerScaleMax ?? null,
                 rankPointsFirst: data.rankPointsFirst ?? null,
@@ -260,34 +264,13 @@ export default function TournamentSettingsPage() {
                                 <select
                                     id="debateFormat"
                                     value={settings.debateFormat}
-                                    onChange={(e) => {
-                                        const fmt = e.target.value as 'WSDC' | 'BP';
-                                        setSettings(s => ({
-                                            ...s,
-                                            debateFormat: fmt,
-                                            // Auto-set BP defaults when switching to BP
-                                            ...(fmt === 'BP' ? {
-                                                teamSizeMin: 2,
-                                                teamSizeMax: 2,
-                                                speakerScaleMin: s.speakerScaleMin ?? 65,
-                                                speakerScaleMax: s.speakerScaleMax ?? 85,
-                                                rankPointsFirst: s.rankPointsFirst ?? 3,
-                                                rankPointsSecond: s.rankPointsSecond ?? 2,
-                                                rankPointsThird: s.rankPointsThird ?? 1,
-                                                rankPointsFourth: s.rankPointsFourth ?? 0,
-                                            } : {}),
-                                        }));
-                                    }}
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    disabled
                                 >
                                     <option value="WSDC">WSDC</option>
                                     <option value="BP">British Parliamentary (BP)</option>
                                 </select>
-                                <p className="text-xs text-muted-foreground">
-                                    {settings.debateFormat === 'BP'
-                                        ? 'British Parliamentary: 4 teams per room, ranked 1st–4th.'
-                                        : 'World Schools Debate Championship format.'}
-                                </p>
+                                <p className="text-xs text-muted-foreground">Set at tournament creation and cannot be changed.</p>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="eventMode">Event Mode</Label>
@@ -308,6 +291,31 @@ export default function TournamentSettingsPage() {
                     {/* BP-Specific Settings */}
                     {settings.debateFormat === 'BP' && (
                         <>
+                            <div className="border-t" />
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-medium leading-none">BP Ironman Mode</h3>
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="isIronman">Enable Ironman</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            In Ironman mode, each team has exactly 1 debater who delivers all speeches for their bench.
+                                            Team size will be set to 1.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="isIronman"
+                                        checked={settings.isIronman}
+                                        onCheckedChange={(checked) => {
+                                            if (checked) {
+                                                setSettings(s => ({ ...s, isIronman: true, teamSizeMin: 1, teamSizeMax: 1 }));
+                                            } else {
+                                                setSettings(s => ({ ...s, isIronman: false, teamSizeMin: 2, teamSizeMax: 2 }));
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
                             <div className="border-t" />
                             <div className="space-y-4">
                                 <h3 className="text-sm font-medium leading-none">BP Speaker Scale</h3>

@@ -139,11 +139,17 @@ export interface EditorDebate {
 // DnD item types
 export type DragItemType = 'team' | 'judge';
 
+/** All valid team slot identifiers (WSDC + BP) */
+export type TeamSlot = 'prop' | 'opp' | BpPosition;
+
+/** All valid slot identifiers for DnD */
+export type DndSlot = TeamSlot | 'chair' | 'panelists';
+
 export interface DragItem {
   type: DragItemType;
   id: string;
   sourceDebateId?: string; // If dragged from a debate
-  sourceSlot?: 'prop' | 'opp' | 'chair' | 'panelists'; // Which slot it came from
+  sourceSlot?: DndSlot; // Which slot it came from
 }
 
 // Validation

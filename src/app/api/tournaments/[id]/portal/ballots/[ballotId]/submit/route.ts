@@ -88,6 +88,7 @@ export async function POST(req: Request, { params }: RouteParams) {
                     settings: {
                       select: {
                         debateFormat: true,
+                        isIronman: true,
                         speakerScaleMin: true,
                         speakerScaleMax: true,
                       },
@@ -103,6 +104,7 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const settings = debateAdjudicator?.debate.round.tournament.settings;
     const isBp = settings?.debateFormat === 'BP';
+    const isIronman = isBp && (settings as any)?.isIronman === true;
     const debateId = debateAdjudicator?.debateId ?? portalAuth.ballot.debateId;
 
     // ───────── BP submit path ─────────
@@ -119,7 +121,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       const scaleMin = settings?.speakerScaleMin ?? 65;
       const scaleMax = settings?.speakerScaleMax ?? 85;
 
-      const validationErrors = validateBpBallotSubmission(data, { min: scaleMin, max: scaleMax });
+      const validationErrors = validateBpBallotSubmission(data, { min: scaleMin, max: scaleMax }, { isIronman });
       if (validationErrors.length > 0) {
         return NextResponse.json(
           { error: 'Validation failed', validationErrors },

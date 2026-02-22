@@ -99,7 +99,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // Upsert settings (eventMode is immutable — set only at tournament creation)
+        // Upsert settings (eventMode & debateFormat are immutable — set only at tournament creation)
         const settings = await prisma.tournamentSettings.upsert({
             where: { tournamentId },
             create: {
@@ -108,8 +108,10 @@ export async function PATCH(
                 registrationClosesAt: data.registrationClosesAt ? new Date(data.registrationClosesAt) : null,
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
-                debateFormat: data.debateFormat,
+                // debateFormat & eventMode are immutable after creation, so we set them only in the create branch
+                ...(data.debateFormat !== undefined && { debateFormat: data.debateFormat }),
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
+                ...(data.isIronman !== undefined && { isIronman: data.isIronman }),
                 // BP-specific fields
                 ...(data.speakerScaleMin !== undefined && { speakerScaleMin: data.speakerScaleMin }),
                 ...(data.speakerScaleMax !== undefined && { speakerScaleMax: data.speakerScaleMax }),
@@ -123,8 +125,9 @@ export async function PATCH(
                 registrationClosesAt: data.registrationClosesAt ? new Date(data.registrationClosesAt) : null,
                 teamSizeMin: data.teamSizeMin,
                 teamSizeMax: data.teamSizeMax,
-                debateFormat: data.debateFormat,
+                // debateFormat is NOT updated — it's immutable from tournament creation
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
+                ...(data.isIronman !== undefined && { isIronman: data.isIronman }),
                 // BP-specific fields
                 ...(data.speakerScaleMin !== undefined && { speakerScaleMin: data.speakerScaleMin }),
                 ...(data.speakerScaleMax !== undefined && { speakerScaleMax: data.speakerScaleMax }),

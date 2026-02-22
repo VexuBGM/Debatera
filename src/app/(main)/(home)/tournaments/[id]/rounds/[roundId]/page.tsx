@@ -425,10 +425,18 @@ export default function RoundEditorPage() {
     if (!round || round.status !== 'DRAFT') return false;
     if (hasChanges) return false; // Must save first
 
-    // All non-bye debates must have both teams, a chair judge, and at least 1 total judge
+    const isBp = debateFormat === 'BP';
+
+    // All non-bye debates must have all teams, a chair judge, and at least 1 total judge
     for (const debate of editorDebates) {
       if (!debate.isBye) {
-        if (!debate.propTeamId || !debate.oppTeamId) return false;
+        if (isBp && debate.bpSlots) {
+          // BP: all 4 positions must be filled
+          if (Object.values(debate.bpSlots).some((v) => !v)) return false;
+        } else {
+          // WSDC: prop + opp
+          if (!debate.propTeamId || !debate.oppTeamId) return false;
+        }
         if (!debate.chairJudgeParticipantId) return false;
       }
     }
@@ -715,9 +723,13 @@ export default function RoundEditorPage() {
           </CardHeader>
           <CardContent className="py-0 pb-3 text-sm text-amber-600 dark:text-amber-500">
             <ul className="list-disc list-inside space-y-1">
-              {editorDebates.some(
-                (d) => !d.isBye && (!d.propTeamId || !d.oppTeamId)
-              ) && <li>Some debates are missing teams</li>}
+              {editorDebates.some((d) => {
+                if (d.isBye) return false;
+                if (debateFormat === 'BP' && d.bpSlots) {
+                  return Object.values(d.bpSlots).some((v) => !v);
+                }
+                return !d.propTeamId || !d.oppTeamId;
+              }) && <li>Some debates are missing teams</li>}
               {editorDebates.some(
                 (d) => !d.isBye && !d.chairJudgeParticipantId
               ) && <li>Some debates have no chair judge assigned</li>}

@@ -42,6 +42,9 @@ export type UpdateRoundInput = z.infer<typeof UpdateRoundSchema>;
  * Schema for a single debate in the pairings payload.
  * Judges are split into a single chair and zero-or-more panelists.
  */
+/** Valid BP positions that can appear as bpSlots keys */
+export const BpPositionEnum = z.enum(['BP_OG', 'BP_OO', 'BP_CG', 'BP_CO']);
+
 export const DebatePairingSchema = z.object({
   // If updating an existing debate, include its ID
   // For new debates (from auto-generate or manual add), this can be omitted
@@ -53,6 +56,8 @@ export const DebatePairingSchema = z.object({
   venueId: z.string().nullable().optional(),
   chairJudgeParticipantId: z.string().nullable(),
   panelistJudgeParticipantIds: z.array(z.string()),
+  // BP team slots (optional — only present when debateFormat === 'BP')
+  bpSlots: z.record(BpPositionEnum, z.string().nullable()).optional(),
 });
 
 export type DebatePairingInput = z.infer<typeof DebatePairingSchema>;

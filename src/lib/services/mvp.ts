@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { InstitutionRole, EventMode } from '@prisma/client';
+import { InstitutionRole, EventMode, DebateFormat } from '@prisma/client';
 
 // ============================================================================
 // INSTITUTION SERVICES
@@ -94,7 +94,7 @@ export async function isInstitutionAdmin(userId: string, institutionId: string):
 // TOURNAMENT SERVICES
 // ============================================================================
 
-export async function createTournament(name: string, userId: string, eventMode: EventMode = EventMode.IRL) {
+export async function createTournament(name: string, userId: string, eventMode: EventMode = EventMode.IRL, debateFormat: DebateFormat = DebateFormat.WSDC) {
   return prisma.tournament.create({
     data: {
       name,
@@ -102,6 +102,18 @@ export async function createTournament(name: string, userId: string, eventMode: 
       settings: {
         create: {
           eventMode,
+          debateFormat,
+          // Auto-set BP defaults when creating a BP tournament
+          ...(debateFormat === DebateFormat.BP ? {
+            teamSizeMin: 2,
+            teamSizeMax: 2,
+            speakerScaleMin: 65,
+            speakerScaleMax: 85,
+            rankPointsFirst: 3,
+            rankPointsSecond: 2,
+            rankPointsThird: 1,
+            rankPointsFourth: 0,
+          } : {}),
         },
       },
     },

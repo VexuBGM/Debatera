@@ -9,6 +9,7 @@ import {
   BP_SPEECH_ORDER,
   BP_POSITIONS,
   BP_DEFAULT_SPEAKER_SCALE,
+  BP_POSITION_SPEECH_ROLES,
 } from './constants';
 
 // ============================================================================
@@ -92,13 +93,20 @@ export interface BpBallotValidationError {
 /**
  * Validate a BP ballot submission (beyond Zod schema checks).
  * Returns an array of errors. Empty = valid.
+ *
+ * @param data - The parsed ballot submission data
+ * @param speakerScale - Optional speaker point scale override
+ * @param options - Additional validation options
+ * @param options.isIronman - When true, allows the same speaker for multiple speeches within a team
  */
 export function validateBpBallotSubmission(
   data: SubmitBpBallotInput,
-  speakerScale?: { min: number; max: number }
+  speakerScale?: { min: number; max: number },
+  options?: { isIronman?: boolean }
 ): BpBallotValidationError[] {
   const errors: BpBallotValidationError[] = [];
   const scale = speakerScale ?? BP_DEFAULT_SPEAKER_SCALE;
+  const isIronman = options?.isIronman ?? false;
 
   // --- Validate team rankings ---
 
@@ -175,6 +183,23 @@ export function validateBpBallotSubmission(
         field: `speeches.${speech.role}.speaker`,
         message: `Speaker must be identified for ${speech.role}`,
       });
+    }
+  }
+
+  // --- Non-Ironman: enforce distinct speakers within each team position ---
+  if (!isIronman) {
+    for (const [position, roles] of Object.entries(BP_POSITION_SPEECH_ROLES)) {
+      const speechesForPos = data.speeches.filter((s) => roles.includes(s.role as any));
+      const speakerIds = speechesForPos
+        .map((s) => s.speakerId)
+        .filter((id): id is string => !!id);
+
+      if (speakerIds.length === 2 && speakerIds[0] === speakerIds[1]) {
+        errors.push({
+          field: `speeches.${position}`,
+          message: `${position}: each speech must be delivered by a different speaker (same speaker assigned to both roles)`,
+        });
+      }
     }
   }
 

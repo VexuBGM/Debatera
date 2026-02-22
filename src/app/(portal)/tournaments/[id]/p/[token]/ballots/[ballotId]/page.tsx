@@ -95,7 +95,7 @@ interface BallotData {
   submittedAt: string | null;
   adjudicatorRole: 'CHAIR' | 'PANELIST';
   adjudicator: { id: string; name: string };
-  tournament: { id: string; name: string; eventMode?: string };
+  tournament: { id: string; name: string; eventMode?: string; isIronman?: boolean };
   round: { id: string; number: number; name: string; status: string };
   debate: {
     id: string;
@@ -277,6 +277,26 @@ export default function PortalBallotPage() {
           comment: speech.comment || '',
         };
       }
+
+      // BP Ironman: auto-assign single team member to all speech roles for their position
+      const dataIsIronman = data.debateFormat === 'BP' && data.tournament?.isIronman;
+      if (dataIsIronman && data.teamSlots) {
+        for (const slot of data.teamSlots) {
+          if (slot.team?.members?.length === 1) {
+            const member = slot.team.members[0];
+            const rolesForPos = BP_POSITION_SPEECH_ROLES[slot.position as BpPosition];
+            if (rolesForPos) {
+              for (const role of rolesForPos) {
+                if (speechState[role] && !speechState[role].speakerId) {
+                  speechState[role].speakerId = member.id;
+                  speechState[role].speakerName = member.name;
+                }
+              }
+            }
+          }
+        }
+      }
+
       setSpeeches(speechState);
 
       // BP: Initialize team rankings
@@ -306,6 +326,7 @@ export default function PortalBallotPage() {
 
   const isSubmitted = ballot?.status === 'SUBMITTED';
   const isBp = ballot?.debateFormat === 'BP';
+  const isIronman = isBp && (ballot?.tournament?.isIronman ?? false);
 
   const propTotal = WSDC_SPEECH_ORDER.filter((r) =>
     r.startsWith('PROP')
@@ -365,19 +386,37 @@ export default function PortalBallotPage() {
 
   function buildPayload() {
     if (isBp) {
+      // For Ironman, ensure speakerId is set for all speeches from single-member teams
+      const finalSpeeches = BP_SPEECH_ORDER.map((role) => {
+        const s = speeches[role] || {};
+        let speakerId = s.speakerId || null;
+        let speakerName = s.speakerName || null;
+
+        // Auto-fill from single-member team in Ironman mode
+        if (isIronman && !speakerId) {
+          const position = BP_SPEECH_ROLE_POSITION[role];
+          if (position) {
+            const members = getBpTeamMembers(position);
+            if (members.length === 1) {
+              speakerId = members[0].id;
+              speakerName = members[0].name;
+            }
+          }
+        }
+
+        return {
+          role,
+          speakerId,
+          speakerName,
+          score: s.score ? parseFloat(s.score) : null,
+          comment: s.comment || null,
+        };
+      });
+
       return {
         vote: null,
         privateNotes: privateNotes || null,
-        speeches: BP_SPEECH_ORDER.map((role) => {
-          const s = speeches[role] || {};
-          return {
-            role,
-            speakerId: s.speakerId || null,
-            speakerName: s.speakerName || null,
-            score: s.score ? parseFloat(s.score) : null,
-            comment: s.comment || null,
-          };
-        }),
+        speeches: finalSpeeches,
         teamRankings: BP_POSITIONS_ORDERED.map((pos) => ({
           position: pos,
           rank: teamRankings[pos] ? parseInt(teamRankings[pos]) : 0,
@@ -663,15 +702,27 @@ export default function PortalBallotPage() {
 
     const posColor = BP_POSITION_COLORS[position];
 
+    // In Ironman mode with a single team member, auto-assign the speaker
+    const isSingleMember = isIronman && members.length === 1;
+    // In Ironman mode with multiple members, allow re-selecting same speaker
+    const isIronmanMultiMember = isIronman && members.length > 1;
+
     return (
       <div
         key={role}
         className="p-3 rounded-lg border border-border/40 bg-muted/30 space-y-2"
       >
         <div className="flex items-center justify-between">
-          <span className={`font-semibold text-sm ${posColor}`}>
-            {BP_SPEECH_ROLE_LABELS[role] ?? role}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`font-semibold text-sm ${posColor}`}>
+              {BP_SPEECH_ROLE_LABELS[role] ?? role}
+            </span>
+            {isIronman && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-400/50 text-purple-400">
+                Ironman
+              </Badge>
+            )}
+          </div>
           <span className="text-[11px] text-muted-foreground">
             {scaleMin}–{scaleMax}
           </span>
@@ -680,27 +731,39 @@ export default function PortalBallotPage() {
         {/* Speaker */}
         <div>
           <Label className="text-xs text-muted-foreground">Speaker</Label>
-          {members.length > 0 ? (
-            <Select
-              value={s.speakerId || ''}
-              onValueChange={(v) => {
-                updateSpeech(role, 'speakerId', v || null);
-                const member = members.find((m) => m.id === v);
-                updateSpeech(role, 'speakerName', member?.name || null);
-              }}
-              disabled={isSubmitted}
-            >
-              <SelectTrigger className="mt-1 h-8 text-sm">
-                <SelectValue placeholder="Select speaker" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {isSingleMember ? (
+            /* Ironman: single speaker, read-only display */
+            <div className="mt-1 h-8 flex items-center text-sm text-muted-foreground">
+              {members[0].name}
+            </div>
+          ) : members.length > 0 ? (
+            <>
+              <Select
+                value={s.speakerId || ''}
+                onValueChange={(v) => {
+                  updateSpeech(role, 'speakerId', v || null);
+                  const member = members.find((m) => m.id === v);
+                  updateSpeech(role, 'speakerName', member?.name || null);
+                }}
+                disabled={isSubmitted}
+              >
+                <SelectTrigger className="mt-1 h-8 text-sm">
+                  <SelectValue placeholder="Select speaker" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isIronmanMultiMember && (
+                <p className="mt-1 text-[10px] text-purple-400/70">
+                  Ironman: same speaker may deliver multiple speeches
+                </p>
+              )}
+            </>
           ) : (
             <Input
               placeholder="Speaker name"
@@ -769,6 +832,7 @@ export default function PortalBallotPage() {
               <CardTitle>{ballot.tournament.name}</CardTitle>
               <CardDescription>
                 {ballot.round.name}
+                {isIronman && ' (Ironman)'}
                 {ballot.tournament.eventMode !== 'ONLINE' && (
                   <> &bull; {ballot.debate.venue?.name ?? 'No venue'}</>
                 )}
@@ -942,7 +1006,9 @@ export default function PortalBallotPage() {
           <CardTitle className="text-lg">Speaker Scores</CardTitle>
           <CardDescription>
             {isBp
-              ? `Score each speech on a scale of ${ballot.speakerScaleMin ?? 65}–${ballot.speakerScaleMax ?? 85}. Half points allowed.`
+              ? isIronman
+                ? `Ironman mode: the same debater may deliver multiple speeches for their team. Score each speech on a scale of ${ballot.speakerScaleMin ?? 65}–${ballot.speakerScaleMax ?? 85}. Half points allowed.`
+                : `Score each speech on a scale of ${ballot.speakerScaleMin ?? 65}–${ballot.speakerScaleMax ?? 85}. Half points allowed.`
               : 'Assign speakers and score each speech. Constructives: 60–80, Replies: 30–40. Half points allowed.'}
           </CardDescription>
         </CardHeader>

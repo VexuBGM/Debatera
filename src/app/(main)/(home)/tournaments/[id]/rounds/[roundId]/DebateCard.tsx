@@ -184,10 +184,18 @@ export function DebateCard({
     }
   }
 
-  // Remove team from slot
+  // Remove team from WSDC slot
   function handleRemoveTeam(slot: 'prop' | 'opp') {
     onDebateChange({
       [slot === 'prop' ? 'propTeamId' : 'oppTeamId']: null,
+    });
+  }
+
+  // Remove team from BP slot
+  function handleRemoveBpTeam(pos: BpPosition) {
+    if (!debate.bpSlots) return;
+    onDebateChange({
+      bpSlots: { ...debate.bpSlots, [pos]: null },
     });
   }
 
@@ -424,23 +432,67 @@ export function DebateCard({
                 {BP_POSITIONS_ORDERED.map((pos) => {
                   const teamId = debate.bpSlots![pos];
                   const team = teamId ? teamMap.get(teamId) : null;
-                  return (
-                    <div
-                      key={pos}
-                      className="p-3 bg-muted/50 rounded-md"
-                    >
-                      <div className={cn('text-xs font-medium uppercase tracking-wide mb-1', BP_POSITION_COLORS[pos])}>
-                        {BP_POSITION_SHORT[pos]}
-                      </div>
-                      {team ? (
-                        <>
-                          <div className="font-medium truncate">{getTeamDisplayName(team, showDebaterNames)}</div>
-                          <div className="text-xs text-muted-foreground truncate">{team.institution.name}</div>
-                        </>
-                      ) : (
+
+                  if (!team) {
+                    return (
+                      <DroppableSlot
+                        key={pos}
+                        id={`debate-${debate.id}-${pos}`}
+                        type="team"
+                        debateId={debate.id}
+                        slot={pos}
+                        isEmpty
+                        className="p-3"
+                      >
+                        <div className={cn('text-xs font-medium uppercase tracking-wide mb-1', BP_POSITION_COLORS[pos])}>
+                          {BP_POSITION_SHORT[pos]}
+                        </div>
                         <div className="text-sm text-muted-foreground italic">Empty</div>
-                      )}
-                    </div>
+                      </DroppableSlot>
+                    );
+                  }
+
+                  return (
+                    <DroppableSlot
+                      key={pos}
+                      id={`debate-${debate.id}-${pos}`}
+                      type="team"
+                      debateId={debate.id}
+                      slot={pos}
+                      className="p-0"
+                    >
+                      <DraggableItem
+                        id={teamId!}
+                        type="team"
+                        data={{ type: 'team', debateId: debate.id, slot: pos }}
+                        disabled={!canEdit}
+                      >
+                        <div className="p-3 bg-muted/50 rounded-md group relative">
+                          <div className="flex items-start gap-2">
+                            {canEdit && (
+                              <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 cursor-grab" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className={cn('text-xs font-medium uppercase tracking-wide', BP_POSITION_COLORS[pos])}>
+                                {BP_POSITION_SHORT[pos]}
+                              </div>
+                              <div className="font-medium truncate">{getTeamDisplayName(team, showDebaterNames)}</div>
+                              <div className="text-xs text-muted-foreground truncate">{team.institution.name}</div>
+                            </div>
+                            {canEdit && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleRemoveBpTeam(pos)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </DraggableItem>
+                    </DroppableSlot>
                   );
                 })}
               </div>

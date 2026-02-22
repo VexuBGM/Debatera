@@ -101,6 +101,7 @@ export async function GET(req: Request, { params }: RouteParams) {
                           select: {
                             eventMode: true,
                             debateFormat: true,
+                            isIronman: true,
                             speakerScaleMin: true,
                             speakerScaleMax: true,
                           },
@@ -214,6 +215,7 @@ export async function GET(req: Request, { params }: RouteParams) {
           id: debate.round.tournament.id,
           name: debate.round.tournament.name,
           eventMode: debate.round.tournament.settings?.eventMode ?? 'IRL',
+          isIronman: debate.round.tournament.settings?.isIronman ?? false,
           speakerScaleMin:
             debate.round.tournament.settings?.speakerScaleMin ?? null,
           speakerScaleMax:

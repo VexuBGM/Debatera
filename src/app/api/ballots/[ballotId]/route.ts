@@ -77,7 +77,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
                 round: {
                   include: {
                     tournament: {
-                      include: { settings: { select: { eventMode: true, debateFormat: true, speakerScaleMin: true, speakerScaleMax: true } } },
+                      include: { settings: { select: { eventMode: true, debateFormat: true, isIronman: true, speakerScaleMin: true, speakerScaleMax: true } } },
                     },
                   },
                 },
@@ -184,6 +184,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
           id: debate.round.tournament.id,
           name: debate.round.tournament.name,
           eventMode: debate.round.tournament.settings?.eventMode ?? 'IRL',
+          isIronman: debate.round.tournament.settings?.isIronman ?? false,
           speakerScaleMin: debate.round.tournament.settings?.speakerScaleMin ?? null,
           speakerScaleMax: debate.round.tournament.settings?.speakerScaleMax ?? null,
         },

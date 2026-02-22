@@ -64,9 +64,10 @@ export async function POST(req: Request, { params }: RouteParams) {
     // Detect debate format
     const settings = await prisma.tournamentSettings.findFirst({
       where: { tournamentId: loaded.tournament.id },
-      select: { debateFormat: true, speakerScaleMin: true, speakerScaleMax: true },
+      select: { debateFormat: true, isIronman: true, speakerScaleMin: true, speakerScaleMax: true },
     });
     const isBp = settings?.debateFormat === 'BP';
+    const isIronman = isBp && (settings?.isIronman ?? false);
 
     const body = await req.json();
 
@@ -84,7 +85,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       const scaleMin = settings?.speakerScaleMin ?? 65;
       const scaleMax = settings?.speakerScaleMax ?? 85;
 
-      const validationErrors = validateBpBallotSubmission(data, { min: scaleMin, max: scaleMax });
+      const validationErrors = validateBpBallotSubmission(data, { min: scaleMin, max: scaleMax }, { isIronman });
       if (validationErrors.length > 0) {
         return NextResponse.json(
           { error: 'Validation failed', validationErrors },

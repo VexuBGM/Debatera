@@ -144,11 +144,24 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
         for (const debate of round.debates) {
           if (!debate.isBye) {
-            if (!debate.propTeamId) {
-              validationErrors.push(`Debate ${debate.order + 1}: Missing proposition team`);
-            }
-            if (!debate.oppTeamId) {
-              validationErrors.push(`Debate ${debate.order + 1}: Missing opposition team`);
+            // Check teams: BP uses teamSlots, WSDC uses propTeamId/oppTeamId
+            const hasBpSlots = 'teamSlots' in debate && Array.isArray(debate.teamSlots) && debate.teamSlots.length > 0;
+            if (hasBpSlots) {
+              const slots = (debate as { teamSlots: { position: string }[] }).teamSlots;
+              const filledPositions = new Set(slots.map((s) => s.position));
+              for (const pos of ['BP_OG', 'BP_OO', 'BP_CG', 'BP_CO']) {
+                if (!filledPositions.has(pos)) {
+                  const label = pos.replace('BP_', '');
+                  validationErrors.push(`Debate ${debate.order + 1}: Missing ${label} team`);
+                }
+              }
+            } else {
+              if (!debate.propTeamId) {
+                validationErrors.push(`Debate ${debate.order + 1}: Missing proposition team`);
+              }
+              if (!debate.oppTeamId) {
+                validationErrors.push(`Debate ${debate.order + 1}: Missing opposition team`);
+              }
             }
             if (debate.judges.length === 0) {
               validationErrors.push(`Debate ${debate.order + 1}: No judges assigned`);

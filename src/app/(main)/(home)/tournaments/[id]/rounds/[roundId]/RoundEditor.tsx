@@ -28,7 +28,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import type { TeamData, JudgeData, VenueData, EditorDebate, DebateFormat } from './types';
+import type { TeamData, JudgeData, VenueData, EditorDebate, DebateFormat, BpPosition, TeamSlot, DndSlot } from './types';
+import { BP_POSITIONS_ORDERED } from './types';
 import { DebateCard } from './DebateCard';
 import { DraggableItem } from './DraggableItem';
 import { DroppablePanel } from './DroppablePanel';
@@ -196,23 +197,20 @@ export function RoundEditor({
     const overId = over.id as string;
     const activeType = active.data.current?.type as 'team' | 'judge';
     const activeSourceDebateId = active.data.current?.debateId as string | undefined;
-    const activeSourceSlot = active.data.current?.slot as 'prop' | 'opp' | 'chair' | 'panelists' | undefined;
+    const activeSourceSlot = active.data.current?.slot as DndSlot | undefined;
 
-    // Parse the drop target
-    // Format: "debate-{debateId}-{slot}" or "unassigned-teams" or "unassigned-judges"
-    const overParts = overId.split('-');
+    // Use droppable data when available (more robust than parsing the ID string)
+    const overData = over.data.current as { debateId?: string; slot?: string; accepts?: string } | undefined;
 
     // Dropping on unassigned panel
     if (overId === 'unassigned-teams' && activeType === 'team') {
-      // Remove team from debate
       if (activeSourceDebateId && activeSourceSlot) {
-        removeTeamFromDebate(activeSourceDebateId, activeSourceSlot as 'prop' | 'opp');
+        removeTeamFromDebate(activeSourceDebateId, activeSourceSlot as TeamSlot);
       }
       return;
     }
 
     if (overId === 'unassigned-judges' && activeType === 'judge') {
-      // Remove judge from debate (chair or panelist)
       if (activeSourceDebateId && activeSourceSlot) {
         if (activeSourceSlot === 'chair') {
           removeChairFromDebate(activeSourceDebateId);
@@ -223,36 +221,33 @@ export function RoundEditor({
       return;
     }
 
-    // Dropping on a debate slot
-    if (overParts[0] === 'debate' && overParts.length >= 3) {
-      const targetDebateId = overParts[1];
-      const targetSlot = overParts[2] as 'prop' | 'opp' | 'chair' | 'panelists';
+    // Dropping on a debate slot — use the structured data from DroppableSlot
+    const targetDebateId = overData?.debateId;
+    const targetSlot = overData?.slot;
 
-      // Validate drop
-      if (activeType === 'team' && (targetSlot === 'prop' || targetSlot === 'opp')) {
-        // Check if team is already in another slot
-        if (activeSourceDebateId && activeSourceSlot) {
-          // Moving within/between debates
-          moveTeam(activeId, activeSourceDebateId, activeSourceSlot as 'prop' | 'opp', targetDebateId, targetSlot);
-        } else {
-          // Adding from unassigned
-          addTeamToDebate(activeId, targetDebateId, targetSlot);
-        }
-      } else if (activeType === 'judge' && (targetSlot === 'chair' || targetSlot === 'panelists')) {
-        if (activeSourceDebateId && activeSourceSlot) {
-          // Moving from one debate slot to another
-          moveJudge(activeId, activeSourceDebateId, activeSourceSlot as 'chair' | 'panelists', targetDebateId, targetSlot);
-        } else {
-          // Adding from unassigned
-          if (targetSlot === 'chair') {
-            addChairToDebate(activeId, targetDebateId);
-          } else {
-            addPanelistToDebate(activeId, targetDebateId);
-          }
-        }
+    if (!targetDebateId || !targetSlot) return;
+
+    const isBpSlot = (s: string): s is BpPosition => BP_POSITIONS_ORDERED.includes(s as BpPosition);
+    const isTeamSlot = (s: string) => s === 'prop' || s === 'opp' || isBpSlot(s);
+
+    if (activeType === 'team' && isTeamSlot(targetSlot)) {
+      if (activeSourceDebateId && activeSourceSlot) {
+        moveTeam(activeId, activeSourceDebateId, activeSourceSlot as TeamSlot, targetDebateId, targetSlot as TeamSlot);
       } else {
-        toast.error('Invalid drop target');
+        addTeamToDebate(activeId, targetDebateId, targetSlot as TeamSlot);
       }
+    } else if (activeType === 'judge' && (targetSlot === 'chair' || targetSlot === 'panelists')) {
+      if (activeSourceDebateId && activeSourceSlot) {
+        moveJudge(activeId, activeSourceDebateId, activeSourceSlot as 'chair' | 'panelists', targetDebateId, targetSlot);
+      } else {
+        if (targetSlot === 'chair') {
+          addChairToDebate(activeId, targetDebateId);
+        } else {
+          addPanelistToDebate(activeId, targetDebateId);
+        }
+      }
+    } else {
+      toast.error('Invalid drop target');
     }
   }
 
@@ -303,23 +298,37 @@ export function RoundEditor({
     return { ...debate, chairJudgeParticipantId, panelistJudgeParticipantIds: validPanelists };
   }
 
-  function addTeamToDebate(teamId: string, debateId: string, slot: 'prop' | 'opp') {
+  // ---------------------------------------------------------------------------
+  // Helpers for reading / writing team slots (WSDC prop/opp or BP positions)
+  // ---------------------------------------------------------------------------
+  const isBpSlot = (s: TeamSlot): s is BpPosition => BP_POSITIONS_ORDERED.includes(s as BpPosition);
+
+  function getTeamInSlot(d: EditorDebate, slot: TeamSlot): string | null {
+    if (isBpSlot(slot)) return d.bpSlots?.[slot] ?? null;
+    return slot === 'prop' ? d.propTeamId : d.oppTeamId;
+  }
+
+  function setTeamInSlot(d: EditorDebate, slot: TeamSlot, teamId: string | null): EditorDebate {
+    if (isBpSlot(slot)) {
+      return { ...d, bpSlots: { ...d.bpSlots!, [slot]: teamId } };
+    }
+    return { ...d, [slot === 'prop' ? 'propTeamId' : 'oppTeamId']: teamId };
+  }
+
+  function addTeamToDebate(teamId: string, debateId: string, slot: TeamSlot) {
     onDebatesChange(
       debates.map((d) => {
         if (d.id !== debateId) return d;
 
         // Check if slot is already occupied
-        const currentTeamId = slot === 'prop' ? d.propTeamId : d.oppTeamId;
+        const currentTeamId = getTeamInSlot(d, slot);
         if (currentTeamId && currentTeamId !== teamId) {
           toast.error('Slot is already occupied. Remove the team first.');
           return d;
         }
 
-        const updated = {
-          ...d,
-          [slot === 'prop' ? 'propTeamId' : 'oppTeamId']: teamId,
-          isBye: false, // Adding a team clears BYE status
-        };
+        let updated = setTeamInSlot(d, slot, teamId);
+        updated.isBye = false; // Adding a team clears BYE status
 
         // After placing a team, auto-unassign any judges that now conflict
         return autoUnassignConflictingJudges(updated);
@@ -327,14 +336,11 @@ export function RoundEditor({
     );
   }
 
-  function removeTeamFromDebate(debateId: string, slot: 'prop' | 'opp') {
+  function removeTeamFromDebate(debateId: string, slot: TeamSlot) {
     onDebatesChange(
       debates.map((d) => {
         if (d.id !== debateId) return d;
-        return {
-          ...d,
-          [slot === 'prop' ? 'propTeamId' : 'oppTeamId']: null,
-        };
+        return setTeamInSlot(d, slot, null);
       })
     );
   }
@@ -342,9 +348,9 @@ export function RoundEditor({
   function moveTeam(
     teamId: string,
     fromDebateId: string,
-    fromSlot: 'prop' | 'opp',
+    fromSlot: TeamSlot,
     toDebateId: string,
-    toSlot: 'prop' | 'opp'
+    toSlot: TeamSlot
   ) {
     // If moving to same position, do nothing
     if (fromDebateId === toDebateId && fromSlot === toSlot) return;
@@ -353,35 +359,28 @@ export function RoundEditor({
       debates.map((d) => {
         // Remove from source
         if (d.id === fromDebateId) {
-          const update = { ...d };
-          if (fromSlot === 'prop') update.propTeamId = null;
-          else update.oppTeamId = null;
+          let update = setTeamInSlot(d, fromSlot, null);
 
           // If same debate, also set the target slot
           if (d.id === toDebateId) {
-            if (toSlot === 'prop') update.propTeamId = teamId;
-            else update.oppTeamId = teamId;
+            update = setTeamInSlot(update, toSlot, teamId);
             update.isBye = false;
           }
 
-          // If same debate (swapping slots), auto-unassign conflicting judges
           return autoUnassignConflictingJudges(update);
         }
 
         // Add to target (if different debate)
         if (d.id === toDebateId && fromDebateId !== toDebateId) {
           // Check if target slot is occupied
-          const currentTeamId = toSlot === 'prop' ? d.propTeamId : d.oppTeamId;
+          const currentTeamId = getTeamInSlot(d, toSlot);
           if (currentTeamId) {
             toast.error('Target slot is already occupied');
             return d;
           }
 
-          const updated = {
-            ...d,
-            [toSlot === 'prop' ? 'propTeamId' : 'oppTeamId']: teamId,
-            isBye: false,
-          };
+          let updated = setTeamInSlot(d, toSlot, teamId);
+          updated.isBye = false;
 
           return autoUnassignConflictingJudges(updated);
         }
