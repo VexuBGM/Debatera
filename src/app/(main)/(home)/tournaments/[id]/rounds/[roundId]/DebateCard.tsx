@@ -251,16 +251,16 @@ export function DebateCard({
           data={{ type: 'team', debateId: debate.id, slot }}
           disabled={!canEdit}
         >
-          <div className="p-3 bg-muted/50 rounded-md group relative">
-            <div className="flex items-start gap-2">
+          <div className="p-2 bg-muted/50 rounded-md group relative">
+            <div className="flex items-start gap-1.5">
               {canEdit && (
                 <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 cursor-grab" />
               )}
               <div className="flex-1 min-w-0">
-                <div className={cn('text-xs font-medium uppercase tracking-wide', slotColor)}>
+                <div className={cn('text-[10px] font-medium uppercase tracking-wide', slotColor)}>
                   {slotLabel}
                 </div>
-                <div className="font-medium truncate">{getTeamDisplayName(team, showDebaterNames)}</div>
+                <div className="text-sm font-medium truncate">{getTeamDisplayName(team, showDebaterNames)}</div>
                 <div className="text-xs text-muted-foreground truncate">
                   {team.institution.name}
                 </div>
@@ -350,13 +350,13 @@ export function DebateCard({
 
   return (
     <Card className={cn(warnings.length > 0 && 'border-amber-500/50')}>
-      <CardContent className="py-4">
+      <CardContent className="py-2.5 px-3">
         {/* Warnings */}
         {warnings.length > 0 && (
-          <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-md">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-              <div className="text-sm text-amber-700 dark:text-amber-400">
+          <div className="mb-2 p-1.5 bg-amber-50 dark:bg-amber-950/30 rounded-md">
+            <div className="flex items-start gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+              <div className="text-xs text-amber-700 dark:text-amber-400">
                 {warnings.map((w, i) => (
                   <div key={i}>{w.message}</div>
                 ))}
@@ -365,10 +365,10 @@ export function DebateCard({
           </div>
         )}
 
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
           {/* Debate number */}
           <div className="flex flex-col items-center gap-1 shrink-0">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
               {debate.order + 1}
             </div>
             {canEdit && onRemoveDebate && (
@@ -385,7 +385,7 @@ export function DebateCard({
           </div>
 
           {/* Content */}
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 space-y-2">
             {/* Venue dropdown — hidden for ONLINE tournaments */}
             {eventMode !== 'ONLINE' && (
               <div className="flex items-center gap-1.5">
@@ -498,7 +498,7 @@ export function DebateCard({
               </div>
             ) : (
               /* WSDC: Prop vs Opp */
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {/* Proposition */}
                 {renderTeamSlot('prop', propTeam ?? null, debate.propTeamId)}
 
@@ -536,24 +536,22 @@ export function DebateCard({
           )}
         </div>
 
-        {/* Judges — split into Chair (1/4) and Panelists (3/4) */}
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
+        {/* Judges — Chair + Panelists in a compact row */}
+        <div className="mt-2 pt-2 border-t">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium">
               Judges ({(debate.chairJudgeParticipantId ? 1 : 0) + debate.panelistJudgeParticipantIds.length})
             </span>
           </div>
 
-          <div className="space-y-3">
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
             {/* Chair */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Crown className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
-                  Chair
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <Crown className="h-3 w-3 text-amber-500 shrink-0" />
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                Chair
+              </span>
 
               <DroppableSlot
                 id={`debate-${debate.id}-chair`}
@@ -562,8 +560,8 @@ export function DebateCard({
                 slot="chair"
                 isEmpty={!debate.chairJudgeParticipantId}
                 className={cn(
-                  'min-h-10',
-                  !debate.chairJudgeParticipantId && 'p-2'
+                  'min-h-8',
+                  !debate.chairJudgeParticipantId && 'px-2 py-1'
                 )}
               >
                 {!debate.chairJudgeParticipantId ? (
@@ -577,7 +575,7 @@ export function DebateCard({
                     data={{ type: 'judge', debateId: debate.id, slot: 'chair' }}
                     disabled={!canEdit}
                   >
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md text-sm group">
+                    <div className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md text-xs group">
                       {canEdit && (
                         <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab shrink-0" />
                       )}
@@ -598,13 +596,11 @@ export function DebateCard({
             </div>
 
             {/* Panelists */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Panelists ({debate.panelistJudgeParticipantIds.length})
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              <Users className="h-3 w-3 text-muted-foreground shrink-0" />
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide shrink-0">
+                Panelists ({debate.panelistJudgeParticipantIds.length})
+              </span>
 
               <DroppableSlot
                 id={`debate-${debate.id}-panelists`}
@@ -613,8 +609,8 @@ export function DebateCard({
                 slot="panelists"
                 isEmpty={debate.panelistJudgeParticipantIds.length === 0}
                 className={cn(
-                  'min-h-10',
-                  debate.panelistJudgeParticipantIds.length === 0 && 'p-2'
+                  'min-h-8 flex-1',
+                  debate.panelistJudgeParticipantIds.length === 0 && 'px-2 py-1'
                 )}
               >
                 {debate.panelistJudgeParticipantIds.length === 0 ? (
@@ -622,7 +618,7 @@ export function DebateCard({
                     Drop panelists here
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {debate.panelistJudgeParticipantIds.map((judgeId) => {
                       const judge = judgeMap.get(judgeId);
                       return (
@@ -633,7 +629,7 @@ export function DebateCard({
                           data={{ type: 'judge', debateId: debate.id, slot: 'panelists' }}
                           disabled={!canEdit}
                         >
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm group whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-full text-xs group whitespace-nowrap">
                             {canEdit && (
                               <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
                             )}
@@ -663,7 +659,7 @@ export function DebateCard({
           roundStatus !== 'DRAFT' &&
           tournamentId &&
           roundId && (
-            <div className="mt-4 pt-3 border-t flex justify-end">
+            <div className="mt-2 pt-2 border-t flex justify-end">
               <Link
                 href={`/tournaments/${tournamentId}/rounds/${roundId}/debates/${debate.id}/call`}
               >

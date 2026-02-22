@@ -643,75 +643,7 @@ export default function RoundEditorPage() {
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      {isAdmin && (
-        <Card>
-          <CardContent className="py-3 flex flex-wrap gap-2">
-            {isDraft && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => setGenerateDialogOpen(true)}
-                  disabled={generating}
-                >
-                  <Shuffle className="h-4 w-4 mr-2" />
-                  {generating ? 'Generating...' : 'Auto-Generate'}
-                </Button>
-
-                <Button onClick={handleSave} disabled={saving || !hasChanges}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
-
-                <Button
-                  variant="default"
-                  onClick={() => setPublishDialogOpen(true)}
-                  disabled={!canPublish() || updatingStatus}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Publish
-                </Button>
-              </>
-            )}
-
-            {round.status === 'PUBLISHED' && (
-              <Button
-                variant="default"
-                onClick={() => handleStatusChange('IN_PROGRESS')}
-                disabled={updatingStatus}
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Start Round
-              </Button>
-            )}
-
-            {round.status === 'IN_PROGRESS' && (
-              <Button
-                variant="default"
-                onClick={() => handleStatusChange('COMPLETED')}
-                disabled={updatingStatus}
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Complete Round
-              </Button>
-            )}
-
-            {/* Venue allocation — only available when drafting and not ONLINE */}
-            {isDraft && editorDebates.length > 0 && eventMode !== 'ONLINE' && (
-              <Button
-                variant="outline"
-                onClick={handleAllocateVenues}
-                disabled={allocatingVenues}
-                className="ml-auto"
-              >
-                <MapPin className="h-4 w-4 mr-2" />
-                {allocatingVenues ? 'Allocating...' : 'Allocate Venues'}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
+      
       {/* Validation hints */}
       {canEdit && editorDebates.length > 0 && !canPublish() && !hasChanges && (
         <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">

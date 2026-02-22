@@ -581,7 +581,7 @@ export function RoundEditor({
   // Read-only mode for non-draft or non-admin
   if (!canEdit) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         {debates.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
@@ -662,7 +662,7 @@ export function RoundEditor({
         </Card>
 
         {/* Debates List */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           {debates.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">

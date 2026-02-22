@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
+import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 import {
   loadBallotAccessContext,
   canViewBallotDetails,
@@ -77,7 +78,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
                 round: {
                   include: {
                     tournament: {
-                      include: { settings: { select: { eventMode: true, debateFormat: true, isIronman: true, speakerScaleMin: true, speakerScaleMax: true } } },
+                      include: { settings: { select: { eventMode: true, debateFormat: true, isIronman: true, speakerScaleMin: true, speakerScaleMax: true, showDebaterNames: true } } },
                     },
                   },
                 },
@@ -136,6 +137,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
     const debate = ballot.adjudicator.debate;
     const debateFormat = debate.round.tournament.settings?.debateFormat ?? 'WSDC';
     const isBp = debateFormat === 'BP';
+    const showDebaterNames = debate.round.tournament.settings?.showDebaterNames ?? false;
 
     // Sort speeches in appropriate order
     const speechOrder = isBp ? BP_SPEECH_ORDER : WSDC_SPEECH_ORDER;
@@ -151,7 +153,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
           team: slot.team
             ? {
                 id: slot.team.id,
-                name: slot.team.name,
+                name: getTeamDisplayName(slot.team, showDebaterNames),
                 institution: slot.team.institution.name,
                 members: slot.team.members.map((m) => ({
                   id: m.id,
@@ -199,7 +201,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
           propTeam: debate.propTeam
             ? {
                 id: debate.propTeam.id,
-                name: debate.propTeam.name,
+                name: getTeamDisplayName(debate.propTeam, showDebaterNames),
                 institution: debate.propTeam.institution.name,
                 members: debate.propTeam.members.map((m) => ({
                   id: m.id,
@@ -211,7 +213,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
           oppTeam: debate.oppTeam
             ? {
                 id: debate.oppTeam.id,
-                name: debate.oppTeam.name,
+                name: getTeamDisplayName(debate.oppTeam, showDebaterNames),
                 institution: debate.oppTeam.institution.name,
                 members: debate.oppTeam.members.map((m) => ({
                   id: m.id,

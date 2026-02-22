@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { extractToken, validatePortalToken } from '@/lib/portal';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
+import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 import { createBallotForJudge } from '@/lib/ballots';
 import { TournamentRoundStatus } from '@prisma/client';
 
@@ -45,7 +46,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: {
-        settings: { select: { eventMode: true } },
+        settings: { select: { eventMode: true, showDebaterNames: true } },
       },
     });
 
@@ -89,10 +90,24 @@ export async function GET(req: Request, { params }: RouteParams) {
           include: {
             round: true,
             propTeam: {
-              include: { institution: true },
+              include: {
+                institution: true,
+                members: {
+                  include: {
+                    participant: { include: { user: true } },
+                  },
+                },
+              },
             },
             oppTeam: {
-              include: { institution: true },
+              include: {
+                institution: true,
+                members: {
+                  include: {
+                    participant: { include: { user: true } },
+                  },
+                },
+              },
             },
             venue: true,
           },
@@ -130,10 +145,24 @@ export async function GET(req: Request, { params }: RouteParams) {
           include: {
             round: true,
             propTeam: {
-              include: { institution: true },
+              include: {
+                institution: true,
+                members: {
+                  include: {
+                    participant: { include: { user: true } },
+                  },
+                },
+              },
             },
             oppTeam: {
-              include: { institution: true },
+              include: {
+                institution: true,
+                members: {
+                  include: {
+                    participant: { include: { user: true } },
+                  },
+                },
+              },
             },
             venue: true,
           },
@@ -194,11 +223,17 @@ export async function GET(req: Request, { params }: RouteParams) {
         });
       }
 
+      const showNames = tournament!.settings?.showDebaterNames ?? false;
+
       roundsMap.get(round.id)!.debates.push({
         debateId: assignment.debate.id,
         order: assignment.debate.order,
-        propTeamName: assignment.debate.propTeam?.name ?? null,
-        oppTeamName: assignment.debate.oppTeam?.name ?? null,
+        propTeamName: assignment.debate.propTeam
+          ? getTeamDisplayName(assignment.debate.propTeam, showNames)
+          : null,
+        oppTeamName: assignment.debate.oppTeam
+          ? getTeamDisplayName(assignment.debate.oppTeam, showNames)
+          : null,
         isBye: assignment.debate.isBye,
         venueName: assignment.debate.venue?.name ?? null,
         judgeRole: assignment.role,
