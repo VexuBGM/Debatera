@@ -167,9 +167,6 @@ export default function StandingsPage() {
                           <TableHead className="text-right hidden sm:table-cell">
                             Avg Pts
                           </TableHead>
-                          <TableHead className="text-right hidden sm:table-cell">
-                            Speeches
-                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -192,9 +189,6 @@ export default function StandingsPage() {
                             </TableCell>
                             <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
                               {s.averagePoints}
-                            </TableCell>
-                            <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
-                              {s.speechesCount}
                             </TableCell>
                           </TableRow>
                         ))}

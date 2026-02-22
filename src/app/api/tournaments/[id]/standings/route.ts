@@ -423,11 +423,20 @@ export async function GET(
     acc.speechesCount += totals.speechCount;
   }
 
-  // Sort: totalPoints DESC, name ASC
-  const speakerSorted = Array.from(speakerAccMap.values()).sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-    return a.speakerName.localeCompare(b.speakerName);
-  });
+  // Sort: averagePoints DESC, name ASC
+  const speakerSorted = Array.from(speakerAccMap.values())
+    .map((row) => ({
+      ...row,
+      averagePoints:
+        row.speechesCount > 0
+          ? roundTo1(row.totalPoints / row.speechesCount)
+          : 0,
+    }))
+    .sort((a, b) => {
+      if (b.averagePoints !== a.averagePoints)
+        return b.averagePoints - a.averagePoints;
+      return a.speakerName.localeCompare(b.speakerName);
+    });
 
   const speakerStandings: SpeakerStanding[] = speakerSorted.map(
     (row, idx) => ({
@@ -438,10 +447,7 @@ export async function GET(
       speakerName: row.speakerName,
       institutionName: row.institutionName,
       totalPoints: roundTo1(row.totalPoints),
-      averagePoints:
-        row.speechesCount > 0
-          ? roundTo1(row.totalPoints / row.speechesCount)
-          : 0,
+      averagePoints: row.averagePoints,
       speechesCount: row.speechesCount,
     }),
   );

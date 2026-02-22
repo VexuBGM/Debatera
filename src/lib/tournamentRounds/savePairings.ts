@@ -10,12 +10,12 @@ import type { DebatePairingInput } from './validation';
 import { hasInstitutionConflict, type InstitutionConflictDetail } from './institutionConflict';
 import { createBallotsForDebate } from '@/lib/ballots/createBallots';
 
-const BP_POSITIONS: DebateTeamPosition[] = [
+const BP_POSITIONS = [
   DebateTeamPosition.BP_OG,
   DebateTeamPosition.BP_OO,
   DebateTeamPosition.BP_CG,
   DebateTeamPosition.BP_CO,
-];
+] as const;
 
 // =============================================================================
 // Types
