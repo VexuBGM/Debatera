@@ -164,7 +164,6 @@ export default function StandingsPage() {
                           <TableHead className="hidden sm:table-cell">
                             Institution
                           </TableHead>
-                          <TableHead className="text-right">Total Pts</TableHead>
                           <TableHead className="text-right hidden sm:table-cell">
                             Avg Pts
                           </TableHead>
@@ -190,9 +189,6 @@ export default function StandingsPage() {
                             </TableCell>
                             <TableCell className="hidden sm:table-cell text-slate-400">
                               {s.institutionName}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {s.totalPoints}
                             </TableCell>
                             <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
                               {s.averagePoints}

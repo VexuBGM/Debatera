@@ -259,6 +259,7 @@ export async function GET(
     where: {
       score: { not: null },
       speakerId: { not: null },
+      role: { notIn: ['PROP_REPLY', 'OPP_REPLY'] },
       ballot: {
         status: 'SUBMITTED',
         debate: {
