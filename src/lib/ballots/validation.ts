@@ -157,8 +157,8 @@ export function validateBallotSubmission(
   }
 
   // Reply speaker constraint
-  validateReplySpeaker(data, 'PROP_REPLY', ['PROP_1', 'PROP_2'], errors);
-  validateReplySpeaker(data, 'OPP_REPLY', ['OPP_1', 'OPP_2'], errors);
+  validateReplySpeaker(data, 'PROP_REPLY', ['PROP_1', 'PROP_2'], ['PROP_1', 'PROP_2', 'PROP_3'], errors);
+  validateReplySpeaker(data, 'OPP_REPLY', ['OPP_1', 'OPP_2'], ['OPP_1', 'OPP_2', 'OPP_3'], errors);
 
   // Compute totals and validate winner consistency
   const propTotal = computeSideTotal(data.speeches, PROP_ROLES);
@@ -186,6 +186,7 @@ function validateReplySpeaker(
   data: SubmitBallotInput,
   replyRole: string,
   allowedRoles: string[],
+  allConstructiveRoles: string[],
   errors: BallotValidationError[]
 ) {
   const replySpeech = data.speeches.find((s) => s.role === replyRole);
@@ -195,6 +196,15 @@ function validateReplySpeaker(
   const replySpeakerName = replySpeech.speakerName;
 
   if (!replySpeakerId && !replySpeakerName) return; // Already caught above
+
+  // If the team only has 2 unique speakers, any of them can give the reply
+  const constructiveSpeeches = data.speeches.filter((s) =>
+    allConstructiveRoles.includes(s.role)
+  );
+  const uniqueSpeakerIds = new Set(
+    constructiveSpeeches.map((s) => s.speakerId).filter(Boolean)
+  );
+  if (uniqueSpeakerIds.size <= 2) return;
 
   const allowedSpeeches = data.speeches.filter((s) =>
     allowedRoles.includes(s.role)
