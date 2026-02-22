@@ -36,7 +36,7 @@ export async function createBallotForJudge(
       speeches: {
         create: WSDC_SPEECH_ORDER.map((role) => ({
           role,
-          side: SPEECH_ROLE_SIDE[role],
+          side: SPEECH_ROLE_SIDE[role as keyof typeof SPEECH_ROLE_SIDE],
         })),
       },
     },

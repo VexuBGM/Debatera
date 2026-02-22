@@ -112,6 +112,7 @@ model Tournament {
 
 enum DebateFormat {
   WSDC
+  BP
 }
 
 enum EventMode {
@@ -136,6 +137,15 @@ model TournamentSettings {
   eventMode            EventMode     @default(IRL)
   pairingSystem        PairingSystem @default(SWISS)
   showDebaterNames     Boolean       @default(false)  // When true, display debater names instead of team names
+
+  // BP-specific settings
+  speakerScaleMin      Int?          // Min speaker points (e.g. 65 for BP)
+  speakerScaleMax      Int?          // Max speaker points (e.g. 85 for BP)
+  rankPointsFirst      Int?          @default(3) // Team points for 1st place
+  rankPointsSecond     Int?          @default(2)
+  rankPointsThird      Int?          @default(1)
+  rankPointsFourth     Int?          @default(0)
+
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -222,6 +232,8 @@ model TournamentTeam {
   propDebates TournamentDebate[]     @relation("PropTeam")
   oppDebates  TournamentDebate[]     @relation("OppTeam")
   debateWins  DebateResult[]         @relation("DebateWinner")
+  debateSlots TournamentDebateTeamSlot[]
+  bpTeamResults BpDebateTeamResult[]
 
   // Team name must be unique within an institution for a given tournament
   @@unique([tournamentId, institutionId, name])
@@ -278,12 +290,13 @@ model TournamentRound {
 
 // A single debate (pairing) within a round
 // In WSDC format: 2 teams (proposition vs opposition)
+// In BP format: 4 teams via TournamentDebateTeamSlot
 model TournamentDebate {
   id         String   @id @default(cuid())
   roundId    String
   order      Int      // For stable UI ordering within the round
-  propTeamId String?  @db.VarChar(128) // Nullable only for BYE debates
-  oppTeamId  String?  @db.VarChar(128) // Nullable only for BYE debates
+  propTeamId String?  @db.VarChar(128) // WSDC prop team (legacy; BP uses slots)
+  oppTeamId  String?  @db.VarChar(128) // WSDC opp team (legacy; BP uses slots)
   venueId    String?  // Assigned venue (nullable; set by auto-allocator or manually)
   isBye      Boolean  @default(false) // True if this is a bye (one team, no opponent)
   createdAt  DateTime @default(now())
@@ -297,6 +310,8 @@ model TournamentDebate {
   judges    TournamentDebateJudge[]
   ballots   Ballot[]
   result    DebateResult?
+  teamSlots TournamentDebateTeamSlot[]
+  bpTeamResults BpDebateTeamResult[]
   videoCall VideoCall?
   stopwatch DebateStopwatch?
 
@@ -470,6 +485,7 @@ enum Side {
 }
 
 enum SpeechRole {
+  // WSDC speech roles
   PROP_1
   OPP_1
   PROP_2
@@ -478,6 +494,15 @@ enum SpeechRole {
   OPP_3
   OPP_REPLY
   PROP_REPLY
+  // BP speech roles
+  BP_PM
+  BP_LO
+  BP_DPM
+  BP_DLO
+  BP_MG
+  BP_MO
+  BP_GW
+  BP_OW
 }
 
 // ============================================================================
@@ -502,6 +527,7 @@ model Ballot {
   debate      TournamentDebate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
   adjudicator TournamentDebateJudge @relation(fields: [adjudicatorId], references: [id], onDelete: Cascade)
   speeches    BallotSpeech[]
+  teamRankings BallotTeamRanking[]
 
   @@unique([debateId, adjudicatorId])
   @@index([debateId])
@@ -597,4 +623,75 @@ model VideoCall {
   @@unique([kind, debateId])
   @@index([tournamentId, kind])
   @@index([debateId])
+}
+
+// ============================================================================
+// BP (BRITISH PARLIAMENTARY) MODELS
+// ============================================================================
+
+// Position enum for debate team slots (covers both WSDC and BP)
+enum DebateTeamPosition {
+  // WSDC positions
+  WSDC_PROP
+  WSDC_OPP
+  // BP positions
+  BP_OG   // Opening Government
+  BP_OO   // Opening Opposition
+  BP_CG   // Closing Government
+  BP_CO   // Closing Opposition
+}
+
+// Generic team slot for a debate (supports variable team counts)
+model TournamentDebateTeamSlot {
+  id       String             @id @default(cuid())
+  debateId String
+  teamId   String             @db.VarChar(128)
+  position DebateTeamPosition
+
+  // Relationships
+  debate TournamentDebate @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  team   TournamentTeam   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([debateId, position]) // Only one team per position per debate
+  @@unique([debateId, teamId])   // A team can only appear once per debate
+  @@index([debateId])
+  @@index([teamId])
+}
+
+// BP ballot team ranking (judges rank teams 1st–4th)
+model BallotTeamRanking {
+  id         String             @id @default(cuid())
+  ballotId   String
+  position   DebateTeamPosition // BP_OG, BP_OO, BP_CG, BP_CO
+  rank       Int                // 1..4
+  teamPoints Int                // Computed from rank on submit (default 3/2/1/0)
+
+  // Relationships
+  ballot Ballot @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+
+  @@unique([ballotId, position]) // One ranking per position per ballot
+  @@unique([ballotId, rank])     // Ranks must be unique within a ballot
+  @@index([ballotId])
+}
+
+// BP debate team result (computed after all ballots submitted)
+model BpDebateTeamResult {
+  id                 String             @id @default(cuid())
+  debateId           String
+  teamId             String             @db.VarChar(128)
+  position           DebateTeamPosition // BP_OG, BP_OO, BP_CG, BP_CO
+  rank               Int                // Final rank (1..4), from chair ballot for MVP
+  teamPoints         Int                // Points from rank mapping
+  totalSpeakerPoints Decimal            @db.Decimal(5, 1) // Sum of 2 speaker scores
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relationships
+  debate TournamentDebate @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  team   TournamentTeam   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([debateId, teamId])     // One result per team per debate
+  @@unique([debateId, position])   // One result per position per debate
+  @@index([debateId])
+  @@index([teamId])
 }

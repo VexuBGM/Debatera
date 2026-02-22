@@ -6,6 +6,13 @@
 
 import { SpeechRole, Side } from '@prisma/client';
 
+/** WSDC-only speech roles (subset of the full SpeechRole enum). */
+type WsdcSpeechRole =
+  | 'PROP_1' | 'OPP_1'
+  | 'PROP_2' | 'OPP_2'
+  | 'PROP_3' | 'OPP_3'
+  | 'OPP_REPLY' | 'PROP_REPLY';
+
 // ============================================================================
 // WSDC Speech Order (canonical ordering for ballot entry)
 // ============================================================================
@@ -25,7 +32,7 @@ export const WSDC_SPEECH_ORDER: SpeechRole[] = [
 // Side mapping for each speech role
 // ============================================================================
 
-export const SPEECH_ROLE_SIDE: Record<SpeechRole, Side> = {
+export const SPEECH_ROLE_SIDE: Record<WsdcSpeechRole, Side> = {
   PROP_1: 'PROPOSITION',
   PROP_2: 'PROPOSITION',
   PROP_3: 'PROPOSITION',
@@ -64,7 +71,7 @@ export function getScoreRange(role: SpeechRole) {
 // Human-readable labels
 // ============================================================================
 
-export const SPEECH_ROLE_LABELS: Record<SpeechRole, string> = {
+export const SPEECH_ROLE_LABELS: Record<WsdcSpeechRole, string> = {
   PROP_1: '1st Proposition',
   OPP_1: '1st Opposition',
   PROP_2: '2nd Proposition',

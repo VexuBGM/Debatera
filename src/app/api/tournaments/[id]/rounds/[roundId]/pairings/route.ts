@@ -73,6 +73,12 @@ export async function GET(req: Request, { params }: RouteParams) {
     for (const debate of round.debates) {
       if (debate.propTeamId) assignedTeamIds.add(debate.propTeamId);
       if (debate.oppTeamId) assignedTeamIds.add(debate.oppTeamId);
+      // Also track teams from BP team slots
+      if ('teamSlots' in debate && Array.isArray(debate.teamSlots)) {
+        for (const slot of debate.teamSlots) {
+          assignedTeamIds.add(slot.teamId);
+        }
+      }
       for (const judge of debate.judges) {
         assignedJudgeIds.add(judge.participantId);
       }
@@ -81,13 +87,14 @@ export async function GET(req: Request, { params }: RouteParams) {
     const unassignedTeams = allTeams.filter((t) => !assignedTeamIds.has(t.id));
     const unassignedJudges = allJudges.filter((j) => !assignedJudgeIds.has(j.id));
 
-    // Fetch event mode for the tournament (for "Join Call" button)
+    // Fetch event mode and debate format for the tournament
     const settings = await prisma.tournamentSettings.findUnique({
       where: { tournamentId },
-      select: { eventMode: true, showDebaterNames: true },
+      select: { eventMode: true, showDebaterNames: true, debateFormat: true },
     });
     const eventMode = settings?.eventMode ?? 'IRL';
     const showDebaterNames = settings?.showDebaterNames ?? false;
+    const debateFormat = settings?.debateFormat ?? 'WSDC';
 
     // Build per-debate call eligibility for the current user
     let userCallEligibility: Record<string, DebateStreamRole> = {};
@@ -116,6 +123,7 @@ export async function GET(req: Request, { params }: RouteParams) {
         isAdmin,
         eventMode,
         showDebaterNames,
+        debateFormat,
         userCallEligibility,
       },
       { status: 200 }

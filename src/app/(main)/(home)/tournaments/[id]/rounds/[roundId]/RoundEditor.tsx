@@ -24,9 +24,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import type { TeamData, JudgeData, VenueData, EditorDebate } from './types';
+import type { TeamData, JudgeData, VenueData, EditorDebate, DebateFormat } from './types';
 import { DebateCard } from './DebateCard';
 import { DraggableItem } from './DraggableItem';
 import { DroppablePanel } from './DroppablePanel';
@@ -53,6 +55,7 @@ interface RoundEditorProps {
   eventMode?: string;
   userCallEligibility?: Record<string, string>;
   showDebaterNames?: boolean;
+  debateFormat?: DebateFormat;
 }
 
 interface ActiveDrag {
@@ -79,6 +82,7 @@ export function RoundEditor({
   eventMode,
   userCallEligibility,
   showDebaterNames = false,
+  debateFormat = 'WSDC',
 }: RoundEditorProps) {
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
 
@@ -101,6 +105,12 @@ export function RoundEditor({
     for (const debate of debates) {
       if (debate.propTeamId) ids.add(debate.propTeamId);
       if (debate.oppTeamId) ids.add(debate.oppTeamId);
+      // BP team slots
+      if (debate.bpSlots) {
+        for (const teamId of Object.values(debate.bpSlots)) {
+          if (teamId) ids.add(teamId);
+        }
+      }
     }
     return ids;
   }, [debates]);
@@ -539,6 +549,32 @@ export function RoundEditor({
     );
   }
 
+  // Add a new empty debate slot
+  function handleAddDebate() {
+    const maxOrder = debates.reduce((max, d) => Math.max(max, d.order), -1);
+    const isBp = debateFormat === 'BP';
+    const newDebate: EditorDebate = {
+      id: `new-${Date.now()}`,
+      order: maxOrder + 1,
+      propTeamId: null,
+      oppTeamId: null,
+      isBye: false,
+      venueId: null,
+      chairJudgeParticipantId: null,
+      panelistJudgeParticipantIds: [],
+      ...(isBp && { bpSlots: { BP_OG: null, BP_OO: null, BP_CG: null, BP_CO: null } }),
+    };
+    onDebatesChange([...debates, newDebate]);
+  }
+
+  // Remove a debate slot (returns its teams/judges to unassigned)
+  function handleRemoveDebate(debateId: string) {
+    const remaining = debates
+      .filter((d) => d.id !== debateId)
+      .map((d, i) => ({ ...d, order: i }));
+    onDebatesChange(remaining);
+  }
+
   // =============================================================================
   // Render
   // =============================================================================
@@ -571,6 +607,7 @@ export function RoundEditor({
               eventMode={eventMode}
               callRole={userCallEligibility?.[debate.id]}
               showDebaterNames={showDebaterNames}
+              debateFormat={debateFormat}
             />
           ))
         )}
@@ -632,35 +669,60 @@ export function RoundEditor({
               <CardContent className="py-12 text-center text-muted-foreground">
                 <p>No debates yet.</p>
                 <p className="text-sm mt-2">
-                  Click &quot;Auto-Generate&quot; to create pairings automatically.
+                  Click &quot;Auto-Generate&quot; to create pairings automatically,<br />
+                  or add empty debates manually.
                 </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={handleAddDebate}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Debate
+                </Button>
               </CardContent>
             </Card>
           ) : (
-            <SortableContext
-              items={debates.map((d) => d.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {debates.map((debate) => (
-                <DebateCard
-                  key={debate.id}
-                  debate={debate}
-                  teamMap={teamMap}
-                  judgeMap={judgeMap}
-                  venue={debate.venueId ? venueMap.get(debate.venueId) ?? null : null}
-                  allVenues={allVenues}
-                  usedVenueIds={usedVenueIds}
-                  canEdit={canEdit}
-                  onDebateChange={(updates) => handleDebateChange(debate.id, updates)}
-                  tournamentId={tournamentId}
-                  roundId={roundId}
-                  roundStatus={roundStatus}
-                  eventMode={eventMode}
-                  callRole={userCallEligibility?.[debate.id]}
-                  showDebaterNames={showDebaterNames}
-                />
-              ))}
-            </SortableContext>
+            <>
+              <SortableContext
+                items={debates.map((d) => d.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {debates.map((debate) => (
+                  <DebateCard
+                    key={debate.id}
+                    debate={debate}
+                    teamMap={teamMap}
+                    judgeMap={judgeMap}
+                    venue={debate.venueId ? venueMap.get(debate.venueId) ?? null : null}
+                    allVenues={allVenues}
+                    usedVenueIds={usedVenueIds}
+                    canEdit={canEdit}
+                    onDebateChange={(updates) => handleDebateChange(debate.id, updates)}
+                    onRemoveDebate={() => handleRemoveDebate(debate.id)}
+                    tournamentId={tournamentId}
+                    roundId={roundId}
+                    roundStatus={roundStatus}
+                    eventMode={eventMode}
+                    callRole={userCallEligibility?.[debate.id]}
+                    showDebaterNames={showDebaterNames}
+                    debateFormat={debateFormat}
+                  />
+                ))}
+              </SortableContext>
+
+              {/* Add Debate button below the list */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed"
+                onClick={handleAddDebate}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Debate
+              </Button>
+            </>
           )}
         </div>
 

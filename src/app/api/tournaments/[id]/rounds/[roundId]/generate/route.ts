@@ -4,7 +4,7 @@
  * POST /api/tournaments/[id]/rounds/[roundId]/generate
  *
  * Generates pairings for a round using the tournament's configured
- * pairing system (SWISS by default, RANDOM as fallback).
+ * pairing system and debate format.
  * Admin only, DRAFT rounds only.
  */
 
@@ -13,6 +13,7 @@ import { auth } from '@clerk/nextjs/server';
 import { ensureUserInDB } from '@/lib/ensureUser';
 import { isTournamentAdmin, generatePairings, getRoundById } from '@/lib/tournamentRounds';
 import { generateSwissPairings } from '@/lib/pairings';
+import { generateBpPairings } from '@/lib/pairings/bp';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -22,7 +23,7 @@ type RouteParams = { params: Promise<{ id: string; roundId: string }> };
 /**
  * POST /api/tournaments/[id]/rounds/[roundId]/generate
  *
- * Auto-generates pairings based on the tournament's pairing system setting.
+ * Auto-generates pairings based on the tournament's pairing system and format.
  * Replaces all existing debates and judge assignments.
  */
 export async function POST(req: Request, { params }: RouteParams) {
@@ -47,14 +48,29 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
 
-    // Determine pairing system from tournament settings
+    // Determine debate format and pairing system from tournament settings
     const settings = await prisma.tournamentSettings.findUnique({
       where: { tournamentId },
-      select: { pairingSystem: true },
+      select: { pairingSystem: true, debateFormat: true },
     });
 
     const pairingSystem = settings?.pairingSystem ?? 'SWISS';
+    const debateFormat = settings?.debateFormat ?? 'WSDC';
 
+    // BP format uses its own pairing generator
+    if (debateFormat === 'BP') {
+      const result = await generateBpPairings({ tournamentId, roundId });
+      return NextResponse.json(
+        {
+          success: true,
+          debatesCreated: result.debatesCreated,
+          warnings: result.warnings,
+        },
+        { status: 200 },
+      );
+    }
+
+    // WSDC format
     if (pairingSystem === 'SWISS') {
       // Swiss-system pairings
       const result = await generateSwissPairings({ tournamentId, roundId });

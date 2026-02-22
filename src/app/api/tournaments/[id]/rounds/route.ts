@@ -14,7 +14,9 @@ import {
   getNextRoundNumber,
   createRound,
   CreateRoundSchema,
+  getTeamsForTournament,
 } from '@/lib/tournamentRounds';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -92,8 +94,26 @@ export async function POST(
     // Get next round number
     const nextNumber = await getNextRoundNumber(tournamentId);
 
-    // Create the round
-    const round = await createRound(tournamentId, nextNumber, validation.data.name);
+    // Determine how many empty debates to create based on team count and debate format
+    const [teams, settings] = await Promise.all([
+      getTeamsForTournament(tournamentId),
+      prisma.tournamentSettings.findUnique({
+        where: { tournamentId },
+        select: { debateFormat: true },
+      }),
+    ]);
+
+    const teamCount = teams.length;
+    const debateFormat = settings?.debateFormat ?? 'WSDC';
+
+    // WSDC: 2 teams per debate, BP: 4 teams per debate
+    const teamsPerDebate = debateFormat === 'BP' ? 4 : 2;
+    const emptyDebateCount = teamCount >= teamsPerDebate
+      ? Math.floor(teamCount / teamsPerDebate)
+      : 0;
+
+    // Create the round with empty debate slots
+    const round = await createRound(tournamentId, nextNumber, validation.data.name, emptyDebateCount);
 
     return NextResponse.json(round, { status: 201 });
   } catch (err) {

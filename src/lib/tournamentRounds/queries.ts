@@ -98,21 +98,40 @@ export async function getNextRoundNumber(tournamentId: string): Promise<number> 
 
 /**
  * Create a new round for a tournament.
+ * Optionally creates empty debate slots based on the number provided.
  */
 export async function createRound(
   tournamentId: string,
   number: number,
-  name?: string
+  name?: string,
+  emptyDebateCount?: number
 ) {
   const roundName = name || `Round ${number}`;
 
-  return prisma.tournamentRound.create({
-    data: {
-      tournamentId,
-      number,
-      name: roundName,
-      status: TournamentRoundStatus.DRAFT,
-    },
+  return prisma.$transaction(async (tx) => {
+    const round = await tx.tournamentRound.create({
+      data: {
+        tournamentId,
+        number,
+        name: roundName,
+        status: TournamentRoundStatus.DRAFT,
+      },
+    });
+
+    // Create empty debate slots if requested
+    if (emptyDebateCount && emptyDebateCount > 0) {
+      const debateData = Array.from({ length: emptyDebateCount }, (_, i) => ({
+        roundId: round.id,
+        order: i,
+        propTeamId: null,
+        oppTeamId: null,
+        isBye: false,
+      }));
+
+      await tx.tournamentDebate.createMany({ data: debateData });
+    }
+
+    return round;
   });
 }
 
@@ -236,6 +255,11 @@ export async function getPairingsForRound(roundId: string) {
           propTeam: { include: { institution: true } },
           oppTeam: { include: { institution: true } },
           venue: { select: { id: true, name: true, priority: true } },
+          teamSlots: {
+            include: {
+              team: { include: { institution: true } },
+            },
+          },
           judges: {
             include: {
               participant: {

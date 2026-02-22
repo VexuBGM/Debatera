@@ -97,7 +97,7 @@ export function validateBallotSubmission(
   const errors: BallotValidationError[] = [];
 
   // Validate all 8 speech roles are present
-  const presentRoles = new Set(data.speeches.map((s) => s.role));
+  const presentRoles = new Set<string>(data.speeches.map((s) => s.role));
   for (const expectedRole of WSDC_SPEECH_ORDER) {
     if (!presentRoles.has(expectedRole)) {
       errors.push({

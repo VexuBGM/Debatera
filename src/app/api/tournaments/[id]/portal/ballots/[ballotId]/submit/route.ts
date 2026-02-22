@@ -18,7 +18,13 @@ import {
   OPP_ROLES,
   computeDebateResult,
 } from '@/lib/ballots';
-import { SpeechRole, BallotStatus, TournamentRoundStatus } from '@prisma/client';
+import {
+  SubmitBpBallotSchema,
+  validateBpBallotSubmission,
+  rankToTeamPoints,
+  computeBpDebateResult,
+} from '@/lib/ballots/bp';
+import { SpeechRole, BallotStatus, TournamentRoundStatus, DebateTeamPosition } from '@prisma/client';
 
 export const runtime = 'nodejs';
 
@@ -68,6 +74,116 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     const body = await req.json();
+
+    // Determine debate format
+    const debateAdjudicator = await prisma.tournamentDebateJudge.findFirst({
+      where: { ballot: { id: ballotId } },
+      include: {
+        debate: {
+          include: {
+            round: {
+              include: {
+                tournament: {
+                  include: {
+                    settings: {
+                      select: {
+                        debateFormat: true,
+                        speakerScaleMin: true,
+                        speakerScaleMax: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const settings = debateAdjudicator?.debate.round.tournament.settings;
+    const isBp = settings?.debateFormat === 'BP';
+    const debateId = debateAdjudicator?.debateId ?? portalAuth.ballot.debateId;
+
+    // ───────── BP submit path ─────────
+    if (isBp) {
+      const parsed = SubmitBpBallotSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: 'Invalid request body', details: parsed.error.flatten() },
+          { status: 400 }
+        );
+      }
+      const data = parsed.data;
+
+      const scaleMin = settings?.speakerScaleMin ?? 65;
+      const scaleMax = settings?.speakerScaleMax ?? 85;
+
+      const validationErrors = validateBpBallotSubmission(data, { min: scaleMin, max: scaleMax });
+      if (validationErrors.length > 0) {
+        return NextResponse.json(
+          { error: 'Validation failed', validationErrors },
+          { status: 422 }
+        );
+      }
+
+      // Submit in transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.ballot.update({
+          where: { id: ballotId },
+          data: {
+            status: 'SUBMITTED',
+            vote: null,
+            propTotal: null,
+            oppTotal: null,
+            privateNotes: data.privateNotes ?? null,
+            submittedAt: new Date(),
+          },
+        });
+
+        for (const speech of data.speeches) {
+          await tx.ballotSpeech.updateMany({
+            where: {
+              ballotId,
+              role: speech.role as SpeechRole,
+            },
+            data: {
+              speakerId: speech.speakerId ?? null,
+              speakerName: speech.speakerName ?? null,
+              score: speech.score,
+              comment: speech.comment ?? null,
+            },
+          });
+        }
+
+        for (const ranking of data.teamRankings) {
+          const teamPoints = rankToTeamPoints(ranking.rank);
+          await tx.ballotTeamRanking.updateMany({
+            where: {
+              ballotId,
+              position: ranking.position as DebateTeamPosition,
+            },
+            data: {
+              rank: ranking.rank,
+              teamPoints,
+            },
+          });
+        }
+      });
+
+      // Try to compute BP debate result
+      const debateResult = await computeBpDebateResult(debateId);
+
+      return NextResponse.json(
+        {
+          success: true,
+          debateResultComputed: debateResult !== null,
+        },
+        { status: 200 }
+      );
+    }
+
+    // ───────── WSDC submit path ─────────
     const parsed = SubmitBallotSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -130,7 +246,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     });
 
     // Try to compute debate result
-    const debateResult = await computeDebateResult(portalAuth.ballot.debateId);
+    const debateResult = await computeDebateResult(debateId);
 
     return NextResponse.json(
       {

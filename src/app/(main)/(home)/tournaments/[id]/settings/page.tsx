@@ -33,9 +33,16 @@ interface TournamentSettings {
     registrationClosesAt: string | null;
     teamSizeMin: number;
     teamSizeMax: number;
-    debateFormat: 'WSDC';
+    debateFormat: 'WSDC' | 'BP';
     eventMode: 'ONLINE' | 'IRL';
     showDebaterNames: boolean;
+    // BP-specific
+    speakerScaleMin: number | null;
+    speakerScaleMax: number | null;
+    rankPointsFirst: number | null;
+    rankPointsSecond: number | null;
+    rankPointsThird: number | null;
+    rankPointsFourth: number | null;
 }
 
 export default function TournamentSettingsPage() {
@@ -55,6 +62,12 @@ export default function TournamentSettingsPage() {
         debateFormat: 'WSDC',
         eventMode: 'IRL',
         showDebaterNames: false,
+        speakerScaleMin: null,
+        speakerScaleMax: null,
+        rankPointsFirst: null,
+        rankPointsSecond: null,
+        rankPointsThird: null,
+        rankPointsFourth: null,
     });
 
     useEffect(() => {
@@ -85,6 +98,12 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                speakerScaleMin: data.speakerScaleMin ?? null,
+                speakerScaleMax: data.speakerScaleMax ?? null,
+                rankPointsFirst: data.rankPointsFirst ?? null,
+                rankPointsSecond: data.rankPointsSecond ?? null,
+                rankPointsThird: data.rankPointsThird ?? null,
+                rankPointsFourth: data.rankPointsFourth ?? null,
             });
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Failed to load settings');
@@ -116,6 +135,12 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                speakerScaleMin: data.speakerScaleMin ?? null,
+                speakerScaleMax: data.speakerScaleMax ?? null,
+                rankPointsFirst: data.rankPointsFirst ?? null,
+                rankPointsSecond: data.rankPointsSecond ?? null,
+                rankPointsThird: data.rankPointsThird ?? null,
+                rankPointsFourth: data.rankPointsFourth ?? null,
             });
 
             toast.success('Settings updated successfully');
@@ -235,13 +260,34 @@ export default function TournamentSettingsPage() {
                                 <select
                                     id="debateFormat"
                                     value={settings.debateFormat}
-                                    onChange={(e) => setSettings(s => ({ ...s, debateFormat: e.target.value as 'WSDC' }))}
+                                    onChange={(e) => {
+                                        const fmt = e.target.value as 'WSDC' | 'BP';
+                                        setSettings(s => ({
+                                            ...s,
+                                            debateFormat: fmt,
+                                            // Auto-set BP defaults when switching to BP
+                                            ...(fmt === 'BP' ? {
+                                                teamSizeMin: 2,
+                                                teamSizeMax: 2,
+                                                speakerScaleMin: s.speakerScaleMin ?? 65,
+                                                speakerScaleMax: s.speakerScaleMax ?? 85,
+                                                rankPointsFirst: s.rankPointsFirst ?? 3,
+                                                rankPointsSecond: s.rankPointsSecond ?? 2,
+                                                rankPointsThird: s.rankPointsThird ?? 1,
+                                                rankPointsFourth: s.rankPointsFourth ?? 0,
+                                            } : {}),
+                                        }));
+                                    }}
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    disabled
                                 >
                                     <option value="WSDC">WSDC</option>
+                                    <option value="BP">British Parliamentary (BP)</option>
                                 </select>
-                                <p className="text-xs text-muted-foreground">More formats coming soon.</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {settings.debateFormat === 'BP'
+                                        ? 'British Parliamentary: 4 teams per room, ranked 1st–4th.'
+                                        : 'World Schools Debate Championship format.'}
+                                </p>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="eventMode">Event Mode</Label>
@@ -258,6 +304,91 @@ export default function TournamentSettingsPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* BP-Specific Settings */}
+                    {settings.debateFormat === 'BP' && (
+                        <>
+                            <div className="border-t" />
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-medium leading-none">BP Speaker Scale</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    The scoring range used for individual speaker speeches in BP rounds.
+                                </p>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="speakerScaleMin">Minimum Score</Label>
+                                        <Input
+                                            id="speakerScaleMin"
+                                            type="number"
+                                            min={0}
+                                            value={settings.speakerScaleMin ?? 65}
+                                            onChange={(e) => setSettings(s => ({ ...s, speakerScaleMin: parseInt(e.target.value) || 0 }))}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="speakerScaleMax">Maximum Score</Label>
+                                        <Input
+                                            id="speakerScaleMax"
+                                            type="number"
+                                            min={0}
+                                            value={settings.speakerScaleMax ?? 85}
+                                            onChange={(e) => setSettings(s => ({ ...s, speakerScaleMax: parseInt(e.target.value) || 0 }))}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="border-t" />
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-medium leading-none">Ranking Points</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    Team points awarded based on room ranking (1st through 4th place).
+                                </p>
+                                <div className="grid gap-4 sm:grid-cols-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="rankPointsFirst">1st Place</Label>
+                                        <Input
+                                            id="rankPointsFirst"
+                                            type="number"
+                                            min={0}
+                                            value={settings.rankPointsFirst ?? 3}
+                                            onChange={(e) => setSettings(s => ({ ...s, rankPointsFirst: parseInt(e.target.value) || 0 }))}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="rankPointsSecond">2nd Place</Label>
+                                        <Input
+                                            id="rankPointsSecond"
+                                            type="number"
+                                            min={0}
+                                            value={settings.rankPointsSecond ?? 2}
+                                            onChange={(e) => setSettings(s => ({ ...s, rankPointsSecond: parseInt(e.target.value) || 0 }))}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="rankPointsThird">3rd Place</Label>
+                                        <Input
+                                            id="rankPointsThird"
+                                            type="number"
+                                            min={0}
+                                            value={settings.rankPointsThird ?? 1}
+                                            onChange={(e) => setSettings(s => ({ ...s, rankPointsThird: parseInt(e.target.value) || 0 }))}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="rankPointsFourth">4th Place</Label>
+                                        <Input
+                                            id="rankPointsFourth"
+                                            type="number"
+                                            min={0}
+                                            value={settings.rankPointsFourth ?? 0}
+                                            onChange={(e) => setSettings(s => ({ ...s, rankPointsFourth: parseInt(e.target.value) || 0 }))}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
 
                     <div className="border-t" />
 

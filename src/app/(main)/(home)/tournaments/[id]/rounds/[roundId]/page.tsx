@@ -47,7 +47,7 @@ import {
 import { toast } from 'sonner';
 import { RoundEditor } from './RoundEditor';
 import { autoAllocateVenuesAction } from '@/actions/venues.actions';
-import type { RoundData, TeamData, JudgeData, VenueData, EditorDebate } from './types';
+import type { RoundData, TeamData, JudgeData, VenueData, EditorDebate, DebateFormat, BpPosition } from './types';
 
 // =============================================================================
 // Status Helpers
@@ -99,6 +99,7 @@ export default function RoundEditorPage() {
   const [eventMode, setEventMode] = useState<string>('IRL');
   const [userCallEligibility, setUserCallEligibility] = useState<Record<string, string>>({});
   const [showDebaterNames, setShowDebaterNames] = useState(false);
+  const [debateFormat, setDebateFormat] = useState<DebateFormat>('WSDC');
 
   // Editor state - local copy of debates for editing
   const [editorDebates, setEditorDebates] = useState<EditorDebate[]>([]);
@@ -159,12 +160,24 @@ export default function RoundEditorPage() {
       setEventMode(data.eventMode ?? 'IRL');
       setUserCallEligibility(data.userCallEligibility ?? {});
       setShowDebaterNames(data.showDebaterNames ?? false);
+      setDebateFormat(data.debateFormat ?? 'WSDC');
+
+      const isBp = (data.debateFormat ?? 'WSDC') === 'BP';
 
       // Initialize editor debates from server data
       const debates: EditorDebate[] = data.round.debates.map((d: RoundData['debates'][0]) => {
         // Split judges by role: first CHAIR becomes chairJudgeParticipantId, rest are panelists
         const chairJudge = d.judges.find((j: { role?: string; participantId: string }) => j.role === 'CHAIR');
         const panelistJudges = d.judges.filter((j: { role?: string; participantId: string }) => j.role !== 'CHAIR');
+
+        // Build BP slots if applicable
+        let bpSlots: Record<BpPosition, string | null> | undefined;
+        if (isBp && d.teamSlots?.length) {
+          bpSlots = { BP_OG: null, BP_OO: null, BP_CG: null, BP_CO: null };
+          for (const slot of d.teamSlots) {
+            bpSlots[slot.position as BpPosition] = slot.teamId;
+          }
+        }
 
         return {
           id: d.id,
@@ -175,6 +188,7 @@ export default function RoundEditorPage() {
           venueId: d.venue?.id ?? null,
           chairJudgeParticipantId: chairJudge?.participantId ?? null,
           panelistJudgeParticipantIds: panelistJudges.map((j: { participantId: string }) => j.participantId),
+          ...(bpSlots && { bpSlots }),
         };
       });
       setEditorDebates(debates);
@@ -727,6 +741,7 @@ export default function RoundEditorPage() {
         eventMode={eventMode}
         userCallEligibility={userCallEligibility}
         showDebaterNames={showDebaterNames}
+        debateFormat={debateFormat}
       />
 
       {/* Generate Confirmation Dialog */}

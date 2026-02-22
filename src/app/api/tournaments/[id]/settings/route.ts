@@ -110,6 +110,13 @@ export async function PATCH(
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
+                // BP-specific fields
+                ...(data.speakerScaleMin !== undefined && { speakerScaleMin: data.speakerScaleMin }),
+                ...(data.speakerScaleMax !== undefined && { speakerScaleMax: data.speakerScaleMax }),
+                ...(data.rankPointsFirst !== undefined && { rankPointsFirst: data.rankPointsFirst }),
+                ...(data.rankPointsSecond !== undefined && { rankPointsSecond: data.rankPointsSecond }),
+                ...(data.rankPointsThird !== undefined && { rankPointsThird: data.rankPointsThird }),
+                ...(data.rankPointsFourth !== undefined && { rankPointsFourth: data.rankPointsFourth }),
             },
             update: {
                 registrationOpensAt: data.registrationOpensAt ? new Date(data.registrationOpensAt) : null,
@@ -118,6 +125,13 @@ export async function PATCH(
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
+                // BP-specific fields
+                ...(data.speakerScaleMin !== undefined && { speakerScaleMin: data.speakerScaleMin }),
+                ...(data.speakerScaleMax !== undefined && { speakerScaleMax: data.speakerScaleMax }),
+                ...(data.rankPointsFirst !== undefined && { rankPointsFirst: data.rankPointsFirst }),
+                ...(data.rankPointsSecond !== undefined && { rankPointsSecond: data.rankPointsSecond }),
+                ...(data.rankPointsThird !== undefined && { rankPointsThird: data.rankPointsThird }),
+                ...(data.rankPointsFourth !== undefined && { rankPointsFourth: data.rankPointsFourth }),
             },
         });
 

@@ -91,25 +91,28 @@ function validatePairings(
         warnings.push(`${debateLabel}: BYE debates typically don't need judges.`);
       }
     } else {
-      // Normal debate: must have both teams
-      if (!debate.propTeamId) {
-        errors.push(`${debateLabel}: Missing proposition team.`);
-      }
-      if (!debate.oppTeamId) {
-        errors.push(`${debateLabel}: Missing opposition team.`);
+      // Normal debate: check if it's completely empty (no teams + no judges = placeholder slot)
+      const isEmpty = !debate.propTeamId && !debate.oppTeamId && allJudgeIds.length === 0;
+
+      if (!isEmpty) {
+        // Partially or fully filled debate — validate completeness as warnings
+        if (!debate.propTeamId) {
+          warnings.push(`${debateLabel}: Missing proposition team.`);
+        }
+        if (!debate.oppTeamId) {
+          warnings.push(`${debateLabel}: Missing opposition team.`);
+        }
+
+        if (allJudgeIds.length === 0) {
+          warnings.push(`${debateLabel}: No judges assigned.`);
+        }
+
+        if (!debate.chairJudgeParticipantId && allJudgeIds.length > 0) {
+          warnings.push(`${debateLabel}: No chair judge designated.`);
+        }
       }
 
-      // Must have at least 1 judge (the chair)
-      if (allJudgeIds.length === 0) {
-        errors.push(`${debateLabel}: Must have at least 1 judge.`);
-      }
-
-      // Must have exactly 1 chair
-      if (!debate.chairJudgeParticipantId) {
-        errors.push(`${debateLabel}: Must have exactly 1 chair judge.`);
-      }
-
-      // Chair must not also appear as panelist
+      // Chair must not also appear as panelist (always an error)
       if (
         debate.chairJudgeParticipantId &&
         debate.panelistJudgeParticipantIds.includes(debate.chairJudgeParticipantId)

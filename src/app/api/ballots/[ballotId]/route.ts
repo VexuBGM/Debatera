@@ -19,6 +19,7 @@ import {
   OPP_ROLES,
   WSDC_SPEECH_ORDER,
 } from '@/lib/ballots';
+import { BP_SPEECH_ORDER, SaveBpBallotDraftSchema } from '@/lib/ballots/bp';
 import { SpeechRole } from '@prisma/client';
 
 export const runtime = 'nodejs';
@@ -49,7 +50,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch the full ballot with speeches and team rosters
+    // Fetch the full ballot with speeches, team rankings, and team rosters
     const ballot = await prisma.ballot.findUnique({
       where: { id: ballotId },
       include: {
@@ -65,6 +66,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
             },
           },
         },
+        teamRankings: true,
         adjudicator: {
           include: {
             participant: {
@@ -75,7 +77,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
                 round: {
                   include: {
                     tournament: {
-                      include: { settings: { select: { eventMode: true } } },
+                      include: { settings: { select: { eventMode: true, debateFormat: true, speakerScaleMin: true, speakerScaleMax: true } } },
                     },
                   },
                 },
@@ -103,6 +105,22 @@ export async function GET(_req: Request, { params }: RouteParams) {
                     },
                   },
                 },
+                teamSlots: {
+                  include: {
+                    team: {
+                      include: {
+                        institution: true,
+                        members: {
+                          include: {
+                            participant: {
+                              include: { user: true },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
                 venue: true,
               },
             },
@@ -116,12 +134,34 @@ export async function GET(_req: Request, { params }: RouteParams) {
     }
 
     const debate = ballot.adjudicator.debate;
+    const debateFormat = debate.round.tournament.settings?.debateFormat ?? 'WSDC';
+    const isBp = debateFormat === 'BP';
 
-    // Sort speeches in WSDC order
+    // Sort speeches in appropriate order
+    const speechOrder = isBp ? BP_SPEECH_ORDER : WSDC_SPEECH_ORDER;
     const speechesSorted = [...ballot.speeches].sort(
       (a, b) =>
-        WSDC_SPEECH_ORDER.indexOf(a.role) - WSDC_SPEECH_ORDER.indexOf(b.role)
+        speechOrder.indexOf(a.role) - speechOrder.indexOf(b.role)
     );
+
+    // Build team slots for BP
+    const teamSlots = isBp && debate.teamSlots
+      ? debate.teamSlots.map((slot) => ({
+          position: slot.position,
+          team: slot.team
+            ? {
+                id: slot.team.id,
+                name: slot.team.name,
+                institution: slot.team.institution.name,
+                members: slot.team.members.map((m) => ({
+                  id: m.id,
+                  participantId: m.participantId,
+                  name: displayNameFromDbUser(m.participant.user),
+                })),
+              }
+            : null,
+        }))
+      : undefined;
 
     return NextResponse.json(
       {
@@ -135,6 +175,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
         createdAt: ballot.createdAt,
         updatedAt: ballot.updatedAt,
         adjudicatorRole: ballot.adjudicator.role,
+        debateFormat,
         adjudicator: {
           id: ballot.adjudicator.id,
           name: displayNameFromDbUser(ballot.adjudicator.participant.user),
@@ -143,6 +184,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
           id: debate.round.tournament.id,
           name: debate.round.tournament.name,
           eventMode: debate.round.tournament.settings?.eventMode ?? 'IRL',
+          speakerScaleMin: debate.round.tournament.settings?.speakerScaleMin ?? null,
+          speakerScaleMax: debate.round.tournament.settings?.speakerScaleMax ?? null,
         },
         round: {
           id: debate.round.id,
@@ -192,6 +235,16 @@ export async function GET(_req: Request, { params }: RouteParams) {
           score: s.score ? Number(s.score) : null,
           comment: s.comment,
         })),
+        // BP-specific fields
+        ...(isBp && {
+          teamSlots,
+          teamRankings: ballot.teamRankings.map((r) => ({
+            id: r.id,
+            position: r.position,
+            rank: r.rank,
+            teamPoints: r.teamPoints,
+          })),
+        }),
       },
       { status: 200 }
     );
@@ -232,6 +285,79 @@ export async function PUT(req: Request, { params }: RouteParams) {
     }
 
     const body = await req.json();
+
+    // Determine debate format to use correct schema
+    const debateWithSettings = await prisma.tournamentDebate.findUnique({
+      where: { id: loaded.debate.id },
+      include: {
+        round: {
+          include: {
+            tournament: { include: { settings: { select: { debateFormat: true } } } },
+          },
+        },
+      },
+    });
+
+    const debateFormat = debateWithSettings?.round.tournament.settings?.debateFormat ?? 'WSDC';
+    const isBp = debateFormat === 'BP';
+
+    if (isBp) {
+      // BP draft save
+      const parsed = SaveBpBallotDraftSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: 'Invalid request body', details: parsed.error.flatten() },
+          { status: 400 }
+        );
+      }
+
+      const data = parsed.data;
+
+      await prisma.$transaction(async (tx) => {
+        await tx.ballot.update({
+          where: { id: ballotId },
+          data: {
+            privateNotes:
+              data.privateNotes !== undefined ? data.privateNotes : undefined,
+          },
+        });
+
+        if (data.speeches) {
+          for (const speech of data.speeches) {
+            await tx.ballotSpeech.updateMany({
+              where: {
+                ballotId,
+                role: speech.role as SpeechRole,
+              },
+              data: {
+                speakerId: speech.speakerId ?? null,
+                speakerName: speech.speakerName ?? null,
+                score: speech.score ?? null,
+                comment: speech.comment ?? null,
+              },
+            });
+          }
+        }
+
+        if (data.teamRankings) {
+          for (const ranking of data.teamRankings) {
+            await tx.ballotTeamRanking.updateMany({
+              where: {
+                ballotId,
+                position: ranking.position as any,
+              },
+              data: {
+                rank: ranking.rank ?? 0,
+              },
+            });
+          }
+        }
+      });
+
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+
+    // WSDC draft save
     const parsed = SaveBallotDraftSchema.safeParse(body);
 
     if (!parsed.success) {

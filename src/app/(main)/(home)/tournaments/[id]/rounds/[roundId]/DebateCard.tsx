@@ -30,7 +30,8 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { EditorDebate, TeamData, JudgeData, VenueData, DebateWarning } from './types';
+import type { EditorDebate, TeamData, JudgeData, VenueData, DebateWarning, DebateFormat, BpPosition } from './types';
+import { BP_POSITIONS_ORDERED, BP_POSITION_SHORT, BP_POSITION_COLORS } from './types';
 import { DraggableItem } from './DraggableItem';
 import { DroppableSlot } from './DroppableSlot';
 import { hasInstitutionConflict } from '@/lib/tournamentRounds/institutionConflict';
@@ -51,6 +52,7 @@ interface DebateCardProps {
   usedVenueIds: Set<string>;
   canEdit: boolean;
   onDebateChange: (updates: Partial<EditorDebate>) => void;
+  onRemoveDebate?: () => void;
   // Call-related (optional — only used for ONLINE tournaments)
   tournamentId?: string;
   roundId?: string;
@@ -58,6 +60,7 @@ interface DebateCardProps {
   eventMode?: string;
   callRole?: string; // "judge" | "debater" | undefined
   showDebaterNames?: boolean;
+  debateFormat?: DebateFormat;
 }
 
 // =============================================================================
@@ -138,13 +141,16 @@ export function DebateCard({
   usedVenueIds,
   canEdit,
   onDebateChange,
+  onRemoveDebate,
   tournamentId,
   roundId,
   roundStatus,
   eventMode,
   callRole,
   showDebaterNames = false,
+  debateFormat = 'WSDC',
 }: DebateCardProps) {
+  const isBp = debateFormat === 'BP';
   const propTeam = debate.propTeamId ? teamMap.get(debate.propTeamId) : null;
   const oppTeam = debate.oppTeamId ? teamMap.get(debate.oppTeamId) : null;
   const warnings = computeWarnings(debate, teamMap, judgeMap);
@@ -353,8 +359,21 @@ export function DebateCard({
 
         <div className="flex items-start gap-4">
           {/* Debate number */}
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-            {debate.order + 1}
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+              {debate.order + 1}
+            </div>
+            {canEdit && onRemoveDebate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                onClick={onRemoveDebate}
+                title="Remove debate"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
 
           {/* Content */}
@@ -399,17 +418,46 @@ export function DebateCard({
             )}
 
             {/* Teams */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Proposition */}
-            {renderTeamSlot('prop', propTeam ?? null, debate.propTeamId)}
+            {isBp && debate.bpSlots ? (
+              /* BP: 4 team positions in a 2x2 grid */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {BP_POSITIONS_ORDERED.map((pos) => {
+                  const teamId = debate.bpSlots![pos];
+                  const team = teamId ? teamMap.get(teamId) : null;
+                  return (
+                    <div
+                      key={pos}
+                      className="p-3 bg-muted/50 rounded-md"
+                    >
+                      <div className={cn('text-xs font-medium uppercase tracking-wide mb-1', BP_POSITION_COLORS[pos])}>
+                        {BP_POSITION_SHORT[pos]}
+                      </div>
+                      {team ? (
+                        <>
+                          <div className="font-medium truncate">{getTeamDisplayName(team, showDebaterNames)}</div>
+                          <div className="text-xs text-muted-foreground truncate">{team.institution.name}</div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-muted-foreground italic">Empty</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* WSDC: Prop vs Opp */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Proposition */}
+                {renderTeamSlot('prop', propTeam ?? null, debate.propTeamId)}
 
-            {/* Opposition */}
-            {renderTeamSlot('opp', oppTeam ?? null, debate.oppTeamId)}
-            </div>
+                {/* Opposition */}
+                {renderTeamSlot('opp', oppTeam ?? null, debate.oppTeamId)}
+              </div>
+            )}
           </div>
 
-          {/* Actions */}
-          {canEdit && (
+          {/* Actions (WSDC only — BP rooms don't have prop/opp swap) */}
+          {canEdit && !isBp && (
             <div className="flex flex-col gap-1">
               <Button
                 variant="ghost"
