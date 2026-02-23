@@ -17,9 +17,9 @@ jobs:
         run: |
           ls -lh ops/debatera_backup.dump
 
-      - name: Verify DB connection (Postgres 17 client)
+      - name: Verify DB connection (Postgres 18 client)
         run: |
-          docker run --rm postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
+          docker run --rm postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
 
       - name: Show target host + db (safe)
         run: |
@@ -30,11 +30,11 @@ jobs:
           print("DB:", u.path.lstrip("/"))
           PY
 
-      - name: Backup current DB (Postgres 17 client)
+      - name: Backup current DB (Postgres 18 client)
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" -w /work \
-            postgres:17 pg_dump "$DATABASE_URL" -Fc -f pre_restore_backup.dump
+            postgres:18 pg_dump "$DATABASE_URL" -Fc -f pre_restore_backup.dump
 
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
@@ -44,7 +44,7 @@ jobs:
 
       - name: TRUNCATE all tables (keep _prisma_migrations)
         run: |
-          cat <<'SQL' | docker run --rm -i postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          cat <<'SQL' | docker run --rm -i postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
           DO $$
           DECLARE r RECORD;
           BEGIN
@@ -63,7 +63,8 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" -w /work \
-            postgres:17 pg_restore \
+            postgres:18 pg_restore \
+              --exit-on-error \
               --no-owner --no-privileges \
               --data-only \
               -T "_prisma_migrations" \
@@ -73,7 +74,7 @@ jobs:
 
       - name: Post-restore sanity check (counts)
         run: |
-          cat <<'SQL' | docker run --rm -i postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          cat <<'SQL' | docker run --rm -i postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
           SELECT COUNT(*) AS tournaments FROM "Tournament";
           SELECT COUNT(*) AS ballots FROM "Ballot";
           SELECT COUNT(*) AS ballot_speeches FROM "BallotSpeech";
