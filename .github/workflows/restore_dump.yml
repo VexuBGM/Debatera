@@ -1,0 +1,59 @@
+name: Restore DB from dump (one-time)
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Postgres client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify DB connection
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
+
+      - name: Backup current DB (artifact)
+        run: |
+          pg_dump "$DATABASE_URL" -Fc -f pre_restore_backup.dump
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-restore-backup
+          path: pre_restore_backup.dump
+
+      - name: TRUNCATE all tables (keep _prisma_migrations)
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE r RECORD;
+          BEGIN
+            FOR r IN (
+              SELECT tablename
+              FROM pg_tables
+              WHERE schemaname = 'public'
+                AND tablename <> '_prisma_migrations'
+            ) LOOP
+              EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
+            END LOOP;
+          END $$;
+          SQL
+
+      - name: Restore DATA ONLY from dump (does not create tables)
+        run: |
+          pg_restore \
+            --no-owner --no-privileges \
+            --data-only \
+            -T "_prisma_migrations" \
+            --dbname "$DATABASE_URL" \
+            --verbose \
+            ops/debatera_backup.dump
