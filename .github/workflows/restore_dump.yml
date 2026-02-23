@@ -1,44 +1,63 @@
-- name: Verify DB connection
-  run: |
-    docker run --rm postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
+name: Restore DB from dump (one-time)
 
-- name: Backup current DB (artifact)
-  run: |
-    docker run --rm \
-      -v "${{ github.workspace }}:/work" -w /work \
-      postgres:17 pg_dump "$DATABASE_URL" -Fc -f pre_restore_backup.dump
+on:
+  workflow_dispatch:
 
-- name: Upload backup artifact
-  uses: actions/upload-artifact@v4
-  with:
-    name: pre-restore-backup
-    path: pre_restore_backup.dump
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 
-- name: TRUNCATE all tables (keep _prisma_migrations)
-  run: |
-    docker run --rm postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-    DO $$
-    DECLARE r RECORD;
-    BEGIN
-      FOR r IN (
-        SELECT tablename
-        FROM pg_tables
-        WHERE schemaname = 'public'
-          AND tablename <> '_prisma_migrations'
-      ) LOOP
-        EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
-      END LOOP;
-    END $$;
-    SQL
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-- name: Restore DATA ONLY from dump
-  run: |
-    docker run --rm \
-      -v "${{ github.workspace }}:/work" -w /work \
-      postgres:17 pg_restore \
-        --no-owner --no-privileges \
-        --data-only \
-        -T "_prisma_migrations" \
-        --dbname "$DATABASE_URL" \
-        --verbose \
-        ops/debatera_backup.dump
+      - name: Confirm dump file exists
+        run: |
+          ls -lh ops/debatera_backup.dump
+
+      - name: Verify DB connection (Postgres 17 client)
+        run: |
+          docker run --rm postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
+
+      - name: Backup current DB (Postgres 17 client)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" -w /work \
+            postgres:17 pg_dump "$DATABASE_URL" -Fc -f pre_restore_backup.dump
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-restore-backup
+          path: pre_restore_backup.dump
+
+      - name: TRUNCATE all tables (keep _prisma_migrations)
+        run: |
+          cat <<'SQL' | docker run --rm -i postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          DO $$
+          DECLARE r RECORD;
+          BEGIN
+            FOR r IN (
+              SELECT tablename
+              FROM pg_tables
+              WHERE schemaname = 'public'
+                AND tablename <> '_prisma_migrations'
+            ) LOOP
+              EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
+            END LOOP;
+          END $$;
+          SQL
+
+      - name: Restore DATA ONLY from dump (does not create tables)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" -w /work \
+            postgres:17 pg_restore \
+              --no-owner --no-privileges \
+              --data-only \
+              -T "_prisma_migrations" \
+              --dbname "$DATABASE_URL" \
+              --verbose \
+              ops/debatera_backup.dump
