@@ -21,6 +21,15 @@ jobs:
         run: |
           docker run --rm postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
 
+      - name: Show target host + db (safe)
+        run: |
+          python - <<'PY'
+          import os, urllib.parse
+          u = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+          print("HOST:", u.hostname)
+          print("DB:", u.path.lstrip("/"))
+          PY
+
       - name: Backup current DB (Postgres 17 client)
         run: |
           docker run --rm \
@@ -61,3 +70,12 @@ jobs:
               --dbname "$DATABASE_URL" \
               --verbose \
               ops/debatera_backup.dump
+
+      - name: Post-restore sanity check (counts)
+        run: |
+          cat <<'SQL' | docker run --rm -i postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          SELECT COUNT(*) AS tournaments FROM "Tournament";
+          SELECT COUNT(*) AS ballots FROM "Ballot";
+          SELECT COUNT(*) AS ballot_speeches FROM "BallotSpeech";
+          SELECT id, name FROM "Tournament" ORDER BY "createdAt" DESC LIMIT 5;
+          SQL
