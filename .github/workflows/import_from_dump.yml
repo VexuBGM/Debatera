@@ -1,0 +1,93 @@
+name: Import from dump (one-time)
+on:
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm dump exists
+        run: ls -lh ops/debatera_backup.dump
+
+      - name: Sanity check DB
+        run: |
+          docker run --rm postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
+
+      - name: TRUNCATE all tables (keep _prisma_migrations)
+        run: |
+          cat <<'SQL' | docker run --rm -i postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          DO $$
+          DECLARE r RECORD;
+          BEGIN
+            FOR r IN (
+              SELECT tablename
+              FROM pg_tables
+              WHERE schemaname='public'
+                AND tablename <> '_prisma_migrations'
+            ) LOOP
+              EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
+            END LOOP;
+          END $$;
+          SQL
+
+      - name: Import tables in FK-safe order
+        run: |
+          set -euo pipefail
+
+          import_table () {
+            local t="$1"
+            echo "== Importing $t =="
+            docker run --rm \
+              -v "${GITHUB_WORKSPACE}:/work" -w /work \
+              postgres:18 pg_restore -a -t "$t" -f - ops/debatera_backup.dump \
+            | docker run --rm -i postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          }
+
+          # Parents first
+          import_table "User"
+          import_table "Institution"
+          import_table "InstitutionMember"
+
+          import_table "Tournament"
+          import_table "TournamentSettings"
+
+          import_table "TournamentInstitution"
+          import_table "TournamentParticipant"
+          import_table "TournamentTeam"
+          import_table "TournamentTeamMember"
+
+          import_table "TournamentRound"
+
+          import_table "Venue"
+          import_table "VenueCategory"
+          import_table "_VenueToVenueCategory"
+
+          # Debates BEFORE ballots
+          import_table "TournamentDebate"
+          import_table "TournamentDebateJudge"
+
+          # Now ballots + speeches
+          import_table "Ballot"
+          import_table "BallotSpeech"
+
+          # Optional (safe to include)
+          import_table "DebateResult"
+          import_table "DebateStopwatch"
+          import_table "Notification"
+
+      - name: Keep only WSDC Spar Nedelq tournament
+        run: |
+          docker run --rm postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+          "DELETE FROM \"Tournament\" WHERE id <> 'tourn_2af053ab-8007-4217-87d5-4987a0de8e36';"
+
+      - name: Counts
+        run: |
+          docker run --rm postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+          "SELECT COUNT(*) tournaments FROM \"Tournament\";
+           SELECT COUNT(*) ballots FROM \"Ballot\";
+           SELECT COUNT(*) speeches FROM \"BallotSpeech\";"
