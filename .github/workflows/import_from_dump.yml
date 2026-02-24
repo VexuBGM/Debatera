@@ -58,7 +58,7 @@ jobs:
           echo "== Creating TournamentSettings rows (new schema defaults) =="
           cat <<'SQL' | docker run --rm -i postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
           INSERT INTO "TournamentSettings"
-            ("id","tournamentId","teamSizeMin","teamSizeMax","debateFormat","eventMode","pairingSystem","showDebaterNames")
+            ("id","tournamentId","teamSizeMin","teamSizeMax","debateFormat","eventMode","pairingSystem","showDebaterNames","createdAt","updatedAt")
           SELECT
             'tset_' || md5(random()::text || clock_timestamp()::text || id),
             id,
@@ -67,7 +67,9 @@ jobs:
             'WSDC'::"DebateFormat",
             'IRL'::"EventMode",
             'SWISS'::"PairingSystem",
-            false
+            false,
+            now(),
+            now()
           FROM "Tournament"
           ON CONFLICT ("tournamentId") DO NOTHING;
           SQL
