@@ -1,0 +1,49 @@
+name: Import SQL (one-time)
+on:
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sanity check target DB
+        run: |
+          docker run --rm postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select now(), current_database();"
+
+      - name: TRUNCATE all tables (keep _prisma_migrations)
+        run: |
+          cat <<'SQL' | docker run --rm -i postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          DO $$
+          DECLARE r RECORD;
+          BEGIN
+            FOR r IN (
+              SELECT tablename
+              FROM pg_tables
+              WHERE schemaname='public'
+                AND tablename <> '_prisma_migrations'
+            ) LOOP
+              EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
+            END LOOP;
+          END $$;
+          SQL
+
+      - name: Run import.sql
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" -w /work \
+            postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f import.sql
+
+      - name: Keep only WSDC tournament
+        run: |
+          docker run --rm postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+          "DELETE FROM \"Tournament\" WHERE id <> 'tourn_2af053ab-8007-4217-87d5-4987a0de8e36';"
+
+      - name: Counts
+        run: |
+          docker run --rm postgres:18 psql "$DATABASE_URL" -c \
+          "SELECT COUNT(*) tournaments FROM \"Tournament\"; SELECT COUNT(*) ballots FROM \"Ballot\"; SELECT COUNT(*) speeches FROM \"BallotSpeech\";"
