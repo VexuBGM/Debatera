@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, TournamentRoundStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
+import { REPLY_ROLES } from '@/lib/ballots/constants';
 
 // ============================================================================
 // Types
@@ -25,6 +26,9 @@ interface SpeakerStanding {
   totalPoints: number;
   averagePoints: number;
   speechesCount: number;
+  replyTotalPoints: number;
+  replyAveragePoints: number;
+  replySpeechesCount: number;
 }
 
 interface TeamStanding {
@@ -271,6 +275,7 @@ export async function GET(
     },
     select: {
       score: true,
+      role: true,
       speakerId: true,
       ballot: {
         select: {
@@ -325,18 +330,35 @@ export async function GET(
     },
   });
 
+  // Separate substantive speeches from reply speeches
+  const replyRoleSet = new Set<string>(REPLY_ROLES);
+  const substantiveSpeeches = speeches.filter((s) => !replyRoleSet.has(s.role));
+  const replySpeeches = speeches.filter((s) => replyRoleSet.has(s.role));
+
   // Group by (debateId, speakerId) → compute average score per debate-speech
   const debateSpeakerKey = (debateId: string, speakerId: string) =>
     `${debateId}::${speakerId}`;
 
-  const debateSpeakerScores = new Map<string, number[]>();
-
-  for (const s of speeches) {
+  // Substantive speech scores
+  const debateSpeakerSubstantiveScores = new Map<string, number[]>();
+  for (const s of substantiveSpeeches) {
     const key = debateSpeakerKey(s.ballot.debateId, s.speakerId!);
-    let arr = debateSpeakerScores.get(key);
+    let arr = debateSpeakerSubstantiveScores.get(key);
     if (!arr) {
       arr = [];
-      debateSpeakerScores.set(key, arr);
+      debateSpeakerSubstantiveScores.set(key, arr);
+    }
+    arr.push(safeDecimalToNumber(s.score));
+  }
+
+  // Reply speech scores
+  const debateSpeakerReplyScores = new Map<string, number[]>();
+  for (const s of replySpeeches) {
+    const key = debateSpeakerKey(s.ballot.debateId, s.speakerId!);
+    let arr = debateSpeakerReplyScores.get(key);
+    if (!arr) {
+      arr = [];
+      debateSpeakerReplyScores.set(key, arr);
     }
     arr.push(safeDecimalToNumber(s.score));
   }
@@ -351,6 +373,8 @@ export async function GET(
     institutionName: string;
     totalPoints: number;
     speechesCount: number;
+    replyTotalPoints: number;
+    replySpeechesCount: number;
   }
 
   const speakerAccMap = new Map<string, SpeakerAcc>();
@@ -379,24 +403,42 @@ export async function GET(
     });
   }
 
-  for (const [key, scores] of debateSpeakerScores) {
-    const speakerId = key.split('::')[1];
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-
+  function getOrCreateAcc(speakerId: string): SpeakerAcc | null {
     let acc = speakerAccMap.get(speakerId);
     if (!acc) {
       const meta = speakerMeta.get(speakerId);
-      if (!meta) continue;
+      if (!meta) return null;
       acc = {
         speakerId,
         ...meta,
         totalPoints: 0,
         speechesCount: 0,
+        replyTotalPoints: 0,
+        replySpeechesCount: 0,
       };
       speakerAccMap.set(speakerId, acc);
     }
+    return acc;
+  }
+
+  // Accumulate substantive speech scores
+  for (const [key, scores] of debateSpeakerSubstantiveScores) {
+    const speakerId = key.split('::')[1];
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const acc = getOrCreateAcc(speakerId);
+    if (!acc) continue;
     acc.totalPoints += avg;
     acc.speechesCount += 1;
+  }
+
+  // Accumulate reply speech scores (tracked separately)
+  for (const [key, scores] of debateSpeakerReplyScores) {
+    const speakerId = key.split('::')[1];
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const acc = getOrCreateAcc(speakerId);
+    if (!acc) continue;
+    acc.replyTotalPoints += avg;
+    acc.replySpeechesCount += 1;
   }
 
   // Sort: totalPoints DESC, name ASC
@@ -419,6 +461,12 @@ export async function GET(
           ? roundTo1(row.totalPoints / row.speechesCount)
           : 0,
       speechesCount: row.speechesCount,
+      replyTotalPoints: roundTo1(row.replyTotalPoints),
+      replyAveragePoints:
+        row.replySpeechesCount > 0
+          ? roundTo1(row.replyTotalPoints / row.replySpeechesCount)
+          : 0,
+      replySpeechesCount: row.replySpeechesCount,
     }),
   );
 

@@ -29,6 +29,9 @@ interface SpeakerStanding {
   totalPoints: number;
   averagePoints: number;
   speechesCount: number;
+  replyTotalPoints: number;
+  replyAveragePoints: number;
+  replySpeechesCount: number;
 }
 
 interface TeamStanding {
@@ -164,12 +167,14 @@ export default function StandingsPage() {
                           <TableHead className="hidden sm:table-cell">
                             Institution
                           </TableHead>
-                          <TableHead className="text-right">Total Pts</TableHead>
-                          <TableHead className="text-right hidden sm:table-cell">
+                          <TableHead className="text-right">
                             Avg Pts
                           </TableHead>
                           <TableHead className="text-right hidden sm:table-cell">
                             Speeches
+                          </TableHead>
+                          <TableHead className="text-right hidden sm:table-cell">
+                            Reply Pts
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -192,13 +197,13 @@ export default function StandingsPage() {
                               {s.institutionName}
                             </TableCell>
                             <TableCell className="text-right font-semibold tabular-nums">
-                              {s.totalPoints}
-                            </TableCell>
-                            <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
                               {s.averagePoints}
                             </TableCell>
                             <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
                               {s.speechesCount}
+                            </TableCell>
+                            <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
+                              {s.replyAveragePoints > 0 ? s.replyAveragePoints : '–'}
                             </TableCell>
                           </TableRow>
                         ))}
