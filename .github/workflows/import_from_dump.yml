@@ -54,7 +54,22 @@ jobs:
           import_table "InstitutionMember"
 
           import_table "Tournament"
-          import_table "TournamentSettings"
+
+          echo "== Creating TournamentSettings rows (new schema defaults) =="
+          cat <<'SQL' | docker run --rm -i postgres:18 psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+          INSERT INTO "TournamentSettings"
+            ("tournamentId","teamSizeMin","teamSizeMax","debateFormat","eventMode","pairingSystem","showDebaterNames")
+          SELECT
+            id,
+            "teamMinSize",
+            "teamMaxSize",
+            'WSDC'::"DebateFormat",
+            'IRL'::"EventMode",
+            'SWISS'::"PairingSystem",
+            false
+          FROM "Tournament"
+          ON CONFLICT ("tournamentId") DO NOTHING;
+          SQL
 
           import_table "TournamentInstitution"
           import_table "TournamentParticipant"
