@@ -75,3 +75,4 @@ Core model groups:
 | File | When to check |
 |---|---|
 | `.claude/docs/architectural_patterns.md` | Server actions, API routes, auth guards, data fetching conventions |
+| `.claude/docs/conventions.md` | Before working on API routes |

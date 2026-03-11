@@ -38,7 +38,8 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const tournaments = await listTournaments();
+    const { userId } = await auth();
+    const tournaments = await listTournaments(userId ?? undefined);
     return NextResponse.json(tournaments, { status: 200 });
   } catch (err) {
     console.error(err);

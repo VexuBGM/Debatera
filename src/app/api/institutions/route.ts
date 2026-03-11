@@ -49,7 +49,8 @@ export async function POST(req: Request) {
  */
 export async function GET() {
   try {
-    const institutions = await listInstitutions();
+    const { userId } = await auth();
+    const institutions = await listInstitutions(userId ?? undefined);
     return NextResponse.json(institutions, { status: 200 });
   } catch (err) {
     console.error(err);

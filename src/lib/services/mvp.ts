@@ -34,8 +34,14 @@ export async function createInstitution(name: string, userId: string) {
   return institution;
 }
 
-export async function listInstitutions() {
+export async function listInstitutions(userId?: string) {
   return prisma.institution.findMany({
+    where: {
+      OR: [
+        { isPublic: true },
+        ...(userId ? [{ members: { some: { userId } } }] : []),
+      ],
+    },
     include: {
       _count: { select: { members: true } },
     },
@@ -111,8 +117,20 @@ export async function createTournament(name: string, userId: string, eventMode: 
   });
 }
 
-export async function listTournaments() {
+export async function listTournaments(userId?: string) {
   return prisma.tournament.findMany({
+    where: {
+      OR: [
+        { isPublic: true },
+        ...(userId
+          ? [
+              { createdByUserId: userId },
+              { tournamentParticipants: { some: { userId } } },
+              { tournamentInstitutions: { some: { institution: { members: { some: { userId } } } } } },
+            ]
+          : []),
+      ],
+    },
     include: {
       createdBy: true,
     },

@@ -2,9 +2,23 @@ import React from 'react'
 import Link from 'next/link';
 import { Trophy, Users } from 'lucide-react';
 import prisma from '@/lib/prisma';
+import { auth } from '@clerk/nextjs/server';
 
 const Tournaments = async () => {
+  const { userId } = await auth();
   const tournaments = await prisma.tournament.findMany({
+    where: {
+      OR: [
+        { isPublic: true },
+        ...(userId
+          ? [
+              { createdByUserId: userId },
+              { tournamentParticipants: { some: { userId } } },
+              { tournamentInstitutions: { some: { institution: { members: { some: { userId } } } } } },
+            ]
+          : []),
+      ],
+    },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: {

@@ -40,6 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
 import {
   Building2,
   Users,
@@ -106,6 +107,7 @@ interface PendingInvitation {
 interface Institution {
   id: string;
   name: string;
+  isPublic: boolean;
   createdAt: string;
   members: InstitutionMember[];
   registrations?: { id: string }[];
@@ -128,6 +130,7 @@ export default function InstitutionDetailPage() {
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [processingMemberId, setProcessingMemberId] = useState<string | null>(null);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   const institutionId = params.id as string;
 
@@ -267,6 +270,29 @@ export default function InstitutionDetailPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to promote member');
     } finally {
       setProcessingMemberId(null);
+    }
+  };
+
+  const handleToggleVisibility = async (isPublic: boolean) => {
+    setTogglingVisibility(true);
+    try {
+      const res = await fetch(`/api/institutions/${institutionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data?.error || 'Failed to update visibility');
+      }
+
+      setInstitution((prev) => prev ? { ...prev, isPublic } : prev);
+      toast.success(isPublic ? 'Institution is now public' : 'Institution is now private');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update visibility');
+    } finally {
+      setTogglingVisibility(false);
     }
   };
 
@@ -452,6 +478,33 @@ export default function InstitutionDetailPage() {
           </CardHeader>
         </Card>
       </div>
+
+      {/* Admin Section: Visibility */}
+      {isAdmin && (
+        <Card className="mb-6 sm:mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Visibility</CardTitle>
+            <CardDescription>Control who can discover this institution in the listings.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="isPublic" className="text-sm font-medium">Public institution</Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, this institution will appear in the public listing for all users.
+                  When private, only members can see it.
+                </p>
+              </div>
+              <Switch
+                id="isPublic"
+                checked={institution.isPublic}
+                onCheckedChange={handleToggleVisibility}
+                disabled={togglingVisibility}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Admin Section: Invite Members */}
       {isAdmin && (
