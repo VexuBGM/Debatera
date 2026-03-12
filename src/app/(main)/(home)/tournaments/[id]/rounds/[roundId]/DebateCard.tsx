@@ -362,7 +362,7 @@ export function DebateCard({
             {/* Venue dropdown — hidden for ONLINE tournaments */}
             {eventMode !== 'ONLINE' && (
               <div className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-cyan-500" />
+                <MapPin className="h-3.5 w-3.5 text-brand" />
                 {canEdit ? (
                   <Select
                     value={debate.venueId ?? '__none__'}

@@ -6,6 +6,7 @@ import ProfileSections from '@/components/profile/ProfileSections';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
+import { PageContainer } from '@/components/PageContainer';
 
 export default async function MyProfilePage() {
   const { userId } = await auth();
@@ -21,7 +22,7 @@ export default async function MyProfilePage() {
   const publicView = user as unknown as PublicProfileData;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-2 py-6 sm:px-4">
+    <PageContainer size="sm">
       <div className="flex items-start justify-between">
         <ProfileHeader user={publicView} isOwner />
         <Link href="/me/edit">
@@ -36,6 +37,6 @@ export default async function MyProfilePage() {
         </Link>
       </div>
       <ProfileSections user={publicView} isOwner />
-    </div>
+    </PageContainer>
   );
 }

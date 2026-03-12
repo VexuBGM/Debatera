@@ -451,7 +451,7 @@ export default function RoundEditorPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Trophy className="h-6 w-6 text-cyan-500" />
+          <Trophy className="h-6 w-6 text-brand" />
           <div>
             {isEditingName && canEdit ? (
               <div className="flex items-center gap-2">
@@ -545,7 +545,7 @@ export default function RoundEditorPage() {
       <Card>
         <CardHeader className="py-3 pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-cyan-500" />
+            <MessageSquare className="h-4 w-4 text-brand" />
             Motion
             {isAdmin && !isEditingMotion && (
               <Button

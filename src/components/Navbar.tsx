@@ -62,20 +62,20 @@ type NotificationItem = InstitutionInviteNotification | GeneralNotification;
 
 interface TopNavProps {
   onMenuClick?: () => void;
+  isAdmin?: boolean;
 }
 
-export default function TopNav({ onMenuClick }: TopNavProps = {}) {
+export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
   const pathname = usePathname();
   const { userId } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
-    
+
     setIsLoadingNotifications(true);
     try {
       const response = await fetch('/api/notifications');
@@ -91,32 +91,17 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
     }
   }, [userId]);
 
-  const checkAdminStatus = useCallback(async () => {
-    if (!userId) return;
-    
-    try {
-      const response = await fetch('/api/user/me');
-      if (response.ok) {
-        const data = await response.json();
-        setIsAdmin(data.role === 'ADMIN');
-      }
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-    }
-  }, [userId]);
-
   useEffect(() => {
     if (userId) {
       fetchNotifications();
-      checkAdminStatus();
     }
-    
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(() => {
       if (userId) fetchNotifications();
     }, 30000);
     return () => clearInterval(interval);
-  }, [userId, fetchNotifications, checkAdminStatus]);
+  }, [userId, fetchNotifications]);
 
   const handleAcceptInvite = async (invitationId: string) => {
     setProcessingInviteId(invitationId);
@@ -155,7 +140,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1530]/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-border bg-surface-1/70 backdrop-blur-xl">
       <div className="mx-auto max-w-[1400px] px-2 sm:px-4 md:px-6">
         <div className="flex h-12 sm:h-14 items-center gap-2 sm:gap-3">
           {/* Mobile Menu Button */}
@@ -189,7 +174,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
             <div className="relative w-full max-w-xl">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
               <Input
-                className="h-9 w-full rounded-lg border-white/10 bg-white/5 pl-9 text-white placeholder:text-white/50 focus-visible:ring-cyan-500/40"
+                className="h-9 w-full rounded-lg border-white/10 bg-white/5 pl-9 text-white placeholder:text-white/50 focus-visible:ring-brand/40"
                 placeholder="Search debates, teams, tournaments…"
               />
             </div>
@@ -202,7 +187,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
                 asChild
                 size="sm"
                 variant="outline"
-                className="hidden md:flex gap-1 sm:gap-2 rounded-lg border-cyan-500 text-cyan-500 hover:bg-cyan-500 hover:text-black text-xs sm:text-sm"
+                className="hidden md:flex gap-1 sm:gap-2 rounded-lg border-brand text-brand hover:bg-brand hover:text-brand-foreground text-xs sm:text-sm"
               >
                 <Link href="/admin/verify">
                   <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -215,7 +200,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
             <Button
               asChild
               size="sm"
-              className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-cyan-500 text-black hover:bg-cyan-400 text-xs sm:text-sm"
+              className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 text-xs sm:text-sm"
             >
               <Link href="/tournaments/new">
                 <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -286,7 +271,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
                               key={notification.id}
                               className={cn(
                                 "border-b p-3 last:border-b-0",
-                                !notification.isRead && "bg-cyan-500/5"
+                                !notification.isRead && "bg-brand/5"
                               )}
                             >
                               <div className="mb-2">
@@ -343,7 +328,7 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
                             key={notification.id}
                             className={cn(
                               "border-b p-3 last:border-b-0",
-                              !notification.isRead && "bg-cyan-500/5"
+                              !notification.isRead && "bg-brand/5"
                             )}
                           >
                             <p className="text-sm font-medium">{notification.title}</p>
@@ -385,11 +370,11 @@ export default function TopNav({ onMenuClick }: TopNavProps = {}) {
       </div>
 
       {/* Small-screen search under bar */}
-      <div className="block md:hidden border-t border-white/10 px-2 sm:px-3 pb-2 sm:pb-3 pt-2">
+      <div className="block md:hidden border-t border-border px-2 sm:px-3 pb-2 sm:pb-3 pt-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/40" />
           <Input
-            className="h-8 sm:h-9 w-full rounded-lg border-white/10 bg-white/5 pl-8 sm:pl-9 text-sm text-white placeholder:text-white/50 focus-visible:ring-cyan-500/40"
+            className="h-8 sm:h-9 w-full rounded-lg border-white/10 bg-white/5 pl-8 sm:pl-9 text-sm text-white placeholder:text-white/50 focus-visible:ring-brand/40"
             placeholder="Search…"
           />
         </div>

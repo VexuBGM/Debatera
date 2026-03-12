@@ -50,7 +50,7 @@ export function TeamColumn({
         min-w-[280px] max-w-[320px] flex-shrink-0 
         bg-white/5 border-white/10
         transition-colors duration-200
-        ${isOver ? 'border-cyan-500/50 bg-cyan-500/5' : ''}
+        ${isOver ? 'border-brand/50 bg-brand/5' : ''}
       `}
         >
             <CardHeader className="pb-3">

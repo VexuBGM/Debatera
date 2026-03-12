@@ -38,6 +38,9 @@ import { Label } from '@/components/ui/label';
 import { Plus, Edit, Trophy, Lock, ChevronDown, Check, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { PageContainer } from '@/components/PageContainer';
+import { PageHeader } from '@/components/PageHeader';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // =============================================================================
 // Types
@@ -66,18 +69,18 @@ interface Tournament {
 // Status Badge Helper
 // =============================================================================
 
-function getStatusBadgeVariant(status: RoundStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+function getStatusBadgeVariant(status: RoundStatus): 'draft' | 'published' | 'in-progress' | 'completed' {
   switch (status) {
     case 'DRAFT':
-      return 'secondary';
+      return 'draft';
     case 'PUBLISHED':
-      return 'default';
+      return 'published';
     case 'IN_PROGRESS':
-      return 'destructive';
+      return 'in-progress';
     case 'COMPLETED':
-      return 'outline';
+      return 'completed';
     default:
-      return 'secondary';
+      return 'draft';
   }
 }
 
@@ -277,48 +280,45 @@ export default function TournamentRoundsPage() {
   // Loading state
   if (loading) {
     return (
-      <main className="max-w-4xl mx-auto p-4 space-y-4">
+      <PageContainer size="md">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96 w-full" />
-      </main>
+      </PageContainer>
     );
   }
 
   // Not found state
   if (!tournament) {
     return (
-      <main className="max-w-4xl mx-auto p-4">
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4 text-center">
-          <Trophy className="h-16 w-16 text-muted-foreground" />
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Tournament Not Found</h1>
-            <p className="max-w-md text-muted-foreground">
-              The tournament you&apos;re looking for doesn&apos;t exist or may have
-              been removed.
-            </p>
-          </div>
-          <Link href="/">
-            <Button>Browse Tournaments</Button>
-          </Link>
-        </div>
-      </main>
+      <PageContainer size="md">
+        <EmptyState
+          icon={<Trophy className="h-16 w-16" />}
+          title="Tournament Not Found"
+          description="The tournament you're looking for doesn't exist or may have been removed."
+          action={{ label: 'Browse Tournaments', href: '/' }}
+          className="min-h-[60vh]"
+        />
+      </PageContainer>
     );
   }
 
   // Non-admin: show read-only view
   if (!isOwner) {
     return (
-      <main className="max-w-4xl mx-auto p-4 space-y-6">
-        <div className="flex items-center gap-4">
-          <Trophy className="h-6 w-6 text-cyan-500" />
-          <h1 className="text-2xl font-semibold">{tournament.name} - Rounds</h1>
-        </div>
+      <PageContainer size="md">
+        <PageHeader
+          icon={<Trophy className="h-6 w-6 text-brand" />}
+          title={`${tournament.name} - Rounds`}
+        />
 
         {rounds.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Lock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No rounds have been published yet.</p>
+            <CardContent>
+              <EmptyState
+                icon={<Lock className="h-12 w-12" />}
+                title="No Rounds Yet"
+                description="No rounds have been published yet."
+              />
             </CardContent>
           </Card>
         ) : (
@@ -340,26 +340,24 @@ export default function TournamentRoundsPage() {
             ))}
           </div>
         )}
-      </main>
+      </PageContainer>
     );
   }
 
   // Admin view
   return (
-    <main className="max-w-4xl mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Trophy className="h-6 w-6 text-cyan-500" />
-          <h1 className="text-2xl font-semibold">{tournament.name} - Rounds</h1>
-        </div>
-
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Round
-            </Button>
-          </DialogTrigger>
+    <PageContainer size="md">
+      <PageHeader
+        icon={<Trophy className="h-6 w-6 text-brand" />}
+        title={`${tournament.name} - Rounds`}
+        actions={
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Round
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Round</DialogTitle>
@@ -392,21 +390,18 @@ export default function TournamentRoundsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {rounds.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle>No Rounds Yet</CardTitle>
-            <CardDescription>
-              Create your first round to start setting up the pairings.
-            </CardDescription>
-          </CardHeader>
           <CardContent>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create First Round
-            </Button>
+            <EmptyState
+              icon={<Trophy className="h-12 w-12" />}
+              title="No Rounds Yet"
+              description="Create your first round to start setting up the pairings."
+              action={{ label: 'Create First Round', onClick: () => setCreateDialogOpen(true) }}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -543,6 +538,6 @@ export default function TournamentRoundsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </PageContainer>
   );
 }

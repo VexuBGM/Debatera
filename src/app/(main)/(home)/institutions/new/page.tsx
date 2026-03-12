@@ -55,7 +55,7 @@ export default function CreateInstitutionPage() {
           </Button>
         </Link>
         <div className="flex items-center gap-3 mb-2">
-          <Building2 className="h-8 w-8 text-cyan-500" />
+          <Building2 className="h-8 w-8 text-brand" />
           <h1 className="text-3xl font-bold">Create Institution</h1>
         </div>
         <p className="text-muted-foreground">
@@ -103,7 +103,7 @@ export default function CreateInstitutionPage() {
             <div className="flex gap-3">
               <Button
                 type="submit"
-                className="bg-cyan-500 hover:bg-cyan-600"
+                className="bg-brand hover:bg-brand/90"
                 disabled={isLoading || !formData.name.trim()}
               >
                 {isLoading ? (

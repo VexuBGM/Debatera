@@ -10,6 +10,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Check, Edit, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { PageContainer } from '@/components/PageContainer';
+import { PageHeader } from '@/components/PageHeader';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // ============================================================================
 // Types
@@ -74,53 +77,50 @@ export default function MyBallotsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-4">
+      <PageContainer size="md">
         <Skeleton className="h-8 w-48" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (ballots.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Scale className="h-6 w-6" />
-          My Ballots
-        </h1>
+      <PageContainer size="md">
+        <PageHeader
+          icon={<Scale className="h-6 w-6" />}
+          title="My Ballots"
+        />
         <Card>
-          <CardContent className="py-12 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              No ballots assigned to you in this tournament yet.
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ballots are created automatically when you are allocated as a
-              judge in a debate.
-            </p>
+          <CardContent>
+            <EmptyState
+              icon={<FileText className="h-12 w-12" />}
+              title="No ballots assigned yet"
+              description="Ballots are created automatically when you are allocated as a judge in a debate."
+            />
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Scale className="h-6 w-6" />
-        My Ballots
-      </h1>
+    <PageContainer size="md">
+      <PageHeader
+        icon={<Scale className="h-6 w-6" />}
+        title="My Ballots"
+      />
 
       <div className="space-y-3">
         {ballots.map((ballot) => (
           <BallotCard key={ballot.id} ballot={ballot} eventMode={eventMode} />
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

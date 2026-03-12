@@ -34,7 +34,7 @@ const Tournaments = async () => {
       <div className="flex justify-between items-center">
         <h1 className="text-xl sm:text-2xl font-semibold">Tournaments</h1>
         <Link href="/tournaments/new">
-          <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-md text-sm">
+          <button className="bg-brand hover:bg-brand/90 text-brand-foreground px-4 py-2 rounded-md text-sm">
             Create Tournament
           </button>
         </Link>
@@ -45,10 +45,10 @@ const Tournaments = async () => {
         <ul className="space-y-3">
           {tournaments.map(t => (
             <Link key={t.id} href={`/tournaments/${t.id}`}>
-              <li className="rounded-lg border p-4 hover:border-cyan-500/50 transition-colors bg-card">
+              <li className="rounded-lg border p-4 hover:border-brand/50 transition-colors bg-card">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-cyan-500" />
+                    <Trophy className="h-5 w-5 text-brand" />
                     <h2 className="text-base sm:text-lg font-medium">{t.name}</h2>
                   </div>
                 </div>
