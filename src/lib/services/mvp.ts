@@ -9,6 +9,13 @@
 import { prisma } from '@/lib/prisma';
 import { InstitutionRole, EventMode } from '@prisma/client';
 
+type CreateTournamentSettingsInput = {
+  registrationOpensAt?: Date | null;
+  registrationClosesAt?: Date | null;
+  teamSizeMin?: number;
+  teamSizeMax?: number;
+};
+
 // ============================================================================
 // INSTITUTION SERVICES
 // ============================================================================
@@ -100,14 +107,29 @@ export async function isInstitutionAdmin(userId: string, institutionId: string):
 // TOURNAMENT SERVICES
 // ============================================================================
 
-export async function createTournament(name: string, userId: string, eventMode: EventMode = EventMode.IRL) {
+export async function createTournament(
+  name: string,
+  userId: string,
+  eventMode: EventMode = EventMode.IRL,
+  settingsInput?: CreateTournamentSettingsInput
+) {
+  const teamSizeMin = settingsInput?.teamSizeMin ?? 2;
+  const teamSizeMax = settingsInput?.teamSizeMax ?? 5;
+
   return prisma.tournament.create({
     data: {
       name,
       createdByUserId: userId,
+      registrationClosesAt: settingsInput?.registrationClosesAt ?? null,
+      teamMinSize: teamSizeMin,
+      teamMaxSize: teamSizeMax,
       settings: {
         create: {
           eventMode,
+          registrationOpensAt: settingsInput?.registrationOpensAt ?? null,
+          registrationClosesAt: settingsInput?.registrationClosesAt ?? null,
+          teamSizeMin,
+          teamSizeMax,
         },
       },
     },

@@ -8,12 +8,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Trophy, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { Loader2, Trophy, ArrowLeft, ArrowRight, Check, CalendarDays, Clock3 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { StepIndicator } from '@/components/ui/step-indicator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const STEPS = [
   { label: 'Basics', description: 'Name and mode' },
@@ -156,24 +167,20 @@ export default function CreateTournamentPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="regOpen">Registration Opens</Label>
-                <Input
-                  id="regOpen"
-                  type="datetime-local"
-                  value={registrationOpen}
-                  onChange={(e) => setRegistrationOpen(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="regClose">Registration Closes</Label>
-                <Input
-                  id="regClose"
-                  type="datetime-local"
-                  value={registrationClose}
-                  onChange={(e) => setRegistrationClose(e.target.value)}
-                />
-              </div>
+              <DateTimePickerField
+                id="regOpen"
+                label="Registration Opens"
+                value={registrationOpen}
+                onChange={setRegistrationOpen}
+                placeholder="Pick date and time"
+              />
+              <DateTimePickerField
+                id="regClose"
+                label="Registration Closes"
+                value={registrationClose}
+                onChange={setRegistrationClose}
+                placeholder="Pick date and time"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -275,4 +282,166 @@ export default function CreateTournamentPage() {
       )}
     </PageContainer>
   );
+}
+
+function DateTimePickerField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const parsedDate = parseDateTimeLocal(value);
+
+  const handleDateSelect = (nextDate?: Date) => {
+    if (!nextDate) {
+      onChange('');
+      return;
+    }
+
+    const base = parsedDate ? new Date(parsedDate) : new Date();
+    base.setFullYear(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
+    onChange(toDateTimeLocalValue(base));
+  };
+
+  const handleTimePartChange = (part: 'hour' | 'minute' | 'period', nextValue: string) => {
+    const base = parsedDate ? new Date(parsedDate) : new Date();
+
+    let currentHour24 = base.getHours();
+    const currentMinute = base.getMinutes();
+    const currentHour12 = currentHour24 % 12 === 0 ? 12 : currentHour24 % 12;
+    const currentPeriod = currentHour24 >= 12 ? 'PM' : 'AM';
+
+    let hour12 = currentHour12;
+    let minute = currentMinute;
+    let period = currentPeriod;
+
+    if (part === 'hour') {
+      hour12 = Number(nextValue);
+    }
+    if (part === 'minute') {
+      minute = Number(nextValue);
+    }
+    if (part === 'period') {
+      period = nextValue as 'AM' | 'PM';
+    }
+
+    currentHour24 = hour12 % 12;
+    if (period === 'PM') {
+      currentHour24 += 12;
+    }
+
+    base.setHours(currentHour24, minute, 0, 0);
+    onChange(toDateTimeLocalValue(base));
+  };
+
+  const hour24 = parsedDate?.getHours() ?? 12;
+  const minute = parsedDate?.getMinutes() ?? 0;
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            id={id}
+            variant="outline"
+            className={cn(
+              'h-10 w-full justify-start gap-2 text-left font-normal',
+              !parsedDate && 'text-muted-foreground'
+            )}
+          >
+            <CalendarDays className="h-4 w-4 text-foreground" />
+            <span className="truncate">
+              {parsedDate ? format(parsedDate, 'PPP p') : placeholder}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto p-0">
+          <div className="rounded-md border bg-popover p-3">
+            <Calendar
+              mode="single"
+              selected={parsedDate}
+              onSelect={handleDateSelect}
+              initialFocus
+            />
+            <div className="mt-2 border-t pt-3">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock3 className="h-3.5 w-3.5 text-foreground" />
+                Time
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={String(hour12)} onValueChange={(next) => handleTimePartChange('hour', next)}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue placeholder="Hour" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                      <SelectItem key={h} value={String(h)}>
+                        {String(h).padStart(2, '0')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={String(minute)} onValueChange={(next) => handleTimePartChange('minute', next)}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue placeholder="Min" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 60 }, (_, i) => i).map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {String(m).padStart(2, '0')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={period} onValueChange={(next) => handleTimePartChange('period', next)}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue placeholder="AM/PM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="mt-3 flex items-center justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => onChange('')}>
+                  Clear
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => onChange(toDateTimeLocalValue(new Date()))}>
+                  Now
+                </Button>
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function parseDateTimeLocal(value: string): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function toDateTimeLocalValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
