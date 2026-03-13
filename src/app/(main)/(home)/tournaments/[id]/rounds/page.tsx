@@ -150,7 +150,6 @@ export default function TournamentRoundsPage() {
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to load rounds');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
   useEffect(() => {
@@ -162,8 +161,7 @@ export default function TournamentRoundsPage() {
   useEffect(() => {
     if (!tournamentId) return;
     void fetchRounds(roundsPage);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundsPage, fetchRounds]);
+  }, [roundsPage, fetchRounds, tournamentId]);
 
   async function fetchData() {
     try {

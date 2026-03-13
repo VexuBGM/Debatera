@@ -73,13 +73,11 @@ export default function MyBallotsPage() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
   useEffect(() => {
     if (!tournamentId || !userId) return;
     void fetchBallots(ballotsPage);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId, userId, ballotsPage, fetchBallots]);
 
   if (loading) {

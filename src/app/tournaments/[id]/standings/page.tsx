@@ -97,13 +97,11 @@ export default function StandingsPage() {
         setLoading(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [params.id, searchParams],
   );
 
   useEffect(() => {
     void fetchStandings(teamPage, speakerPage);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamPage, speakerPage, fetchStandings]);
 
   if (loading) {
