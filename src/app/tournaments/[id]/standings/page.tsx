@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@clerk/nextjs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -13,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, Users, Medal } from 'lucide-react';
+import { Trophy, Users, Medal, ArrowLeft, UserPlus } from 'lucide-react';
 
 // ============================================================================
 // Types (matching API response)
@@ -58,6 +61,7 @@ interface StandingsData {
 export default function StandingsPage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const [data, setData] = useState<StandingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,11 +119,33 @@ export default function StandingsPage() {
     <PageShell>
       <div className="space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {data.tournamentName}
-          </h1>
-          <p className="text-slate-400 text-sm">Points &amp; Standings</p>
+        <div className="space-y-3">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {data.tournamentName}
+            </h1>
+            <p className="text-slate-400 text-sm">Points &amp; Standings</p>
+          </div>
+
+          {isAuthLoaded && (
+            <div className="flex justify-center">
+              {isSignedIn ? (
+                <Button variant="outline" asChild>
+                  <Link href={`/tournaments/${data.tournamentId}`}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Tournament
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild>
+                  <Link href={`/tournaments/${data.tournamentId}/register`}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Register
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {!hasData ? (

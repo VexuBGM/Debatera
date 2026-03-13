@@ -141,7 +141,7 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-surface-1/70 backdrop-blur-xl">
-      <div className="mx-auto max-w-[1400px] px-2 sm:px-4 md:px-6">
+      <div className="mx-auto max-w-350 px-2 sm:px-4 md:px-6">
         <div className="flex h-12 sm:h-14 items-center gap-2 sm:gap-3">
           {/* Mobile Menu Button */}
           <Button
