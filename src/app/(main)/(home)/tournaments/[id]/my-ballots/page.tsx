@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination';
 import { FileText, Check, Edit, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import type { PaginationMeta } from '@/lib/pagination';
 
 // ============================================================================
 // Types
@@ -49,20 +51,21 @@ export default function MyBallotsPage() {
   const [ballots, setBallots] = useState<BallotListItem[]>([]);
   const [eventMode, setEventMode] = useState<'IRL' | 'ONLINE'>('IRL');
   const [loading, setLoading] = useState(true);
+  const [ballotsPage, setBallotsPage] = useState(1);
+  const [ballotsPaginationMeta, setBallotsPaginationMeta] = useState<PaginationMeta | null>(null);
+  const BALLOTS_PAGE_SIZE = 10;
 
-  useEffect(() => {
-    if (!tournamentId || !userId) return;
-    void fetchBallots();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournamentId, userId]);
-
-  async function fetchBallots() {
+  const fetchBallots = useCallback(async (page: number) => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/ballots/my?tournamentId=${tournamentId}`);
+      const res = await fetch(
+        `/api/ballots/my?tournamentId=${tournamentId}&page=${page}&pageSize=${BALLOTS_PAGE_SIZE}`,
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to fetch ballots');
       setEventMode(data.eventMode ?? 'IRL');
       setBallots(data.ballots);
+      if (data.pagination) setBallotsPaginationMeta(data.pagination);
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to load ballots'
@@ -70,7 +73,14 @@ export default function MyBallotsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournamentId]);
+
+  useEffect(() => {
+    if (!tournamentId || !userId) return;
+    void fetchBallots(ballotsPage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournamentId, userId, ballotsPage, fetchBallots]);
 
   if (loading) {
     return (
@@ -120,6 +130,13 @@ export default function MyBallotsPage() {
           <BallotCard key={ballot.id} ballot={ballot} eventMode={eventMode} />
         ))}
       </div>
+      {ballotsPaginationMeta && (
+        <PaginationControls
+          pagination={ballotsPaginationMeta}
+          onPageChange={setBallotsPage}
+          className="mt-4"
+        />
+      )}
     </div>
   );
 }

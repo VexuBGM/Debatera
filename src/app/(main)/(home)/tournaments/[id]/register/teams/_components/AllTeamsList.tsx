@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PaginationControls } from '@/components/ui/pagination';
 import { Users } from 'lucide-react';
 import type { TeamWithMembers } from '@/actions/teams.actions';
 import { displayNameFromDbUser, initialsFromDbUser } from '@/lib/users/displayName';
@@ -16,11 +18,20 @@ interface AllTeamsListProps {
     teamMaxSize: number;
 }
 
+const INSTITUTIONS_PAGE_SIZE = 9; // 3 columns × 3 rows
+
 /**
  * Read-only view of all teams across all institutions.
  * Displayed as grouped cards by institution.
  */
 export function AllTeamsList({ allTeams, teamMinSize, teamMaxSize }: AllTeamsListProps) {
+    const [page, setPage] = useState(1);
+    const totalPages = Math.max(1, Math.ceil(allTeams.length / INSTITUTIONS_PAGE_SIZE));
+    const pagedInstitutions = allTeams.slice(
+        (page - 1) * INSTITUTIONS_PAGE_SIZE,
+        page * INSTITUTIONS_PAGE_SIZE,
+    );
+
     if (allTeams.length === 0) {
         return (
             <Card className="bg-white/5 border-white/10">
@@ -37,7 +48,7 @@ export function AllTeamsList({ allTeams, teamMinSize, teamMaxSize }: AllTeamsLis
             <h2 className="text-lg font-semibold text-white">All Teams</h2>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {allTeams.map(({ institution, teams }) => (
+                {pagedInstitutions.map(({ institution, teams }) => (
                     <Card key={institution.id} className="bg-white/5 border-white/10">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium text-white/70">
@@ -122,6 +133,19 @@ export function AllTeamsList({ allTeams, teamMinSize, teamMaxSize }: AllTeamsLis
                     </Card>
                 ))}
             </div>
+            {allTeams.length > INSTITUTIONS_PAGE_SIZE && (
+                <PaginationControls
+                    pagination={{
+                        page,
+                        pageSize: INSTITUTIONS_PAGE_SIZE,
+                        total: allTeams.length,
+                        totalPages,
+                        hasNextPage: page < totalPages,
+                        hasPreviousPage: page > 1,
+                    }}
+                    onPageChange={setPage}
+                />
+            )}
         </div>
     );
 }

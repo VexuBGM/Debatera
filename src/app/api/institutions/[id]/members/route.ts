@@ -3,13 +3,15 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { ensureUserInDB } from '@/lib/ensureUser';
 import { InstitutionRole } from '@prisma/client';
+import { parsePaginationParams, paginationToSkipTake, buildPaginationMeta } from '@/lib/pagination';
 
 export const runtime = 'nodejs';
 
 /**
  * GET /api/institutions/[id]/members
  * Auth: requester must be ADMIN of institution.
- * Returns members with user info + role.
+ * Returns paginated members with user info + role.
+ * Supports ?page=1&pageSize=20 query params.
  */
 export async function GET(
   req: Request,
@@ -32,26 +34,39 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const members = await prisma.institutionMember.findMany({
-      where: { institutionId },
-      select: {
-        id: true,
-        role: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            imageUrl: true,
+    const { searchParams } = new URL(req.url);
+    const pagination = parsePaginationParams(searchParams);
+    const { skip, take } = paginationToSkipTake(pagination);
+    const where = { institutionId };
+
+    const [members, total] = await Promise.all([
+      prisma.institutionMember.findMany({
+        where,
+        select: {
+          id: true,
+          role: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              imageUrl: true,
+            },
           },
         },
-      },
-      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
-    });
+        orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+        skip,
+        take,
+      }),
+      prisma.institutionMember.count({ where }),
+    ]);
 
-    return NextResponse.json(members, { status: 200 });
+    return NextResponse.json(
+      { data: members, pagination: buildPaginationMeta(total, pagination) },
+      { status: 200 },
+    );
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { PaginationControls } from '@/components/ui/pagination';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,9 @@ export default function ParticipantsPage() {
   const [loading, setLoading] = useState(true);
   const [debaters, setDebaters] = useState<ParticipantWithUser[]>([]);
   const [judges, setJudges] = useState<ParticipantWithUser[]>([]);
+  const PARTICIPANTS_PAGE_SIZE = 25;
+  const [judgesPage, setJudgesPage] = useState(1);
+  const [debatersPage, setDebatersPage] = useState(1);
   const [institutions, setInstitutions] = useState<Array<{ id: string; name: string }>>([]);
   const [tournament, setTournament] = useState<{ id: string; name: string; createdByUserId: string } | null>(null);
   const [isOrganizer, setIsOrganizer] = useState(false);
@@ -260,6 +264,15 @@ export default function ParticipantsPage() {
   const canManage = isOrganizer || (userId && tournament.createdByUserId === userId);
 
   function renderParticipantList(participants: ParticipantWithUser[], role: 'DEBATER' | 'JUDGE') {
+    const page = role === 'JUDGE' ? judgesPage : debatersPage;
+    const setPage = role === 'JUDGE' ? setJudgesPage : setDebatersPage;
+    const total = participants.length;
+    const totalPages = Math.max(1, Math.ceil(total / PARTICIPANTS_PAGE_SIZE));
+    const paged = participants.slice(
+      (page - 1) * PARTICIPANTS_PAGE_SIZE,
+      page * PARTICIPANTS_PAGE_SIZE,
+    );
+
     if (participants.length === 0) {
       return (
         <div className="text-center py-8 text-muted-foreground">
@@ -273,57 +286,73 @@ export default function ParticipantsPage() {
     }
 
     return (
-      <div className="divide-y">
-        {participants.map((p) => (
-          <div key={p.id} className="flex items-center justify-between py-3 px-1">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                {getDisplayName(p.user).charAt(0).toUpperCase()}
+      <>
+        <div className="divide-y">
+          {paged.map((p) => (
+            <div key={p.id} className="flex items-center justify-between py-3 px-1">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                  {getDisplayName(p.user).charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{getDisplayName(p.user)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.institution.name}
+                    {p.user.id.startsWith('guest_') && (
+                      <Badge variant="outline" className="ml-2 text-[10px] py-0">Guest</Badge>
+                    )}
+                    {role === 'DEBATER' && p.teamMembership && (
+                      <Badge variant="secondary" className="ml-2 text-[10px] py-0">In team</Badge>
+                    )}
+                    {role === 'DEBATER' && !p.teamMembership && (
+                      <Badge variant="destructive" className="ml-2 text-[10px] py-0">Unassigned</Badge>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-sm">{getDisplayName(p.user)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {p.institution.name}
-                  {p.user.id.startsWith('guest_') && (
-                    <Badge variant="outline" className="ml-2 text-[10px] py-0">Guest</Badge>
+              {canManage && (
+                <div className="flex items-center gap-1">
+                  {role === 'JUDGE' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-blue-500"
+                      onClick={() => handleGenerateLink(p.id)}
+                      disabled={generatingLinkId === p.id}
+                      title="Generate portal link"
+                    >
+                      <Link2 className="h-4 w-4" />
+                    </Button>
                   )}
-                  {role === 'DEBATER' && p.teamMembership && (
-                    <Badge variant="secondary" className="ml-2 text-[10px] py-0">In team</Badge>
-                  )}
-                  {role === 'DEBATER' && !p.teamMembership && (
-                    <Badge variant="destructive" className="ml-2 text-[10px] py-0">Unassigned</Badge>
-                  )}
-                </p>
-              </div>
-            </div>
-            {canManage && (
-              <div className="flex items-center gap-1">
-                {role === 'JUDGE' && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-blue-500"
-                    onClick={() => handleGenerateLink(p.id)}
-                    disabled={generatingLinkId === p.id}
-                    title="Generate portal link"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRemove(p.id)}
+                    disabled={removeLoadingId === p.id}
                   >
-                    <Link2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => handleRemove(p.id)}
-                  disabled={removeLoadingId === p.id}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {total > PARTICIPANTS_PAGE_SIZE && (
+          <PaginationControls
+            pagination={{
+              page,
+              pageSize: PARTICIPANTS_PAGE_SIZE,
+              total,
+              totalPages,
+              hasNextPage: page < totalPages,
+              hasPreviousPage: page > 1,
+            }}
+            onPageChange={setPage}
+            className="mt-3"
+          />
+        )}
+      </>
     );
   }
 

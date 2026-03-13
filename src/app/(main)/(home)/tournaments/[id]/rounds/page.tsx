@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { PaginationControls } from '@/components/ui/pagination';
 import {
   Dialog,
   DialogContent,
@@ -110,6 +111,12 @@ export default function TournamentRoundsPage() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [roundsPage, setRoundsPage] = useState(1);
+  const [roundsPaginationMeta, setRoundsPaginationMeta] = useState<{
+    page: number; pageSize: number; total: number; totalPages: number;
+    hasNextPage: boolean; hasPreviousPage: boolean;
+  } | null>(null);
+  const ROUNDS_PAGE_SIZE = 10;
 
   // Create round dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -130,11 +137,33 @@ export default function TournamentRoundsPage() {
   const isOwner = tournament?.createdByUserId === userId;
 
   // Fetch tournament details and rounds
+  const fetchRounds = useCallback(async (page: number) => {
+    if (!tournamentId) return;
+    try {
+      const roundsRes = await fetch(
+        `/api/tournaments/${tournamentId}/rounds?page=${page}&pageSize=${ROUNDS_PAGE_SIZE}`,
+      );
+      if (!roundsRes.ok) throw new Error('Failed to fetch rounds');
+      const roundsData = await roundsRes.json();
+      setRounds(roundsData.rounds || []);
+      if (roundsData.pagination) setRoundsPaginationMeta(roundsData.pagination);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load rounds');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournamentId]);
+
   useEffect(() => {
     if (!tournamentId) return;
     void fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
+
+  useEffect(() => {
+    if (!tournamentId) return;
+    void fetchRounds(roundsPage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundsPage, fetchRounds]);
 
   async function fetchData() {
     try {
@@ -144,11 +173,14 @@ export default function TournamentRoundsPage() {
       const tournamentData = await tournamentRes.json();
       setTournament(tournamentData);
 
-      // Fetch rounds
-      const roundsRes = await fetch(`/api/tournaments/${tournamentId}/rounds`);
+      // Fetch rounds (page 1 initially)
+      const roundsRes = await fetch(
+        `/api/tournaments/${tournamentId}/rounds?page=1&pageSize=${ROUNDS_PAGE_SIZE}`,
+      );
       if (!roundsRes.ok) throw new Error('Failed to fetch rounds');
       const roundsData = await roundsRes.json();
       setRounds(roundsData.rounds || []);
+      if (roundsData.pagination) setRoundsPaginationMeta(roundsData.pagination);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -340,6 +372,12 @@ export default function TournamentRoundsPage() {
             ))}
           </div>
         )}
+        {roundsPaginationMeta && (
+          <PaginationControls
+            pagination={roundsPaginationMeta}
+            onPageChange={(p) => setRoundsPage(p)}
+          />
+        )}
       </main>
     );
   }
@@ -486,6 +524,12 @@ export default function TournamentRoundsPage() {
             </Card>
           ))}
         </div>
+      )}
+      {roundsPaginationMeta && (
+        <PaginationControls
+          pagination={roundsPaginationMeta}
+          onPageChange={(p) => setRoundsPage(p)}
+        />
       )}
 
       {/* Rename Dialog */}

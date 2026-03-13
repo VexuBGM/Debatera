@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { PaginationControls } from '@/components/ui/pagination';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -113,6 +114,8 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
 
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [participantsPage, setParticipantsPage] = useState(1);
+  const PARTICIPANTS_PAGE_SIZE = 20;
 
   const [roleByUserId, setRoleByUserId] = useState<Record<string, 'DEBATER' | 'JUDGE'>>({});
   const [registeringUserId, setRegisteringUserId] = useState<string | null>(null);
@@ -556,7 +559,12 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
                     )}
 
                     {!participantsLoading &&
-                      participants.map(p => (
+                      participants
+                        .slice(
+                          (participantsPage - 1) * PARTICIPANTS_PAGE_SIZE,
+                          participantsPage * PARTICIPANTS_PAGE_SIZE,
+                        )
+                        .map(p => (
                         <TableRow key={p.id}>
                           <TableCell>
                             <div className="font-medium">{displayUser(p.user)}</div>
@@ -580,6 +588,20 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
                   </TableBody>
                 </Table>
               </div>
+              {participants.length > PARTICIPANTS_PAGE_SIZE && (
+                <PaginationControls
+                  pagination={{
+                    page: participantsPage,
+                    pageSize: PARTICIPANTS_PAGE_SIZE,
+                    total: participants.length,
+                    totalPages: Math.ceil(participants.length / PARTICIPANTS_PAGE_SIZE),
+                    hasNextPage: participantsPage < Math.ceil(participants.length / PARTICIPANTS_PAGE_SIZE),
+                    hasPreviousPage: participantsPage > 1,
+                  }}
+                  onPageChange={setParticipantsPage}
+                  className="mt-3"
+                />
+              )}
             </CardContent>
           </Card>
         </div>

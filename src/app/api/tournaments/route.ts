@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server';
 import { createTournament, listTournaments } from '@/lib/services/mvp';
 import { ensureUserInDB } from '@/lib/ensureUser';
 import { EventModeEnum } from '@/lib/validations/tournamentSettings';
+import { parsePaginationParams } from '@/lib/pagination';
 
 // Prisma requires Node.js runtime, not Edge:
 export const runtime = 'nodejs';
@@ -36,10 +37,12 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const tournaments = await listTournaments();
-    return NextResponse.json(tournaments, { status: 200 });
+    const { searchParams } = new URL(req.url);
+    const pagination = parsePaginationParams(searchParams);
+    const result = await listTournaments(pagination);
+    return NextResponse.json(result, { status: 200 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
