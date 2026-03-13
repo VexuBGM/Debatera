@@ -30,8 +30,8 @@ const Tournaments = async () => {
   });
   
   return (
-    <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
-      <div className="flex justify-between items-center">
+    <main className="mx-auto max-w-4xl space-y-4 p-3 sm:space-y-5 sm:p-4 md:p-6">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-semibold">Tournaments</h1>
         <Link href="/tournaments/new">
           <button className="bg-brand hover:bg-brand/90 text-brand-foreground px-4 py-2 rounded-md text-sm">
@@ -42,14 +42,17 @@ const Tournaments = async () => {
       {tournaments.length === 0 ? (
         <p className="text-sm sm:text-base">No tournaments yet. Create one to get started!</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3 sm:space-y-4">
           {tournaments.map(t => (
-            <Link key={t.id} href={`/tournaments/${t.id}`}>
-              <li className="rounded-lg border p-4 hover:border-brand/50 transition-colors bg-card">
-                <div className="flex justify-between items-start mb-2">
+            <li key={t.id}>
+              <Link
+                href={`/tournaments/${t.id}`}
+                className="block rounded-lg border bg-card p-4 transition-colors hover:border-brand/50"
+              >
+                <div className="mb-2 flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <Trophy className="h-5 w-5 text-brand" />
-                    <h2 className="text-base sm:text-lg font-medium">{t.name}</h2>
+                    <h2 className="text-base font-medium sm:text-lg">{t.name}</h2>
                   </div>
                 </div>
                 
@@ -66,8 +69,8 @@ const Tournaments = async () => {
                     Created {new Date(t.createdAt).toLocaleDateString()}
                   </div>
                 </div>
-              </li>
-            </Link>
+              </Link>
+            </li>
           ))}
         </ul>
       )}
