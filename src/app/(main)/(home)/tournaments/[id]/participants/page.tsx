@@ -608,7 +608,7 @@ export default function ParticipantsPage() {
 
         <TabsContent value="debaters">
           {canManage && (
-            <div className="mb-3 p-3 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 text-sm text-blue-700 dark:text-blue-300">
+            <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
               To add debaters, go to the <strong>Teams</strong> page and use &quot;Add Debaters&quot; on each team. Debaters inherit the team&apos;s institution automatically.
             </div>
           )}

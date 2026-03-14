@@ -23,6 +23,13 @@ export const bulkAddDebatersToTeamSchema = z.object({
   names: z.string().min(1, 'At least one name is required'),
 });
 
+export const bulkAddGuestDebatersToInstitutionSchema = z.object({
+  tournamentId: z.string().min(1),
+  names: z.string().min(1, 'At least one name is required'),
+  institutionId: z.string().optional(),
+  institutionName: z.string().max(200).optional(),
+});
+
 /** Create a team with institution resolution (id or inline name). */
 export const createTeamWithInstitutionSchema = z.object({
   tournamentId: z.string().min(1),

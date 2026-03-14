@@ -37,7 +37,9 @@ export default async function TeamsPage({ params }: TeamsPageProps) {
         tournament,
         allTeams,
         manageableInstitutions,
-        currentUserParticipantInstitutionId
+        currentUserParticipantInstitutionId,
+        isOrganizer,
+        canCreateInstitutions,
     } = result.data;
 
     const isLocked = isRegistrationClosed(tournament.registrationClosesAt);
@@ -80,14 +82,16 @@ export default async function TeamsPage({ params }: TeamsPageProps) {
             </div>
 
             {/* Management Board (if user can manage at least one institution) */}
-            {manageableInstitutions.length > 0 && (
+            {(manageableInstitutions.length > 0 || canCreateInstitutions) && (
                 <ManageTeamsBoard
                     tournamentId={tournamentId}
                     tournament={tournament}
                     manageableInstitutions={manageableInstitutions}
-                    defaultInstitutionId={defaultInstitutionId!}
+                    defaultInstitutionId={defaultInstitutionId}
                     initialTeamState={initialTeamState}
                     isLocked={isLocked}
+                    isOrganizer={isOrganizer}
+                    canCreateInstitutions={canCreateInstitutions}
                 />
             )}
 
