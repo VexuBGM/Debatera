@@ -79,6 +79,18 @@ type TournamentParticipant = {
   };
 };
 
+type PaginatedResponse<T> = {
+  data: T[];
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
 async function readJsonOrError(res: Response): Promise<any> {
   const text = await res.text();
   try {
@@ -86,6 +98,21 @@ async function readJsonOrError(res: Response): Promise<any> {
   } catch {
     return { error: text };
   }
+}
+
+function readArrayPayload<T>(json: unknown): T[] {
+  if (Array.isArray(json)) return json as T[];
+
+  if (
+    typeof json === 'object' &&
+    json !== null &&
+    'data' in json &&
+    Array.isArray((json as PaginatedResponse<T>).data)
+  ) {
+    return (json as PaginatedResponse<T>).data;
+  }
+
+  return [];
 }
 
 function displayUser(u: InstitutionMember['user'] | TournamentParticipant['user']) {
@@ -182,10 +209,11 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
       const res = await fetch(`/api/institutions/${institutionId}/members`);
       const json = await readJsonOrError(res);
       if (!res.ok) throw new Error(json?.error || 'Failed to load members');
-      setMembers(json);
+      const nextMembers = readArrayPayload<InstitutionMember>(json);
+      setMembers(nextMembers);
       setRoleByUserId(prev => {
         const next = { ...prev };
-        for (const m of json as InstitutionMember[]) {
+        for (const m of nextMembers) {
           if (!next[m.user.id]) next[m.user.id] = 'DEBATER';
         }
         return next;

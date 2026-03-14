@@ -1,10 +1,9 @@
-import React from 'react'
 import Link from 'next/link';
 import { Trophy, Users } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
 import { parsePaginationParams, paginationToSkipTake, buildPaginationMeta } from '@/lib/pagination';
-import { TournamentsPagination } from './_components/TournamentsPagination';
+import { UrlPaginationControls } from '@/components/ui/url-pagination-controls';
 
 interface TournamentsPageProps {
   searchParams: Promise<{ page?: string; pageSize?: string }>;
@@ -107,7 +106,7 @@ const Tournaments = async ({ searchParams }: TournamentsPageProps) => {
               </li>
             ))}
           </ul>
-          <TournamentsPagination paginationMeta={paginationMeta} />
+          <UrlPaginationControls paginationMeta={paginationMeta} />
         </>
       )}
     </main>
