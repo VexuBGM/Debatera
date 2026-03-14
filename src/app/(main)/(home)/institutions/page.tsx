@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination';
 import { Building2, Plus, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import type { PaginationMeta } from '@/lib/pagination';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -23,31 +25,50 @@ interface Institution {
   };
 }
 
+interface InstitutionsResponse {
+  data: Institution[];
+  pagination: PaginationMeta;
+}
+
+const PAGE_SIZE = 20;
+
 export default function InstitutionsPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    fetchInstitutions();
-  }, []);
-
-  const fetchInstitutions = async () => {
+  const fetchInstitutions = useCallback(async (currentPage: number) => {
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/institutions');
+      const response = await fetch(
+        `/api/institutions?page=${currentPage}&pageSize=${PAGE_SIZE}`,
+      );
       if (!response.ok) throw new Error('Failed to fetch institutions');
-      const data = await response.json();
-      setInstitutions(data);
+      const json: InstitutionsResponse = await response.json();
+      setInstitutions(json.data);
+      setPaginationMeta(json.pagination);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Failed to load');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    void fetchInstitutions(page);
+  }, [page, fetchInstitutions]);
+
+  // Client-side search filters the current page
   const filteredInstitutions = institutions.filter((inst) =>
     inst.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  function handlePageChange(newPage: number) {
+    setPage(newPage);
+    setSearchQuery('');
+  }
 
   return (
     <PageContainer size="lg">
@@ -101,33 +122,42 @@ export default function InstitutionsPage() {
           />
         </Card>
       ) : (
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredInstitutions.map((institution) => (
-            <Link key={institution.id} href={`/institutions/${institution.id}`}>
-              <Card className="h-full hover:border-brand/50 transition-colors cursor-pointer">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base sm:text-lg line-clamp-1">
-                    {institution.name}
-                  </CardTitle>
-                  <CardDescription className="line-clamp-2 min-h-8 sm:min-h-10 text-xs sm:text-sm">
-                    {institution.description || 'No description provided'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-4 text-xs sm:text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      <span>{institution._count.members} members</span>
+        <>
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredInstitutions.map((institution) => (
+              <Link key={institution.id} href={`/institutions/${institution.id}`}>
+                <Card className="h-full hover:border-brand/50 transition-colors cursor-pointer">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg line-clamp-1">
+                      {institution.name}
+                    </CardTitle>
+                    <CardDescription className="line-clamp-2 min-h-8 sm:min-h-10 text-xs sm:text-sm">
+                      {institution.description || 'No description provided'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-4 text-xs sm:text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <span>{institution._count.members} members</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-muted-foreground">
-                    Created {new Date(institution.createdAt).toLocaleDateString()}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                    <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-muted-foreground">
+                      Created {new Date(institution.createdAt).toLocaleDateString()}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          {paginationMeta && !searchQuery && (
+            <PaginationControls
+              pagination={paginationMeta}
+              onPageChange={handlePageChange}
+              className="mt-4"
+            />
+          )}
+        </>
       )}
     </PageContainer>
   );

@@ -8,6 +8,12 @@
 
 import { prisma } from '@/lib/prisma';
 import { InstitutionRole, EventMode } from '@prisma/client';
+import {
+  buildPaginationMeta,
+  paginationToSkipTake,
+  type PaginatedResult,
+  type PaginationParams,
+} from '@/lib/pagination';
 
 type CreateTournamentSettingsInput = {
   registrationOpensAt?: Date | null;
@@ -41,19 +47,46 @@ export async function createInstitution(name: string, userId: string) {
   return institution;
 }
 
-export async function listInstitutions(userId?: string) {
-  return prisma.institution.findMany({
-    where: {
-      OR: [
-        { isPublic: true },
-        ...(userId ? [{ members: { some: { userId } } }] : []),
-      ],
-    },
-    include: {
-      _count: { select: { members: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+export async function listInstitutions(
+  pagination: PaginationParams,
+  userId?: string,
+): Promise<
+  PaginatedResult<{
+    id: string;
+    name: string;
+    description: string | null;
+    createdAt: Date;
+    _count: { members: number };
+  }>
+> {
+  const where = {
+    OR: [
+      { isPublic: true },
+      ...(userId ? [{ members: { some: { userId } } }] : []),
+    ],
+  };
+  const { skip, take } = paginationToSkipTake(pagination);
+
+  const [items, total] = await Promise.all([
+    prisma.institution.findMany({
+      where,
+      include: {
+        _count: { select: { members: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.institution.count({ where }),
+  ]);
+
+  return {
+    data: items.map((institution) => ({
+      ...institution,
+      description: null,
+    })),
+    pagination: buildPaginationMeta(total, pagination),
+  };
 }
 
 export async function getInstitution(institutionId: string) {
@@ -139,25 +172,62 @@ export async function createTournament(
   });
 }
 
-export async function listTournaments(userId?: string) {
-  return prisma.tournament.findMany({
-    where: {
-      OR: [
-        { isPublic: true },
-        ...(userId
-          ? [
-              { createdByUserId: userId },
-              { tournamentParticipants: { some: { userId } } },
-              { tournamentInstitutions: { some: { institution: { members: { some: { userId } } } } } },
-            ]
-          : []),
-      ],
-    },
-    include: {
-      createdBy: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+export async function listTournaments(
+  pagination: PaginationParams,
+  userId?: string,
+): Promise<
+  PaginatedResult<{
+    id: string;
+    name: string;
+    createdAt: Date;
+    createdByUserId: string;
+    createdBy: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string | null;
+      imageUrl: string | null;
+      displayName: string | null;
+    };
+    _count: { tournamentInstitutions: number };
+  }>
+> {
+  const where = {
+    OR: [
+      { isPublic: true },
+      ...(userId
+        ? [
+            { createdByUserId: userId },
+            { tournamentParticipants: { some: { userId } } },
+            { tournamentInstitutions: { some: { institution: { members: { some: { userId } } } } } },
+          ]
+        : []),
+    ],
+  };
+  const { skip, take } = paginationToSkipTake(pagination);
+
+  const [items, total] = await Promise.all([
+    prisma.tournament.findMany({
+      where,
+      include: {
+        createdBy: true,
+        _count: {
+          select: {
+            tournamentInstitutions: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.tournament.count({ where }),
+  ]);
+
+  return {
+    data: items,
+    pagination: buildPaginationMeta(total, pagination),
+  };
 }
 
 export async function getTournament(tournamentId: string) {

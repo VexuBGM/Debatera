@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
 import { createInstitution, listInstitutions } from '@/lib/services/mvp';
 import { ensureUserInDB } from '@/lib/ensureUser';
+import { parsePaginationParams } from '@/lib/pagination';
 
 export const runtime = 'nodejs';
 
@@ -45,13 +46,16 @@ export async function POST(req: Request) {
 
 /**
  * GET /api/institutions
- * List all institutions
+ * List all institutions (paginated).
+ * Supports ?page=1&pageSize=20 query params.
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const pagination = parsePaginationParams(searchParams);
     const { userId } = await auth();
-    const institutions = await listInstitutions(userId ?? undefined);
-    return NextResponse.json(institutions, { status: 200 });
+    const result = await listInstitutions(pagination, userId ?? undefined);
+    return NextResponse.json(result, { status: 200 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
@@ -16,6 +16,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination';
+import type { PaginationMeta } from '@/lib/pagination';
 import { Trophy, Users, Medal, ArrowLeft, UserPlus } from 'lucide-react';
 
 // ============================================================================
@@ -51,7 +53,9 @@ interface StandingsData {
   tournamentId: string;
   tournamentName: string;
   teamStandings: TeamStanding[];
+  teamPagination: PaginationMeta;
   speakerStandings: SpeakerStanding[];
+  speakerPagination: PaginationMeta;
 }
 
 // ============================================================================
@@ -65,14 +69,22 @@ export default function StandingsPage() {
   const [data, setData] = useState<StandingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [teamPage, setTeamPage] = useState(1);
+  const [speakerPage, setSpeakerPage] = useState(1);
+  const PAGE_SIZE = 20;
 
-  useEffect(() => {
-    async function fetchStandings() {
+  const fetchStandings = useCallback(
+    async (tPage: number, sPage: number) => {
       try {
         setLoading(true);
         const includeInProgress = searchParams.get('includeInProgress');
-        const qs = includeInProgress === '1' ? '?includeInProgress=1' : '';
-        const res = await fetch(`/api/tournaments/${params.id}/standings${qs}`);
+        const qs = new URLSearchParams();
+        if (includeInProgress === '1') qs.set('includeInProgress', '1');
+        qs.set('teamPage', String(tPage));
+        qs.set('teamPageSize', String(PAGE_SIZE));
+        qs.set('speakerPage', String(sPage));
+        qs.set('speakerPageSize', String(PAGE_SIZE));
+        const res = await fetch(`/api/tournaments/${params.id}/standings?${qs.toString()}`);
         if (!res.ok) {
           if (res.status === 404) {
             setError('Tournament not found.');
@@ -88,9 +100,13 @@ export default function StandingsPage() {
       } finally {
         setLoading(false);
       }
-    }
-    fetchStandings();
-  }, [params.id, searchParams]);
+    },
+    [params.id, searchParams],
+  );
+
+  useEffect(() => {
+    void fetchStandings(teamPage, speakerPage);
+  }, [teamPage, speakerPage, fetchStandings]);
 
   if (loading) {
     return (
@@ -238,6 +254,13 @@ export default function StandingsPage() {
                   </div>
                 </CardContent>
               </Card>
+              {data.speakerPagination && (
+                <PaginationControls
+                  pagination={data.speakerPagination}
+                  onPageChange={setSpeakerPage}
+                  className="mt-3"
+                />
+              )}
             </TabsContent>
 
             {/* Teams Tab */}
@@ -296,6 +319,13 @@ export default function StandingsPage() {
                   </div>
                 </CardContent>
               </Card>
+              {data.teamPagination && (
+                <PaginationControls
+                  pagination={data.teamPagination}
+                  onPageChange={setTeamPage}
+                  className="mt-3"
+                />
+              )}
             </TabsContent>
           </Tabs>
         )}

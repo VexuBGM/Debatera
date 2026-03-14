@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PaginationControls } from '@/components/ui/pagination';
 import {
   Select,
   SelectContent,
@@ -132,6 +133,8 @@ export default function InstitutionDetailPage() {
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [processingMemberId, setProcessingMemberId] = useState<string | null>(null);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
+  const [membersPage, setMembersPage] = useState(1);
+  const MEMBERS_PAGE_SIZE = 20;
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   const institutionId = params.id as string;
@@ -638,7 +641,9 @@ export default function InstitutionDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {institution.members.map((member) => (
+                  {institution.members
+                    .slice((membersPage - 1) * MEMBERS_PAGE_SIZE, membersPage * MEMBERS_PAGE_SIZE)
+                    .map((member) => (
                     <TableRow key={member.id}>
                       <TableCell className="text-xs sm:text-sm">
                         <div className="flex items-center gap-2">
@@ -718,6 +723,20 @@ export default function InstitutionDetailPage() {
                 </TableBody>
               </Table>
             </div>
+          )}
+          {institution.members.length > MEMBERS_PAGE_SIZE && (
+            <PaginationControls
+              pagination={{
+                page: membersPage,
+                pageSize: MEMBERS_PAGE_SIZE,
+                total: institution.members.length,
+                totalPages: Math.ceil(institution.members.length / MEMBERS_PAGE_SIZE),
+                hasNextPage: membersPage < Math.ceil(institution.members.length / MEMBERS_PAGE_SIZE),
+                hasPreviousPage: membersPage > 1,
+              }}
+              onPageChange={setMembersPage}
+              className="mt-4"
+            />
           )}
         </CardContent>
       </Card>

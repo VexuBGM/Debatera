@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Users, Plus, Trash2, UserPlus, UserMinus, Shield, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PaginationControls } from '@/components/ui/pagination';
 import {
   getTeamManagementData,
   createTeamAsOrganizer,
@@ -54,6 +55,8 @@ export default function TeamsManagementPage() {
 
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<TeamWithMembers[]>([]);
+  const [teamsPage, setTeamsPage] = useState(1);
+  const TEAMS_PAGE_SIZE = 20;
   const [unassignedDebaters, setUnassignedDebaters] = useState<DebaterParticipant[]>([]);
   const [institutions, setInstitutions] = useState<Array<{ id: string; name: string }>>([]);
   const [tournament, setTournament] = useState<{ id: string; name: string; createdByUserId: string } | null>(null);
@@ -353,7 +356,10 @@ export default function TeamsManagementPage() {
               </CardContent>
             </Card>
           ) : (
-            teams.map((team) => {
+            <>
+              {teams
+                .slice((teamsPage - 1) * TEAMS_PAGE_SIZE, teamsPage * TEAMS_PAGE_SIZE)
+                .map((team) => {
               const status = teamSizeStatus(team.members.length);
               return (
                 <Card key={team.id}>
@@ -438,7 +444,22 @@ export default function TeamsManagementPage() {
                   </CardContent>
                 </Card>
               );
-            })
+            })}
+              {teams.length > TEAMS_PAGE_SIZE && (
+                <PaginationControls
+                  pagination={{
+                    page: teamsPage,
+                    pageSize: TEAMS_PAGE_SIZE,
+                    total: teams.length,
+                    totalPages: Math.ceil(teams.length / TEAMS_PAGE_SIZE),
+                    hasNextPage: teamsPage < Math.ceil(teams.length / TEAMS_PAGE_SIZE),
+                    hasPreviousPage: teamsPage > 1,
+                  }}
+                  onPageChange={setTeamsPage}
+                  className="mt-3"
+                />
+              )}
+            </>
           )}
         </div>
 
