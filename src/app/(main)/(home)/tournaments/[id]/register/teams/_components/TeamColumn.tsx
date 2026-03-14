@@ -44,14 +44,14 @@ export function TeamColumn({
         <Card
             ref={setNodeRef}
             className={[
-                'min-w-[320px] max-w-[340px] flex-shrink-0 border-white/10 bg-white/5 transition-colors duration-200',
+                'min-w-[296px] max-w-[312px] flex-shrink-0 gap-0 border-white/10 bg-white/5 py-0 transition-colors duration-200',
                 isOver ? 'border-brand/50 bg-brand/10' : '',
             ].join(' ')}
         >
-            <CardHeader className="border-b border-white/10 pb-4">
-                <div className="space-y-3">
+            <CardHeader className="border-b border-white/10 px-4 py-3.5">
+                <div className="space-y-2.5">
                     <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                                 <CardTitle className="text-sm font-medium text-white">{title}</CardTitle>
                                 <span className="text-xs text-white/45">({memberCount})</span>
@@ -88,7 +88,7 @@ export function TeamColumn({
                     </div>
 
                     {isTeam && !isLocked && (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                             {onAddDebaters && (
                                 <Button
                                     variant="outline"
@@ -116,15 +116,15 @@ export function TeamColumn({
                 </div>
             </CardHeader>
 
-            <CardContent className="pt-4">
-                <ScrollArea className="h-[420px] pr-1">
+            <CardContent className="px-4 py-3.5">
+                <ScrollArea className="h-[380px] pr-1">
                     <SortableContext
                         items={debaters.map((debater) => `participant:${debater.id}`)}
                         strategy={verticalListSortingStrategy}
                     >
-                        <div className="space-y-3 pr-3">
+                        <div className="space-y-2.5 pr-2">
                             {debaters.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center text-sm text-white/40">
+                                <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-8 text-center text-sm text-white/40">
                                     {isTeam ? 'Drop debaters here or use the actions above.' : 'No unassigned debaters right now.'}
                                 </div>
                             ) : (

@@ -204,8 +204,8 @@ export function ManageTeamsBoard({
         );
     }
 
-    function openCreateDialog() {
-        resetCreateDialog();
+    function openCreateDialog(nextInstitutionId?: string) {
+        resetCreateDialog(nextInstitutionId);
         setCreateDialogOpen(true);
     }
 
@@ -467,10 +467,10 @@ export function ManageTeamsBoard({
 
     return (
         <>
-            <Card className="overflow-hidden border-white/10 bg-white/5 shadow-[0_24px_80px_-36px_rgba(0,0,0,0.65)]">
-                <CardHeader className="border-b border-white/10 bg-white/[0.07] px-5 py-4">
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                        <div className="space-y-2">
+            <Card className="gap-0 overflow-hidden border-white/10 bg-white/5 py-0 shadow-[0_24px_80px_-36px_rgba(0,0,0,0.65)]">
+                <CardHeader className="border-b border-white/10 bg-transparent px-4 py-3.5 sm:px-5">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="space-y-1.5">
                             <div className="flex flex-wrap items-center gap-2">
                                 <CardTitle className="text-lg text-white">Manage teams</CardTitle>
                                 {isOrganizer && (
@@ -493,12 +493,17 @@ export function ManageTeamsBoard({
                             <p className="max-w-2xl text-sm text-white/70">
                                 Add no-account debaters directly on each team, then reassign or unassign them as needed.
                             </p>
+                            {canCreateInstitutions && (
+                                <p className="text-xs text-white/50">
+                                    Need a new institution? Choose <span className="font-medium text-white">Create new institution</span> inside <span className="font-medium text-white">Create Team</span> to add it and approve it for this tournament in one step.
+                                </p>
+                            )}
                         </div>
 
-                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                             {institutions.length > 0 ? (
                                 <Select value={selectedInstitutionId} onValueChange={(value) => void handleInstitutionChange(value)}>
-                                    <SelectTrigger className="min-w-60 border-white/20 bg-white/10 text-white">
+                                    <SelectTrigger className="min-w-56 border-white/20 bg-white/10 text-white">
                                         <SelectValue placeholder="Select institution" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -517,7 +522,7 @@ export function ManageTeamsBoard({
                             )}
 
                             <Button
-                                onClick={openCreateDialog}
+                                onClick={() => openCreateDialog()}
                                 disabled={isLocked}
                                 className="bg-brand text-brand-foreground hover:bg-brand/90"
                             >
@@ -528,29 +533,29 @@ export function ManageTeamsBoard({
                     </div>
                 </CardHeader>
 
-                <CardContent className="space-y-5 p-5">
+                <CardContent className="space-y-4 p-4 sm:p-5">
                     {!selectedInstitution ? (
-                        <div className="rounded-2xl border border-dashed border-white/20 bg-gradient-to-br from-white/5 to-transparent p-8 text-center">
-                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
+                        <div className="rounded-2xl border border-dashed border-white/20 bg-gradient-to-br from-white/5 to-transparent p-6 text-center">
+                            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
                                 <Users className="h-6 w-6 text-white/70" />
                             </div>
                             <h3 className="text-lg font-semibold text-white">Create the first team</h3>
                             <p className="mx-auto mt-2 max-w-xl text-sm text-white/70">
-                                Start by creating a team. Organizers can create a new institution from there too.
+                                Start by creating a team. Organizers can create and register a new institution from the same dialog.
                             </p>
                             <Button
-                                onClick={openCreateDialog}
-                                className="mt-5 bg-brand text-brand-foreground hover:bg-brand/90"
+                                onClick={() => openCreateDialog(canCreateInstitutions ? '__new__' : undefined)}
+                                className="mt-4 bg-brand text-brand-foreground hover:bg-brand/90"
                                 disabled={isLocked}
                             >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Create Team
+                                {canCreateInstitutions ? 'Create Institution + Team' : 'Create Team'}
                             </Button>
                         </div>
                     ) : (
                         <>
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5">
                                     <div className="flex items-center gap-2 text-sm font-medium text-white">
                                         <Building2 className="h-4 w-4 text-white/70" />
                                         {selectedInstitution.name}
@@ -560,18 +565,18 @@ export function ManageTeamsBoard({
                                     </p>
                                 </div>
 
-                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5">
                                     <div className="text-xs uppercase tracking-[0.18em] text-white/40">
                                         How it works
                                     </div>
-                                    <p className="mt-2 text-sm text-white/60">
+                                    <p className="mt-1.5 text-sm text-white/60">
                                         Use <span className="font-medium text-white">Add Debaters</span> on a team to create guest debaters. If you remove them from a team later, they stay available in this institution&apos;s unassigned pool.
                                     </p>
                                 </div>
                             </div>
 
                             {isLoading ? (
-                                <div className="flex items-center justify-center py-12">
+                                <div className="flex items-center justify-center py-10">
                                     <Loader2 className="h-8 w-8 animate-spin text-white/40" />
                                 </div>
                             ) : (
@@ -582,7 +587,7 @@ export function ManageTeamsBoard({
                                     onDragStart={handleDragStart}
                                     onDragEnd={handleDragEnd}
                                 >
-                                    <div className="flex gap-4 overflow-x-auto pb-2">
+                                    <div className="flex gap-3 overflow-x-auto pb-1">
                                         <TeamColumn
                                             id="unassigned"
                                             title="Unassigned Debaters"
@@ -641,20 +646,22 @@ export function ManageTeamsBoard({
                     }
                 }}
             >
-                <DialogContent className="border-white/10 bg-[#0f1723] text-white sm:max-w-lg">
+                <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle className="text-white">Create Team</DialogTitle>
-                        <DialogDescription className="text-white/60">
-                            Pick an institution and optionally name the team. If you leave the team name empty, we&apos;ll generate it automatically.
+                        <DialogTitle>
+                            {createInstitutionId === '__new__' ? 'Create Institution and Team' : 'Create Team'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Pick an institution and optionally name the team. If you choose a new institution, it will be approved for this tournament automatically.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4">
                         {canCreateInstitutions ? (
                             <div className="space-y-2">
-                                <Label className="text-white/80">Institution</Label>
+                                <Label>Institution</Label>
                                 <Select value={createInstitutionId} onValueChange={setCreateInstitutionId}>
-                                    <SelectTrigger className="border-white/20 bg-white/10 text-white">
+                                    <SelectTrigger>
                                         <SelectValue placeholder="Select institution" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -666,14 +673,19 @@ export function ManageTeamsBoard({
                                         <SelectItem value="__new__">Create new institution</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p className="text-xs text-white/45">
+                                    Organizers can add a new institution here without leaving the page.
+                                </p>
 
                                 {createInstitutionId === '__new__' && (
-                                    <Input
-                                        value={createInstitutionName}
-                                        onChange={(event) => setCreateInstitutionName(event.target.value)}
-                                        placeholder="Institution name"
-                                        className="border-white/20 bg-white/10 text-white placeholder:text-white/35"
-                                    />
+                                    <div className="space-y-2">
+                                        <Label>New Institution Name</Label>
+                                        <Input
+                                            value={createInstitutionName}
+                                            onChange={(event) => setCreateInstitutionName(event.target.value)}
+                                            placeholder="Institution name"
+                                        />
+                                    </div>
                                 )}
                             </div>
                         ) : selectedInstitution ? (
@@ -684,12 +696,11 @@ export function ManageTeamsBoard({
                         ) : null}
 
                         <div className="space-y-2">
-                            <Label className="text-white/80">Team Name</Label>
+                            <Label>Team Name</Label>
                             <Input
                                 value={createTeamName}
                                 onChange={(event) => setCreateTeamName(event.target.value)}
                                 placeholder="Leave empty for automatic naming"
-                                className="border-white/20 bg-white/10 text-white placeholder:text-white/35"
                             />
                         </div>
                     </div>
@@ -697,7 +708,6 @@ export function ManageTeamsBoard({
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            className="border-white/20 bg-white/10 text-white hover:bg-white/20"
                             onClick={() => setCreateDialogOpen(false)}
                         >
                             Cancel
@@ -712,7 +722,7 @@ export function ManageTeamsBoard({
                             ) : (
                                 <Plus className="mr-2 h-4 w-4" />
                             )}
-                            Create Team
+                            {createInstitutionId === '__new__' ? 'Create Institution + Team' : 'Create Team'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -728,10 +738,10 @@ export function ManageTeamsBoard({
                     }
                 }}
             >
-                <DialogContent className="border-white/10 bg-[#0f1723] text-white sm:max-w-xl">
+                <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle className="text-white">Add Debaters to {addDebatersTeamName}</DialogTitle>
-                        <DialogDescription className="text-white/60">
+                        <DialogTitle>Add Debaters to {addDebatersTeamName}</DialogTitle>
+                        <DialogDescription>
                             Enter one name per line. Debaters inherit the team&apos;s institution automatically.
                         </DialogDescription>
                     </DialogHeader>
@@ -739,7 +749,7 @@ export function ManageTeamsBoard({
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3">
-                                <Label className="text-white/80">Names</Label>
+                                <Label>Names</Label>
                                 <Badge variant="outline" className="border-white/15 text-white/70">
                                     {addDebatersCount} entered
                                 </Badge>
@@ -749,7 +759,6 @@ export function ManageTeamsBoard({
                                 onChange={(event) => setAddDebatersNames(event.target.value)}
                                 placeholder={'Ivan Ivanov\nMaria Petrova\nGeorgi Dimitrov'}
                                 rows={8}
-                                className="border-white/20 bg-white/10 text-white placeholder:text-white/35"
                             />
                         </div>
 
@@ -783,7 +792,6 @@ export function ManageTeamsBoard({
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            className="border-white/20 bg-white/10 text-white hover:bg-white/20"
                             onClick={() => setAddDebatersDialogOpen(false)}
                         >
                             Cancel
@@ -805,10 +813,10 @@ export function ManageTeamsBoard({
             </Dialog>
 
             <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-                <DialogContent className="border-white/10 bg-[#0f1723] text-white sm:max-w-lg">
+                <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle className="text-white">Assign Debaters to {assignTeamName}</DialogTitle>
-                        <DialogDescription className="text-white/60">
+                        <DialogTitle>Assign Debaters to {assignTeamName}</DialogTitle>
+                        <DialogDescription>
                             Pick from the unassigned debaters in this institution.
                         </DialogDescription>
                     </DialogHeader>

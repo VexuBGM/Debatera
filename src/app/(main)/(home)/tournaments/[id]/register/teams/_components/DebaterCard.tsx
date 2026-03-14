@@ -47,11 +47,11 @@ export function DebaterCard({
             ref={setNodeRef}
             style={style}
             className={[
-                'border-white/10 bg-white/5 p-3 transition-all duration-150',
+                'border-white/10 bg-white/5 p-2.5 transition-all duration-150',
                 isCurrentlyDragging ? 'scale-[1.02] rotate-1 opacity-90 shadow-lg' : 'hover:bg-white/10',
             ].join(' ')}
         >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2.5">
                 {!disabled && (
                     <button
                         type="button"
@@ -63,7 +63,7 @@ export function DebaterCard({
                     </button>
                 )}
 
-                <Avatar className="h-9 w-9">
+                <Avatar className="h-8 w-8">
                     <AvatarImage src={debater.user.imageUrl ?? undefined} alt={displayName} />
                     <AvatarFallback className="bg-brand/20 text-brand text-xs">
                         {initials}
