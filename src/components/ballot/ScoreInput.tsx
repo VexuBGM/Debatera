@@ -30,7 +30,7 @@ export function ScoreInput({ value, onChange, min, max, disabled, label }: Score
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           className={cn(
-            'mt-1 h-8 text-sm pr-16',
+            'mt-1 h-9 text-sm pr-16',
             isOutOfRange && 'border-destructive focus-visible:ring-destructive/40'
           )}
           placeholder={`${min}-${max}`}

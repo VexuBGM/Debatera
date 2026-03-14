@@ -10,11 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScoreInput } from './ScoreInput';
-import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
 
 interface TeamMember {
   id: string;
@@ -23,7 +20,6 @@ interface TeamMember {
 }
 
 interface SpeechCardProps {
-  role: string;
   roleLabel: string;
   side: 'PROPOSITION' | 'OPPOSITION';
   isReply: boolean;
@@ -41,7 +37,6 @@ interface SpeechCardProps {
 }
 
 export function SpeechCard({
-  role,
   roleLabel,
   side,
   isReply,
@@ -57,96 +52,97 @@ export function SpeechCard({
   onScoreChange,
   onCommentChange,
 }: SpeechCardProps) {
-  const [commentOpen, setCommentOpen] = useState(!!comment);
-
   return (
     <div
       className={cn(
-        'p-3 rounded-lg border space-y-2',
+        'rounded-xl border bg-background/80 p-4 shadow-sm space-y-4',
         side === 'PROPOSITION'
-          ? 'border-blue-500/30 bg-blue-500/5'
-          : 'border-red-500/30 bg-red-500/5'
+          ? 'border-sky-500/25 shadow-sky-500/5'
+          : 'border-rose-500/25 shadow-rose-500/5'
       )}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm">{roleLabel}</span>
-          {isReply && (
-            <Badge
-              variant="outline"
-              className={cn(
-                'text-[10px] px-1.5 py-0',
-                side === 'PROPOSITION'
-                  ? 'border-blue-400/50 text-blue-400'
-                  : 'border-red-400/50 text-red-400'
-              )}
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm">{roleLabel}</span>
+            {isReply && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-[10px] px-1.5 py-0',
+                  side === 'PROPOSITION'
+                    ? 'border-sky-400/50 text-sky-600 dark:text-sky-300'
+                    : 'border-rose-400/50 text-rose-600 dark:text-rose-300'
+                )}
+              >
+                Reply
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Assign a speaker and enter the speech score.
+          </p>
+        </div>
+
+        <Badge variant="outline" className="border-border/70 bg-background/70 font-medium">
+          {scoreMin}-{scoreMax}
+        </Badge>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+        <div>
+          <Label className="text-xs text-muted-foreground">Speaker</Label>
+          {members.length > 0 ? (
+            <Select
+              value={speakerId || ''}
+              onValueChange={(v) => {
+                const member = members.find((m) => m.id === v);
+                onSpeakerChange(v || null, member?.name || null);
+              }}
+              disabled={disabled}
             >
-              Reply
-            </Badge>
+              <SelectTrigger className="mt-1 h-9 text-sm">
+                <SelectValue placeholder="Select speaker" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              placeholder="Speaker name"
+              value={speakerName || ''}
+              onChange={(e) => onSpeakerChange(null, e.target.value)}
+              disabled={disabled}
+              className="mt-1 h-9 text-sm"
+            />
           )}
         </div>
+
+        <ScoreInput
+          value={score}
+          onChange={onScoreChange}
+          min={scoreMin}
+          max={scoreMax}
+          disabled={disabled}
+          label="Score"
+        />
       </div>
 
-      {/* Speaker Selection */}
       <div>
-        <Label className="text-xs text-muted-foreground">Speaker</Label>
-        {members.length > 0 ? (
-          <Select
-            value={speakerId || ''}
-            onValueChange={(v) => {
-              const member = members.find((m) => m.id === v);
-              onSpeakerChange(v || null, member?.name || null);
-            }}
-            disabled={disabled}
-          >
-            <SelectTrigger className="mt-1 h-8 text-sm">
-              <SelectValue placeholder="Select speaker" />
-            </SelectTrigger>
-            <SelectContent>
-              {members.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            placeholder="Speaker name"
-            value={speakerName || ''}
-            onChange={(e) => onSpeakerChange(null, e.target.value)}
-            disabled={disabled}
-            className="mt-1 h-8 text-sm"
-          />
-        )}
+        <Label className="text-xs text-muted-foreground">Comment</Label>
+        <Input
+          value={comment}
+          onChange={(e) => onCommentChange(e.target.value)}
+          disabled={disabled}
+          className="mt-1 h-9 text-sm"
+          placeholder="Optional note"
+        />
       </div>
-
-      {/* Score */}
-      <ScoreInput
-        value={score}
-        onChange={onScoreChange}
-        min={scoreMin}
-        max={scoreMax}
-        disabled={disabled}
-        label="Score"
-      />
-
-      {/* Collapsible Comment */}
-      <Collapsible open={commentOpen} onOpenChange={setCommentOpen}>
-        <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronDown className={cn('h-3 w-3 transition-transform', commentOpen && 'rotate-180')} />
-          Comment
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <Input
-            value={comment}
-            onChange={(e) => onCommentChange(e.target.value)}
-            disabled={disabled}
-            className="mt-1 h-8 text-sm"
-            placeholder="Optional feedback"
-          />
-        </CollapsibleContent>
-      </Collapsible>
     </div>
   );
 }
