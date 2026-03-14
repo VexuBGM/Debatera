@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
 import { useTournament } from '@/components/TournamentContext';
+import { useBreadcrumbOverrides } from '@/components/BreadcrumbOverrides';
 
 const SEGMENT_LABELS: Record<string, string> = {
   tournaments: 'Tournaments',
@@ -25,6 +26,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 
 export default function Breadcrumbs() {
   const pathname = usePathname();
+  const overrides = useBreadcrumbOverrides();
   let tournament: { tournamentId: string; tournamentName: string } | null = null;
 
   try {
@@ -54,10 +56,15 @@ export default function Breadcrumbs() {
       continue;
     }
 
-    const label = SEGMENT_LABELS[segment] || segment;
-    // Skip UUID-like segments we can't label
-    if (/^[0-9a-f-]{20,}$/i.test(segment) && !tournament) continue;
+    // For ID-like segments, use override label or skip
+    if (/^[0-9a-z-]{20,}$/i.test(segment)) {
+      if (overrides[segment]) {
+        crumbs.push({ label: overrides[segment], href: currentPath });
+      }
+      continue;
+    }
 
+    const label = SEGMENT_LABELS[segment] || segment;
     crumbs.push({ label, href: currentPath });
   }
 

@@ -47,6 +47,7 @@ import {
 import { toast } from 'sonner';
 import { RoundEditor } from './RoundEditor';
 import { autoAllocateVenuesAction } from '@/actions/venues.actions';
+import { useSetBreadcrumbOverride } from '@/components/BreadcrumbOverrides';
 import type { RoundData, TeamData, JudgeData, VenueData, EditorDebate } from './types';
 
 // =============================================================================
@@ -87,6 +88,7 @@ export default function RoundEditorPage() {
   const tournamentId = params?.id;
   const roundId = params?.roundId;
   const { userId } = useAuth();
+  const setBreadcrumbOverride = useSetBreadcrumbOverride();
 
   // Data state
   const [round, setRound] = useState<RoundData | null>(null);
@@ -148,6 +150,7 @@ export default function RoundEditorPage() {
 
       const data = await res.json();
       setRound(data.round);
+      if (roundId) setBreadcrumbOverride(roundId, data.round.name);
       setAllTeams(data.allTeams);
       setAllJudges(data.allJudges);
       setIsAdmin(data.isAdmin);
@@ -198,7 +201,7 @@ export default function RoundEditorPage() {
     } finally {
       setLoading(false);
     }
-  }, [tournamentId, roundId, router]);
+  }, [tournamentId, roundId, router, setBreadcrumbOverride]);
 
   useEffect(() => {
     void fetchPairings();
@@ -358,6 +361,7 @@ export default function RoundEditorPage() {
       if (!res.ok) throw new Error(data?.error || 'Failed to update name');
 
       setRound((prev) => (prev ? { ...prev, name: editedName } : null));
+      if (roundId) setBreadcrumbOverride(roundId, editedName);
       toast.success('Round name updated');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to update name');

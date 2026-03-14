@@ -7,6 +7,7 @@ import TournamentNav from '@/components/TournamentNav';
 import { Badge } from '@/components/ui/badge';
 import { Trophy } from 'lucide-react';
 import Breadcrumbs from '@/components/Breadcrumbs';
+import { BreadcrumbOverridesProvider } from '@/components/BreadcrumbOverrides';
 
 export default async function TournamentLayout({
   children,
@@ -52,6 +53,7 @@ export default async function TournamentLayout({
   const statusVariant = 'published' as const; // TODO: derive from tournament status when field exists
 
   return (
+    <BreadcrumbOverridesProvider>
     <TournamentProvider
       value={{
         tournamentId: tournament.id,
@@ -92,5 +94,6 @@ export default async function TournamentLayout({
         </div>
       </div>
     </TournamentProvider>
+    </BreadcrumbOverridesProvider>
   );
 }
