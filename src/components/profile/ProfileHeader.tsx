@@ -61,7 +61,7 @@ export default function ProfileHeader({ user, isOwner }: ProfileHeaderProps) {
         )}
 
         {isOwner && (
-          <Badge variant="outline" className="mt-1 text-xs text-cyan-400 border-cyan-400/40">
+          <Badge variant="outline" className="mt-1 text-xs text-brand border-brand/40">
             Your profile
           </Badge>
         )}

@@ -21,6 +21,9 @@ import {
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { PageContainer } from '@/components/PageContainer';
+import { PageHeader } from '@/components/PageHeader';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // ============================================================================
 // Types
@@ -149,47 +152,44 @@ export default function MyDebatesPage() {
   // Loading state — mirrors My Ballots skeleton
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-4">
+      <PageContainer size="md">
         <Skeleton className="h-8 w-48" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-32 w-full" />
           ))}
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   // Empty state
   if (debates.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Swords className="h-6 w-6" />
-          My Debates
-        </h1>
+      <PageContainer size="md">
+        <PageHeader
+          icon={<Swords className="h-6 w-6" />}
+          title="My Debates"
+        />
         <Card>
-          <CardContent className="py-12 text-center">
-            <Swords className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              No debates assigned to you in this tournament yet.
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Debates appear here once you are allocated to a team in a
-              published round.
-            </p>
+          <CardContent>
+            <EmptyState
+              icon={<Swords className="h-12 w-12" />}
+              title="No debates assigned yet"
+              description="Debates appear here once you are allocated to a team in a published round."
+            />
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Swords className="h-6 w-6" />
-        My Debates
-      </h1>
+    <PageContainer size="md">
+      <PageHeader
+        icon={<Swords className="h-6 w-6" />}
+        title="My Debates"
+      />
 
       <div className="space-y-3">
         {debates.map((debate) => (
@@ -201,7 +201,7 @@ export default function MyDebatesPage() {
           />
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -259,7 +259,7 @@ function DebateCard({
         {/* Motion */}
         {debate.round.motion && (
           <div className="flex items-start gap-2 bg-muted/50 rounded p-2">
-            <MessageSquare className="h-4 w-4 mt-0.5 shrink-0 text-cyan-500" />
+            <MessageSquare className="h-4 w-4 mt-0.5 shrink-0 text-brand" />
             <div className="space-y-1">
               <p className="text-sm font-medium">{debate.round.motion}</p>
               {debate.round.infoSlide && (
@@ -277,7 +277,7 @@ function DebateCard({
           <TeamBlock
             label="Proposition"
             team={debate.propTeam}
-            badgeClassName="bg-cyan-600 text-white hover:bg-cyan-700"
+            badgeClassName="bg-brand text-brand-foreground hover:bg-brand/90"
           />
           {/* Opposition */}
           <TeamBlock

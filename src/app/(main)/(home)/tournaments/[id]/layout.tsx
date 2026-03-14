@@ -1,15 +1,96 @@
 import React from 'react';
-import { TournamentLayoutNavigation } from './TournamentLayoutNavigation';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
+import { notFound } from 'next/navigation';
+import { TournamentProvider, type TournamentRole } from '@/components/TournamentContext';
+import TournamentNav from '@/components/TournamentNav';
+import { Badge } from '@/components/ui/badge';
+import { Trophy } from 'lucide-react';
+import Breadcrumbs from '@/components/Breadcrumbs';
 
-export default function TournamentLayout({
-    children,
+export default async function TournamentLayout({
+  children,
+  params,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-    return (
-        <>
-            <TournamentLayoutNavigation />
-            {children}
-        </>
-    );
+  const { id: tournamentId } = await params;
+  const { userId } = await auth();
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: {
+      id: true,
+      name: true,
+      createdByUserId: true,
+      settings: { select: { eventMode: true } },
+    },
+  });
+
+  if (!tournament) notFound();
+
+  // Determine user role
+  let userRole: TournamentRole = 'SPECTATOR';
+
+  if (userId) {
+    if (tournament.createdByUserId === userId) {
+      userRole = 'ORGANIZER';
+    } else {
+      const participation = await prisma.tournamentParticipant.findUnique({
+        where: { tournamentId_userId: { tournamentId, userId } },
+        select: { role: true },
+      });
+      if (participation) {
+        userRole = participation.role as TournamentRole;
+      }
+    }
+  }
+
+  const eventMode = tournament.settings?.eventMode ?? 'ONLINE';
+
+  const statusVariant = 'published' as const; // TODO: derive from tournament status when field exists
+
+  return (
+    <TournamentProvider
+      value={{
+        tournamentId: tournament.id,
+        tournamentName: tournament.name,
+        userRole,
+        eventMode,
+      }}
+    >
+      <div className="space-y-0">
+        {/* Breadcrumbs */}
+        <div className="px-4 sm:px-6 pt-2">
+          <Breadcrumbs />
+        </div>
+
+        {/* Tournament Header */}
+        <div className="px-4 sm:px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Trophy className="h-6 w-6 text-brand shrink-0" />
+            <h1 className="text-2xl font-semibold tracking-tight truncate">{tournament.name}</h1>
+            <Badge variant={statusVariant} className="shrink-0">Active</Badge>
+            {userRole !== 'SPECTATOR' && (
+              <Badge
+                variant={userRole === 'ORGANIZER' ? 'organizer' : userRole === 'JUDGE' ? 'judge' : 'debater'}
+                className="shrink-0"
+              >
+                {userRole.charAt(0) + userRole.slice(1).toLowerCase()}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <TournamentNav />
+
+        {/* Page Content */}
+        <div className="py-4">
+          {children}
+        </div>
+      </div>
+    </TournamentProvider>
+  );
 }

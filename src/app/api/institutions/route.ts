@@ -53,7 +53,8 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const pagination = parsePaginationParams(searchParams);
-    const result = await listInstitutions(pagination);
+    const { userId } = await auth();
+    const result = await listInstitutions(pagination, userId ?? undefined);
     return NextResponse.json(result, { status: 200 });
   } catch (err) {
     console.error(err);

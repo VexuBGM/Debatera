@@ -41,6 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
 import {
   Building2,
   Users,
@@ -59,6 +60,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { PageContainer } from '@/components/PageContainer';
+import { PageHeader } from '@/components/PageHeader';
 import {
   createInstitutionInvitation,
   getInstitutionPendingInvitations,
@@ -107,6 +110,7 @@ interface PendingInvitation {
 interface Institution {
   id: string;
   name: string;
+  isPublic: boolean;
   createdAt: string;
   members: InstitutionMember[];
   registrations?: { id: string }[];
@@ -131,6 +135,7 @@ export default function InstitutionDetailPage() {
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
   const [membersPage, setMembersPage] = useState(1);
   const MEMBERS_PAGE_SIZE = 20;
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   const institutionId = params.id as string;
 
@@ -273,6 +278,29 @@ export default function InstitutionDetailPage() {
     }
   };
 
+  const handleToggleVisibility = async (isPublic: boolean) => {
+    setTogglingVisibility(true);
+    try {
+      const res = await fetch(`/api/institutions/${institutionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data?.error || 'Failed to update visibility');
+      }
+
+      setInstitution((prev) => prev ? { ...prev, isPublic } : prev);
+      toast.success(isPublic ? 'Institution is now public' : 'Institution is now private');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update visibility');
+    } finally {
+      setTogglingVisibility(false);
+    }
+  };
+
   const handleDeleteInstitution = async () => {
     if (!deleteConfirmName.trim()) {
       toast.error('Please type the institution name to confirm');
@@ -296,11 +324,11 @@ export default function InstitutionDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+      <PageContainer size="md">
         <Skeleton className="h-6 sm:h-8 w-32 sm:w-48 mb-3 sm:mb-4" />
         <Skeleton className="h-8 sm:h-12 w-64 sm:w-96 mb-2" />
         <Skeleton className="h-4 sm:h-6 w-full max-w-2xl mb-6 sm:mb-8" />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -309,131 +337,128 @@ export default function InstitutionDetailPage() {
   }
 
   return (
-    <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <Link href="/institutions">
-          <Button variant="ghost" size="sm" className="mb-3 sm:mb-4 -ml-2 sm:-ml-3 h-8 sm:h-9 text-sm">
-            <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            All Institutions
-          </Button>
-        </Link>
+    <PageContainer size="md">
+      {/* Back link */}
+      <Link href="/institutions">
+        <Button variant="ghost" size="sm" className="-ml-2 sm:-ml-3 h-8 sm:h-9 text-sm">
+          <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          All Institutions
+        </Button>
+      </Link>
 
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 sm:gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 sm:gap-3 mb-2">
-              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-cyan-500 shrink-0" />
-              <h1 className="text-2xl sm:text-3xl font-bold truncate">{institution.name}</h1>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {isMember && (
-                <Badge variant="outline" className="text-xs sm:text-sm">
-                  {isAdmin ? (
-                    <>
-                      <Shield className="mr-1 h-3 w-3" /> Admin
-                    </>
-                  ) : (
-                    <>
-                      <User className="mr-1 h-3 w-3" /> Member
-                    </>
-                  )}
-                </Badge>
-              )}
-              {isMember && (
-                <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
-                      <LogOut className="mr-1 h-3 w-3" />
-                      Leave
+      {/* Header */}
+      <PageHeader
+        icon={<Building2 className="h-7 w-7 text-brand" />}
+        title={institution.name}
+        actions={
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {isMember && (
+              <Badge variant="outline" className="text-xs sm:text-sm">
+                {isAdmin ? (
+                  <>
+                    <Shield className="mr-1 h-3 w-3" /> Admin
+                  </>
+                ) : (
+                  <>
+                    <User className="mr-1 h-3 w-3" /> Member
+                  </>
+                )}
+              </Badge>
+            )}
+            {isMember && (
+              <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
+                    <LogOut className="mr-1 h-3 w-3" />
+                    Leave
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Leave Institution</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to leave {institution.name}? You will need to be
+                      invited again to rejoin.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
+                      Cancel
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Leave Institution</DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to leave {institution.name}? You will need to be
-                        invited again to rejoin.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={handleLeave}
-                        disabled={isLeaving}
-                      >
-                        {isLeaving ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <LogOut className="mr-2 h-4 w-4" />
-                        )}
-                        Leave Institution
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
-              {isAdmin && (
-                <Dialog open={showDeleteDialog} onOpenChange={(open) => {
-                  setShowDeleteDialog(open);
-                  if (!open) setDeleteConfirmName('');
-                }}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-500/10">
-                      <Trash2 className="mr-1 h-3 w-3" />
-                      Delete
+                    <Button
+                      variant="destructive"
+                      onClick={handleLeave}
+                      disabled={isLeaving}
+                    >
+                      {isLeaving ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="mr-2 h-4 w-4" />
+                      )}
+                      Leave Institution
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Delete Institution</DialogTitle>
-                      <DialogDescription>
-                        This action cannot be undone. This will permanently delete the institution,
-                        all memberships, and pending invitations.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <Label htmlFor="confirmName" className="text-sm font-medium">
-                        Type <span className="font-bold text-foreground">{institution.name}</span> to confirm:
-                      </Label>
-                      <Input
-                        id="confirmName"
-                        value={deleteConfirmName}
-                        onChange={(e) => setDeleteConfirmName(e.target.value)}
-                        placeholder="Enter institution name"
-                        className="mt-2"
-                        autoComplete="off"
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => {
-                        setShowDeleteDialog(false);
-                        setDeleteConfirmName('');
-                      }}>
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={handleDeleteInstitution}
-                        disabled={isDeleting || deleteConfirmName.trim().toLowerCase() !== institution.name.toLowerCase()}
-                      >
-                        {isDeleting ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-2 h-4 w-4" />
-                        )}
-                        Delete Institution
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+            {isAdmin && (
+              <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+                setShowDeleteDialog(open);
+                if (!open) setDeleteConfirmName('');
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-500/10">
+                    <Trash2 className="mr-1 h-3 w-3" />
+                    Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Institution</DialogTitle>
+                    <DialogDescription>
+                      This action cannot be undone. This will permanently delete the institution,
+                      all memberships, and pending invitations.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <Label htmlFor="confirmName" className="text-sm font-medium">
+                      Type <span className="font-bold text-foreground">{institution.name}</span> to confirm:
+                    </Label>
+                    <Input
+                      id="confirmName"
+                      value={deleteConfirmName}
+                      onChange={(e) => setDeleteConfirmName(e.target.value)}
+                      placeholder="Enter institution name"
+                      className="mt-2"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => {
+                      setShowDeleteDialog(false);
+                      setDeleteConfirmName('');
+                    }}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteInstitution}
+                      disabled={isDeleting || deleteConfirmName.trim().toLowerCase() !== institution.name.toLowerCase()}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Delete Institution
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Stats */}
       <div className="grid gap-3 sm:gap-4 grid-cols-2 mb-6 sm:mb-8">
@@ -441,7 +466,7 @@ export default function InstitutionDetailPage() {
           <CardHeader className="pb-2">
             <CardDescription className="text-xs sm:text-sm">Members</CardDescription>
             <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
-              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-brand" />
               {institution.members.length}
             </CardTitle>
           </CardHeader>
@@ -456,12 +481,39 @@ export default function InstitutionDetailPage() {
         </Card>
       </div>
 
+      {/* Admin Section: Visibility */}
+      {isAdmin && (
+        <Card className="mb-6 sm:mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Visibility</CardTitle>
+            <CardDescription>Control who can discover this institution in the listings.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="isPublic" className="text-sm font-medium">Public institution</Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, this institution will appear in the public listing for all users.
+                  When private, only members can see it.
+                </p>
+              </div>
+              <Switch
+                id="isPublic"
+                checked={institution.isPublic}
+                onCheckedChange={handleToggleVisibility}
+                disabled={togglingVisibility}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Admin Section: Invite Members */}
       {isAdmin && (
         <Card className="mb-6 sm:mb-8">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-cyan-500" />
+              <UserPlus className="h-5 w-5 text-brand" />
               Invite Members
             </CardTitle>
             <CardDescription>
@@ -496,7 +548,7 @@ export default function InstitutionDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" disabled={isInviting} className="bg-cyan-500 hover:bg-cyan-600">
+              <Button type="submit" disabled={isInviting} className="bg-brand hover:bg-brand/90">
                 {isInviting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -688,6 +740,6 @@ export default function InstitutionDetailPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

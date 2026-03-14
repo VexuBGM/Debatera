@@ -113,7 +113,7 @@ export function AllTeamsList({ allTeams, teamMinSize, teamMaxSize }: AllTeamsLis
                                                                         src={member.participant.user.imageUrl ?? undefined}
                                                                         alt={displayName}
                                                                     />
-                                                                    <AvatarFallback className="bg-cyan-500/20 text-cyan-400 text-[10px]">
+                                                                    <AvatarFallback className="bg-brand/20 text-brand text-[10px]">
                                                                         {initials}
                                                                     </AvatarFallback>
                                                                 </Avatar>

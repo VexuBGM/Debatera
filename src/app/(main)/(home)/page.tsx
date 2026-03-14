@@ -7,11 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Trophy, Building2, Calendar, Users, Video, Bell, 
+import {
+  Trophy, Building2, Calendar, Users, Video, Bell,
   TrendingUp, ArrowRight, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageContainer } from '@/components/PageContainer';
+import { PageHeader } from '@/components/PageHeader';
 
 interface DashboardStats {
   tournamentsCount: number;
@@ -91,7 +93,7 @@ const HomePage = () => {
       description: 'View and manage your institutions',
       icon: Building2,
       href: '/institutions',
-      color: 'text-cyan-500'
+      color: 'text-brand'
     },
     {
       title: 'Create Tournament',
@@ -104,7 +106,7 @@ const HomePage = () => {
 
   if (!isLoaded || loading) {
     return (
-      <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-6">
+      <PageContainer size="lg">
         <Skeleton className="h-12 w-64" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
@@ -112,21 +114,17 @@ const HomePage = () => {
           ))}
         </div>
         <Skeleton className="h-64" />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-6">
+    <PageContainer size="lg">
       {/* Welcome Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
-          Welcome back, {user?.firstName || 'Debater'}!
-        </h1>
-        <p className="text-muted-foreground text-sm sm:text-base">
-          Here's what's happening with your debates today
-        </p>
-      </div>
+      <PageHeader
+        title={`Welcome back, ${user?.firstName || 'Debater'}!`}
+        description="Here's what's happening with your debates today"
+      />
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -143,10 +141,10 @@ const HomePage = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-linear-to-br from-cyan-500/10 to-cyan-600/5 border-cyan-500/20">
+        <Card className="bg-linear-to-br from-brand/10 to-brand/5 border-brand/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Institutions</CardTitle>
-            <Building2 className="h-4 w-4 text-cyan-500" />
+            <Building2 className="h-4 w-4 text-brand" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.institutionsCount || 0}</div>
@@ -285,7 +283,7 @@ const HomePage = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };
 

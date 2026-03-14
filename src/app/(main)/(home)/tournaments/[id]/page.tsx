@@ -1,31 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, ArrowLeft, MapPin, Scale, Swords, BarChart3, Users, Shield } from 'lucide-react';
-import Link from 'next/link';
+import { Trophy, Users, LayoutList, Building2, Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
-
-interface Tournament {
-  id: string;
-  name: string;
-  createdByUserId: string;
-  createdAt: string;
-  createdBy: {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string | null;
-  };
-  settings?: {
-    eventMode: 'ONLINE' | 'IRL';
-  } | null;
-}
+import { useTournament } from '@/components/TournamentContext';
+import { PageContainer } from '@/components/PageContainer';
 
 type TournamentInstitutionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -47,62 +31,51 @@ type OrganizerRegistrationListItem = {
   };
 };
 
-export default function TournamentDetailPage() {
-  const params = useParams<{ id: string }>();
-  const tournamentId = params?.id;
+interface TournamentStats {
+  teamsCount: number;
+  roundsCount: number;
+  institutionsCount: number;
+  participantsCount: number;
+}
+
+export default function TournamentOverviewPage() {
+  const { tournamentId, userRole } = useTournament();
   const { userId } = useAuth();
 
-  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [stats, setStats] = useState<TournamentStats | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [organizerRegistrations, setOrganizerRegistrations] = useState<OrganizerRegistrationListItem[]>([]);
   const [organizerRegistrationsLoading, setOrganizerRegistrationsLoading] = useState(false);
-  const [organizerRegistrationsError, setOrganizerRegistrationsError] = useState<string | null>(null);
   const [updatingRegistrationId, setUpdatingRegistrationId] = useState<string | null>(null);
-  const [isDebater, setIsDebater] = useState(false);
 
-  const isOwner = tournament?.createdByUserId === userId;
+  const isOwner = userRole === 'ORGANIZER';
 
   useEffect(() => {
-    if (!tournamentId) return;
-    void fetchTournament();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void fetchStats();
   }, [tournamentId]);
 
   useEffect(() => {
-    if (!tournamentId) return;
-    if (!isOwner) return;
-    void fetchOrganizerRegistrations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (isOwner) void fetchOrganizerRegistrations();
   }, [tournamentId, isOwner]);
 
-  useEffect(() => {
-    if (!tournamentId || !userId) return;
-    void checkIsDebater();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournamentId, userId]);
-
-  async function checkIsDebater() {
+  async function fetchStats() {
     try {
-      const res = await fetch(
-        `/api/tournaments/${tournamentId}/participants/me`
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      setIsDebater(data?.role === 'DEBATER');
+      const [teamsRes, roundsRes] = await Promise.all([
+        fetch(`/api/tournaments/${tournamentId}/teams`),
+        fetch(`/api/tournaments/${tournamentId}/rounds`),
+      ]);
+
+      const teamsData = teamsRes.ok ? await teamsRes.json() : { teams: [] };
+      const roundsData = roundsRes.ok ? await roundsRes.json() : { rounds: [] };
+
+      setStats({
+        teamsCount: teamsData.teams?.length ?? 0,
+        roundsCount: roundsData.rounds?.length ?? 0,
+        institutionsCount: 0,
+        participantsCount: 0,
+      });
     } catch {
-      // silently ignore – button simply stays hidden
-    }
-  }
-
-  async function fetchTournament() {
-    try {
-      const res = await fetch(`/api/tournaments/${tournamentId}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Failed to fetch');
-      setTournament(data);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load tournament');
+      // Stats are best-effort
     } finally {
       setLoading(false);
     }
@@ -110,7 +83,6 @@ export default function TournamentDetailPage() {
 
   async function fetchOrganizerRegistrations() {
     setOrganizerRegistrationsLoading(true);
-    setOrganizerRegistrationsError(null);
     try {
       const res = await fetch(
         `/api/tournaments/${tournamentId}/institution-registrations/admin?status=PENDING`
@@ -118,9 +90,7 @@ export default function TournamentDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to load registrations');
       setOrganizerRegistrations(Array.isArray(data?.items) ? data.items : []);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load registrations';
-      setOrganizerRegistrationsError(msg);
+    } catch {
       setOrganizerRegistrations([]);
     } finally {
       setOrganizerRegistrationsLoading(false);
@@ -151,115 +121,89 @@ export default function TournamentDetailPage() {
 
   if (loading) {
     return (
-      <main className="max-w-4xl mx-auto p-4 space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-64 w-full" />
-      </main>
-    );
-  }
-
-  if (!tournament) {
-    return (
-      <main className="max-w-4xl mx-auto p-4">
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4 text-center">
-          <Trophy className="h-16 w-16 text-muted-foreground" />
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Tournament Not Found</h1>
-            <p className="max-w-md text-muted-foreground">
-              The tournament you&apos;re looking for doesn&apos;t exist or may have
-              been removed.
-            </p>
-          </div>
-          <Link href="/">
-            <Button>Browse Tournaments</Button>
-          </Link>
+      <PageContainer>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
         </div>
-      </main>
+        <Skeleton className="h-48 w-full" />
+      </PageContainer>
     );
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/tournaments">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <Trophy className="h-6 w-6 text-cyan-500" />
-            <h1 className="text-2xl font-semibold">{tournament.name}</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Created by {displayNameFromDbUser(tournament.createdBy)}
-          </p>
+    <PageContainer>
+      {/* Quick Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard icon={<Users className="h-5 w-5 text-brand" />} label="Teams" value={stats.teamsCount} />
+          <StatCard icon={<LayoutList className="h-5 w-5 text-brand" />} label="Rounds" value={stats.roundsCount} />
+          <StatCard icon={<Building2 className="h-5 w-5 text-brand" />} label="Institutions" value={stats.institutionsCount} />
+          <StatCard icon={<Trophy className="h-5 w-5 text-brand" />} label="Participants" value={stats.participantsCount} />
         </div>
-      </div>
+      )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <Link href={`/tournaments/${tournament.id}/register/members`} className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">Register institution / members</Button>
-        </Link>
-        <Link href={`/tournaments/${tournament.id}/register/teams`} className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">Register teams</Button>
-        </Link>
-        <Link href={`/tournaments/${tournament.id}/rounds`} className="w-full sm:w-auto">
-          <Button variant="secondary" className="w-full sm:w-auto">View Rounds</Button>
-        </Link>
-        {isDebater && (
-          <Link href={`/tournaments/${tournament.id}/my-debates`} className="w-full sm:w-auto">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              <Swords className="h-4 w-4 mr-2" />
-              My Debates
-            </Button>
-          </Link>
-        )}
-        <Link href={`/tournaments/${tournament.id}/my-ballots`} className="w-full sm:w-auto">
-          <Button variant="secondary" className="w-full sm:w-auto">
-            <Scale className="h-4 w-4 mr-2" />
-            My Ballots
-          </Button>
-        </Link>
-        <Link href={`/tournaments/${tournament.id}/standings`} className="w-full sm:w-auto">
-          <Button variant="secondary" className="w-full sm:w-auto">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Standings
-          </Button>
-        </Link>
-        {isOwner && (
-          <Link href={`/tournaments/${tournament.id}/participants`} className="w-full sm:w-auto">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              <Users className="h-4 w-4 mr-2" />
-              Manage Participants
-            </Button>
-          </Link>
-        )}
-        {isOwner && (
-          <Link href={`/tournaments/${tournament.id}/teams`} className="w-full sm:w-auto">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              <Shield className="h-4 w-4 mr-2" />
-              Manage Teams
-            </Button>
-          </Link>
-        )}
-        {isOwner && tournament.settings?.eventMode !== 'ONLINE' && (
-          <Link href={`/tournaments/${tournament.id}/venues`} className="w-full sm:w-auto">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              <MapPin className="h-4 w-4 mr-2" />
-              Manage Venues
-            </Button>
-          </Link>
-        )}
-        {isOwner && (
-          <Link href={`/tournaments/${tournament.id}/settings`} className="w-full sm:w-auto sm:ml-auto">
-            <Button variant="outline" className="w-full sm:w-auto">Settings</Button>
-          </Link>
-        )}
-      </div>
+      {/* Pending Registrations (Organizer only) */}
+      {isOwner && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Pending Registrations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {organizerRegistrationsLoading ? (
+              <div className="text-sm text-muted-foreground">Loading...</div>
+            ) : organizerRegistrations.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No pending institution registrations.</div>
+            ) : (
+              <div className="space-y-3">
+                {organizerRegistrations.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border rounded-md p-3"
+                  >
+                    <div>
+                      <div className="font-medium">{r.institution.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Requested by {displayNameFromDbUser(r.requestedBy)} &bull;{' '}
+                        {new Date(r.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="brand"
+                        onClick={() => updateRegistrationStatus(r.id, 'APPROVED')}
+                        disabled={updatingRegistrationId === r.id}
+                      >
+                        {updatingRegistrationId === r.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <><Check className="mr-1 h-4 w-4" /> Approve</>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => updateRegistrationStatus(r.id, 'REJECTED')}
+                        disabled={updatingRegistrationId === r.id}
+                      >
+                        {updatingRegistrationId === r.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <><X className="mr-1 h-4 w-4" /> Reject</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Tournament Info */}
+      {/* Tournament Details */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -268,62 +212,27 @@ export default function TournamentDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Created</p>
-              <p>{new Date(tournament.createdAt).toLocaleDateString()}</p>
-            </div>
-
-            {isOwner && (
-              <div className="pt-4 border-t space-y-3">
-                <p className="text-sm text-muted-foreground">Organizer tools</p>
-
-                {organizerRegistrationsLoading ? (
-                  <div className="text-sm text-muted-foreground">Loading pending institution registrations…</div>
-                ) : organizerRegistrationsError ? (
-                  <div className="text-sm text-muted-foreground">{organizerRegistrationsError}</div>
-                ) : organizerRegistrations.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No pending institution registrations.</div>
-                ) : (
-                  <div className="space-y-3">
-                    {organizerRegistrations.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border rounded-md p-3"
-                      >
-                        <div>
-                          <div className="font-medium">{r.institution.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Requested by {displayNameFromDbUser(r.requestedBy)} •{' '}
-                            {new Date(r.createdAt).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => updateRegistrationStatus(r.id, 'APPROVED')}
-                            disabled={updatingRegistrationId === r.id}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => updateRegistrationStatus(r.id, 'REJECTED')}
-                            disabled={updatingRegistrationId === r.id}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="text-sm text-muted-foreground">
+            More tournament details and activity feed coming soon.
           </div>
         </CardContent>
       </Card>
-    </main>
+    </PageContainer>
+  );
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex items-center gap-3">
+          {icon}
+          <div>
+            <p className="text-2xl font-bold tabular-nums">{value}</p>
+            <p className="text-xs text-muted-foreground">{label}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

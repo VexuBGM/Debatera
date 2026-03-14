@@ -17,6 +17,22 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        // Role variants
+        organizer:
+          "border-transparent bg-role-organizer-muted text-role-organizer",
+        judge:
+          "border-transparent bg-role-judge-muted text-role-judge",
+        debater:
+          "border-transparent bg-role-debater-muted text-role-debater",
+        // Status variants
+        draft:
+          "border-transparent bg-status-draft/15 text-status-draft",
+        published:
+          "border-transparent bg-status-published/15 text-status-published",
+        "in-progress":
+          "border-transparent bg-status-in-progress/15 text-status-in-progress",
+        completed:
+          "border-transparent bg-status-completed/15 text-status-completed",
       },
     },
     defaultVariants: {

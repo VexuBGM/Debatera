@@ -302,7 +302,7 @@ export function ManageTeamsBoard({
                         onClick={handleCreateTeam}
                         disabled={isLocked || isCreatingTeam}
                         size="sm"
-                        className="bg-cyan-500 hover:bg-cyan-400 text-black"
+                        className="bg-brand hover:bg-brand/90 text-brand-foreground"
                     >
                         {isCreatingTeam ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />

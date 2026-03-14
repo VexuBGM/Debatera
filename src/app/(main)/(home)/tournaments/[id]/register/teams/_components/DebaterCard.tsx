@@ -63,7 +63,7 @@ export function DebaterCard({ debater, disabled = false, isDragging = false }: D
             {/* Avatar */}
             <Avatar className="h-8 w-8">
                 <AvatarImage src={debater.user.imageUrl ?? undefined} alt={displayName} />
-                <AvatarFallback className="bg-cyan-500/20 text-cyan-400 text-xs">
+                <AvatarFallback className="bg-brand/20 text-brand text-xs">
                     {initials}
                 </AvatarFallback>
             </Avatar>

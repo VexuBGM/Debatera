@@ -46,7 +46,7 @@ export default function ProfileSections({ user, isOwner }: ProfileSectionsProps)
         <CardContent>
           <div className="flex gap-4">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-cyan-400" />
+              <Users className="h-4 w-4 text-brand" />
               <span className="text-sm text-white/80">
                 <span className="font-semibold text-white">{debaterCount}</span>{' '}
                 as Debater
@@ -67,7 +67,7 @@ export default function ProfileSections({ user, isOwner }: ProfileSectionsProps)
       <Card className="bg-white/5 border-white/10">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-cyan-400" />
+            <Trophy className="h-4 w-4 text-brand" />
             Tournaments
           </CardTitle>
           <CardDescription className="text-white/50">
@@ -114,7 +114,7 @@ export default function ProfileSections({ user, isOwner }: ProfileSectionsProps)
       <Card className="bg-white/5 border-white/10">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-cyan-400" />
+            <Building2 className="h-4 w-4 text-brand" />
             Institutions
           </CardTitle>
           <CardDescription className="text-white/50">
@@ -148,9 +148,9 @@ export default function ProfileSections({ user, isOwner }: ProfileSectionsProps)
 
       {/* Private section (owner only) */}
       {isOwner && (
-        <Card className="bg-white/5 border-white/10 md:col-span-2 border-dashed border-cyan-400/30">
+        <Card className="bg-white/5 border-white/10 md:col-span-2 border-dashed border-brand/30">
           <CardHeader>
-            <CardTitle className="text-cyan-400">Private section</CardTitle>
+            <CardTitle className="text-brand">Private section</CardTitle>
             <CardDescription className="text-white/50">
               Only you can see this section.
             </CardDescription>

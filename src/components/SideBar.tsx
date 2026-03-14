@@ -4,67 +4,89 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
-  Home, MessagesSquare, Users, CalendarDays, Inbox,
-  MessageCircle, Compass, Trophy, PlusCircle, ClipboardList,
-  Send, ShieldCheck, BarChart2, ShieldAlert, Building2, X, UserCircle
+  Home, Users, Compass, PlusCircle,
+  ClipboardList, Building2, X, UserCircle, Trophy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
+import type { UserContext } from '@/components/AppShell';
 
 type Item = {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  count?: number;
+  badge?: { label: string; variant: 'organizer' | 'judge' | 'debater' };
 };
 
 type Section = { title: string; items: Item[] };
 
-const sections: Section[] = [
-  {
-    title: 'Overview',
-    items: [
-      { label: 'Home', href: '/', icon: Home }, 
-      { label: 'My Profile', href: '/me', icon: UserCircle },
-      { label: 'Institutions', href: '/institutions', icon: Building2 }, // Institutions (schools/organizations) that manage teams and members
-      //{ label: 'Debates', href: '/debates', icon: MessagesSquare, count: 7 }, // List (& calendar) of debates you can see (by role/visibility). // Filters: today, upcoming, past; my team; practice vs tournament; status (live/starting/scheduled). // Row actions: Join (if live/starting), View details (speakers, judges, rules), Copy invite.
-      //{ label: 'Teams', href: '/teams', icon: Users }, // Your teams + directory. // Team page: roster, coach, rating/Elo (future), past & upcoming debates, private team notes and files. // Actions (team lead/admin): invite members, set lineup, manage roles.
-      //{ label: 'Schedule', href: '/schedule', icon: CalendarDays }, // Personal calendar (aggregates tournaments, debates, judge slots). // Week/Month switch; export to Google/ICS; availability toggles.
-      //{ label: 'Messages', href: '/messages', icon: Inbox }, // In-app messaging: DMs, team channels, tournament announcements. // Mentions, attachments, message search.
-      //{ label: 'Feedback', href: '/feedback', icon: MessageCircle }, // Feedback you received as a debater and feedback you wrote as a judge. // Per-debate sheets, scores, comments, trends; export PDF/CSV.
-    ],
-  },
-  {
-    title: 'Tournaments',
-    items: [
-      { label: 'Browse', href: '/tournaments', icon: Compass }, // Public directory with filters (country, dates, format, status: Verified/Pending/Unverified). // Cards show rounds count, dates, verification badge.
-      //{ label: 'My Tournaments', href: '/tournaments/me', icon: Trophy }, // You as organizer/judge/participant: management shortcuts, drafts, registrations.
-      { label: 'Create Tournament', href: '/tournaments/new', icon: PlusCircle }, // Same as top-nav CTA (wizard). Only visible/enabled for users with creation rights.
-    ],
-  },
-  // {
-  //   title: 'Judging',
-  //   items: [
-  //     { label: 'Assignments', href: '/judging/assignments', icon: ClipboardList, count: 2 }, // Your assigned debates (status: to brief, call open, to submit feedback). // One-click Join as judge; briefing docs; conflict checks.
-  //     { label: 'Submit Feedback', href: '/judging/submit', icon: Send, count: 4 }, // Inbox of debates awaiting your ballot/sheet. // Structured rubric (speeches/categories), comments, ranks, speaker points; submit/undo; time limits if configured.
-  //   ],
-  // },
-//   {
-//     title: 'Admin',
-//     items: [
-//       { label: 'Verify Tournaments', href: '/admin/verify', icon: ShieldCheck, count: 3 }, // Queue of submitted tournaments awaiting verification. // Checklist: organizer identity, ruleset, schedule, anti-abuse. Approve/Reject with notes.
-//       { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 }, // Platform metrics: active users, debate minutes, region usage, average judges per round, reliability. // Tournament-level analytics for organizers.
-//       { label: 'Moderation', href: '/admin/moderation', icon: ShieldAlert }, //  Reports, bans/timeouts, room audit logs, permission overrides. // Reported content: debates, messages, users. // Actions: warn, suspend, ban; note history; filter by type, date, status.
-//     ],
-//   },
-];
+function buildSidebarSections(userContext: UserContext): Section[] {
+  const sections: Section[] = [
+    {
+      title: 'Overview',
+      items: [
+        { label: 'Home', href: '/', icon: Home },
+        { label: 'My Profile', href: '/me', icon: UserCircle },
+        { label: 'Institutions', href: '/institutions', icon: Building2 },
+      ],
+    },
+    {
+      title: 'Tournaments',
+      items: [
+        { label: 'Browse', href: '/tournaments', icon: Compass },
+        { label: 'Create Tournament', href: '/tournaments/new', icon: PlusCircle },
+      ],
+    },
+  ];
+
+  // My Tournaments section
+  if (userContext.activeTournaments.length > 0) {
+    const roleVariantMap = {
+      ORGANIZER: 'organizer',
+      JUDGE: 'judge',
+      DEBATER: 'debater',
+    } as const;
+
+    sections.push({
+      title: 'My Tournaments',
+      items: userContext.activeTournaments.map((t) => ({
+        label: t.name,
+        href: `/tournaments/${t.id}`,
+        icon: Trophy,
+        badge: {
+          label: t.role.charAt(0) + t.role.slice(1).toLowerCase(),
+          variant: roleVariantMap[t.role],
+        },
+      })),
+    });
+  }
+
+  // Judging section — show if user has any JUDGE participations
+  const hasJudgeRole = userContext.activeTournaments.some((t) => t.role === 'JUDGE');
+  if (hasJudgeRole) {
+    sections.push({
+      title: 'Judging',
+      items: [
+        { label: 'My Assignments', href: '/judging/assignments', icon: ClipboardList },
+      ],
+    });
+  }
+
+  return sections;
+}
 
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  userContext?: UserContext;
 }
 
-export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps = {}) {
+export default function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+  userContext,
+}: SidebarProps) {
   const pathname = usePathname();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -78,7 +100,14 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       onMobileClose();
     }
   }, [pathname]);
-  
+
+  const defaultContext: UserContext = {
+    isAdmin: false,
+    institutionCount: 0,
+    activeTournaments: [],
+  };
+  const sections = buildSidebarSections(userContext ?? defaultContext);
+
   const flatItems = sections.flatMap((s) => s.items);
   const activeHref = flatItems
     .map((i) => i.href)
@@ -89,7 +118,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     <nav className="flex flex-col gap-4 lg:gap-6">
       {sections.map((section) => (
         <div key={section.title}>
-          <p className="px-1.5 lg:px-2 pb-1.5 lg:pb-2 text-[10px] lg:text-xs font-semibold uppercase tracking-wider text-white/40">
+          <p className="px-1.5 lg:px-2 pb-1.5 lg:pb-2 text-[10px] lg:text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
             {section.title}
           </p>
           <ul className="space-y-0.5 lg:space-y-1">
@@ -103,18 +132,18 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                     className={cn(
                       'group flex items-center justify-between rounded-lg lg:rounded-xl px-1.5 lg:px-2 py-1.5 lg:py-2 text-xs lg:text-sm transition',
                       active
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/80 hover:bg-white/5 hover:text-white'
+                        ? 'bg-foreground/10 text-foreground'
+                        : 'text-foreground/80 hover:bg-foreground/5 hover:text-foreground'
                     )}
                   >
-                    <span className="flex items-center gap-1.5 lg:gap-2.5">
-                      <Icon className={cn('h-3.5 w-3.5 lg:h-4 lg:w-4', active ? 'text-cyan-400' : 'text-white/60 group-hover:text-white/80')} />
+                    <span className="flex items-center gap-1.5 lg:gap-2.5 min-w-0">
+                      <Icon className={cn('h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0', active ? 'text-brand' : 'text-muted-foreground group-hover:text-foreground/80')} />
                       <span className="truncate">{item.label}</span>
                     </span>
-                    {typeof item.count === 'number' && (
-                      <span className="ml-1 lg:ml-2 inline-flex min-w-5 lg:min-w-6 items-center justify-center rounded-full bg-white/10 px-1 lg:px-1.5 text-[10px] lg:text-xs font-semibold text-white/80">
-                        {item.count}
-                      </span>
+                    {item.badge && (
+                      <Badge variant={item.badge.variant} className="ml-1 text-[9px] px-1 py-0 h-4">
+                        {item.badge.label}
+                      </Badge>
                     )}
                   </Link>
                 </li>
@@ -128,7 +157,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
   if (!isMounted) {
     return (
-      <aside className="hidden md:block md:w-[220px] lg:w-[260px] bg-[#050E22]">
+      <aside className="hidden md:block md:w-[220px] lg:w-[260px] bg-surface-1">
         <div className="sticky top-12 sm:top-14 h-[calc(100dvh-48px)] sm:h-[calc(100dvh-56px)] overflow-y-auto px-2 lg:px-3 py-3 lg:py-4">
           {sidebarContent}
         </div>
@@ -139,7 +168,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:block md:w-[220px] lg:w-[260px] bg-[#050E22]">
+      <aside className="hidden md:block md:w-[220px] lg:w-[260px] bg-surface-1">
         <div className="sticky top-12 sm:top-14 h-[calc(100dvh-48px)] sm:h-[calc(100dvh-56px)] overflow-y-auto px-2 lg:px-3 py-3 lg:py-4">
           {sidebarContent}
         </div>
@@ -147,9 +176,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
       {/* Mobile Drawer */}
       <Sheet open={mobileOpen} onOpenChange={onMobileClose}>
-        <SheetContent side="left" className="w-[280px] p-0 bg-[#050E22] border-r border-white/10">
-          <SheetHeader className="px-4 py-4 border-b border-white/10">
-            <SheetTitle className="text-white text-lg font-semibold">Menu</SheetTitle>
+        <SheetContent side="left" className="w-[280px] p-0 bg-surface-1 border-r border-border">
+          <SheetHeader className="px-4 py-4 border-b border-border">
+            <SheetTitle className="text-foreground text-lg font-semibold">Menu</SheetTitle>
           </SheetHeader>
           <div className="overflow-y-auto h-[calc(100vh-80px)] px-3 py-4">
             {sidebarContent}
