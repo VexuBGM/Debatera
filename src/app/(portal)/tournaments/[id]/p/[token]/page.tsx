@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { PageContainer } from '@/components/PageContainer';
 
 // ============================================================================
 // Types
@@ -111,12 +112,12 @@ export default function JudgePortalPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <PageContainer>
         <Skeleton className="h-10 w-72" />
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -126,7 +127,8 @@ export default function JudgePortalPage() {
 
   if (error || !context) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+      <PageContainer>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 text-center">
         <AlertTriangle className="h-12 w-12 text-amber-500" />
         <h1 className="text-2xl font-bold">Access Denied</h1>
         <p className="text-muted-foreground max-w-md">
@@ -135,7 +137,8 @@ export default function JudgePortalPage() {
         <p className="text-sm text-muted-foreground">
           Please contact the tournament organizer for a new link.
         </p>
-      </div>
+        </div>
+      </PageContainer>
     );
   }
 
@@ -146,7 +149,8 @@ export default function JudgePortalPage() {
   const { tournament, judge, rounds } = context;
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
+      <div className="space-y-6">
       {/* Portal Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2">
@@ -229,7 +233,8 @@ export default function JudgePortalPage() {
           </Card>
         ))
       )}
-    </div>
+      </div>
+    </PageContainer>
   );
 }
 
