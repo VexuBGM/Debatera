@@ -10,7 +10,6 @@ import { auth } from '@clerk/nextjs/server';
 import { ensureUserInDB } from '@/lib/ensureUser';
 import {
   isTournamentAdmin,
-  getRoundsForTournament,
   getNextRoundNumber,
   createRound,
   CreateRoundSchema,
@@ -18,6 +17,8 @@ import {
 import { parsePaginationParams, paginationToSkipTake, buildPaginationMeta } from '@/lib/pagination';
 import { prisma } from '@/lib/prisma';
 import { TournamentRoundStatus } from '@prisma/client';
+import { getTournamentViewAccess } from '@/lib/security/access';
+import { rateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -34,11 +35,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rateLimited = rateLimit(req, 'api:tournament-rounds:get', {
+      limit: 120,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
     const { userId } = await auth();
     const { id: tournamentId } = await params;
+    const access = await getTournamentViewAccess(tournamentId, userId);
+
+    if (!access.exists || !access.canView) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+    }
 
     // Check if user is admin (for filtering)
-    const isAdmin = userId ? await isTournamentAdmin(tournamentId, userId) : false;
+    const isAdmin = access.isAdmin;
 
     const statusFilter = isAdmin
       ? undefined
@@ -107,7 +119,7 @@ export async function POST(
   const validation = CreateRoundSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(
-      { error: 'Validation Error', details: validation.error.format() },
+      { error: 'Invalid request body' },
       { status: 400 }
     );
   }

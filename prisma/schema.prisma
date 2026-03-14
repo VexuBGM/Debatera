@@ -444,6 +444,7 @@ model TournamentParticipantAccessLink {
   tournamentId  String    @db.VarChar(128)
   participantId String    @unique // One link per participant
   tokenHash     String    @unique // SHA-256 hash of the token (never store plaintext)
+  expiresAt     DateTime  @default(dbgenerated("(now() + '14 days'::interval)"))
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastUsedAt    DateTime?
@@ -455,6 +456,7 @@ model TournamentParticipantAccessLink {
 
   @@index([tournamentId])
   @@index([tokenHash])
+  @@index([expiresAt])
 }
 
 // ============================================================================

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { getTournament, isTournamentOwner } from '@/lib/services/mvp';
+import { isTournamentOwner } from '@/lib/services/mvp';
+import { getTournamentViewAccess } from '@/lib/security/access';
+import { rateLimit } from '@/lib/security/rateLimit';
 import prisma from '@/lib/prisma';
 
 const UpdateTournamentSchema = z.object({
@@ -19,9 +21,36 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: tournamentId } = await params;
+    const rateLimited = rateLimit(req, 'api:tournaments:get', {
+      limit: 90,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
 
-    const tournament = await getTournament(tournamentId);
+    const { userId } = await auth();
+    const { id: tournamentId } = await params;
+    const access = await getTournamentViewAccess(tournamentId, userId);
+
+    if (!access.exists || !access.canView) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+    }
+
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        createdByUserId: true,
+        isPublic: true,
+        registrationClosesAt: true,
+        settings: {
+          select: {
+            eventMode: true,
+          },
+        },
+      },
+    });
 
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
@@ -66,7 +95,7 @@ export async function PATCH(
     return NextResponse.json(updated, { status: 200 });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.flatten() }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

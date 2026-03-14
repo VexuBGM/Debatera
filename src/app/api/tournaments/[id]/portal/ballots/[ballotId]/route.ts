@@ -18,6 +18,7 @@ import {
   OPP_ROLES,
 } from '@/lib/ballots';
 import { SpeechRole, BallotStatus, TournamentRoundStatus } from '@prisma/client';
+import { rateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,12 @@ type RouteParams = { params: Promise<{ id: string; ballotId: string }> };
  */
 export async function GET(req: Request, { params }: RouteParams) {
   try {
+    const rateLimited = rateLimit(req, 'api:portal:ballot:get', {
+      limit: 180,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
     const { id: tournamentId, ballotId } = await params;
 
     const token = extractToken(req);
@@ -233,6 +240,12 @@ export async function GET(req: Request, { params }: RouteParams) {
  */
 export async function PUT(req: Request, { params }: RouteParams) {
   try {
+    const rateLimited = rateLimit(req, 'api:portal:ballot:save', {
+      limit: 60,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
     const { id: tournamentId, ballotId } = await params;
 
     const token = extractToken(req);
@@ -277,10 +290,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
     const body = await req.json();
     const parsed = SaveBallotDraftSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Invalid request body', details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
     const data = parsed.data;

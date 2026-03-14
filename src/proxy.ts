@@ -5,7 +5,7 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/clerk-sync-keyless(.*)',
   '/api(.*)',
-  '/tournaments/(.*)/p/(.*)', // Judge portal (token-based auth, no Clerk)
+  '/tournaments/(.*)/p(.*)', // Judge portal (token-based auth, no Clerk)
   '/tournaments/(.*)/standings(.*)', // Public standings page (no auth)
 ])
 

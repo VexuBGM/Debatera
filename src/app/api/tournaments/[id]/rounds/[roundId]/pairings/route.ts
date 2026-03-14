@@ -19,6 +19,8 @@ import {
 import { TournamentRoundStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getDebateRoleForUser, type DebateStreamRole } from '@/lib/stream/eligibility';
+import { getTournamentViewAccess } from '@/lib/security/access';
+import { rateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -35,8 +37,19 @@ type RouteParams = { params: Promise<{ id: string; roundId: string }> };
  */
 export async function GET(req: Request, { params }: RouteParams) {
   try {
+    const rateLimited = rateLimit(req, 'api:tournament-pairings:get', {
+      limit: 90,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
     const { userId } = await auth();
     const { id: tournamentId, roundId } = await params;
+    const access = await getTournamentViewAccess(tournamentId, userId);
+
+    if (!access.exists || !access.canView) {
+      return NextResponse.json({ error: 'Round not found' }, { status: 404 });
+    }
 
     const round = await getPairingsForRound(roundId);
 
@@ -50,36 +63,10 @@ export async function GET(req: Request, { params }: RouteParams) {
     }
 
     // Check access for DRAFT rounds
-    const isAdmin = userId ? await isTournamentAdmin(tournamentId, userId) : false;
+    const isAdmin = access.isAdmin;
     if (round.status === TournamentRoundStatus.DRAFT && !isAdmin) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
-
-    // For the editor, also load all teams, judges, and venues
-    const [allTeams, allJudges, allVenues] = await Promise.all([
-      getTeamsForTournament(tournamentId),
-      getJudgesForTournament(tournamentId),
-      (await import('@/lib/prisma')).prisma.venue.findMany({
-        where: { tournamentId, isActive: true },
-        orderBy: { priority: 'desc' },
-        select: { id: true, name: true, priority: true },
-      }),
-    ]);
-
-    // Calculate which teams and judges are assigned
-    const assignedTeamIds = new Set<string>();
-    const assignedJudgeIds = new Set<string>();
-
-    for (const debate of round.debates) {
-      if (debate.propTeamId) assignedTeamIds.add(debate.propTeamId);
-      if (debate.oppTeamId) assignedTeamIds.add(debate.oppTeamId);
-      for (const judge of debate.judges) {
-        assignedJudgeIds.add(judge.participantId);
-      }
-    }
-
-    const unassignedTeams = allTeams.filter((t) => !assignedTeamIds.has(t.id));
-    const unassignedJudges = allJudges.filter((j) => !assignedJudgeIds.has(j.id));
 
     // Fetch event mode for the tournament (for "Join Call" button)
     const settings = await prisma.tournamentSettings.findUnique({
@@ -102,6 +89,40 @@ export async function GET(req: Request, { params }: RouteParams) {
       );
       userCallEligibility = Object.fromEntries(
         entries.filter((e): e is [string, DebateStreamRole] => e[1] !== null)
+      );
+    }
+
+    let allTeams: Awaited<ReturnType<typeof getTeamsForTournament>> = [];
+    let allJudges: Awaited<ReturnType<typeof getJudgesForTournament>> = [];
+    let allVenues: Array<{ id: string; name: string; priority: number }> = [];
+    let unassignedTeams: typeof allTeams = [];
+    let unassignedJudges: typeof allJudges = [];
+
+    if (isAdmin) {
+      [allTeams, allJudges, allVenues] = await Promise.all([
+        getTeamsForTournament(tournamentId),
+        getJudgesForTournament(tournamentId),
+        prisma.venue.findMany({
+          where: { tournamentId, isActive: true },
+          orderBy: { priority: 'desc' },
+          select: { id: true, name: true, priority: true },
+        }),
+      ]);
+
+      const assignedTeamIds = new Set<string>();
+      const assignedJudgeIds = new Set<string>();
+
+      for (const debate of round.debates) {
+        if (debate.propTeamId) assignedTeamIds.add(debate.propTeamId);
+        if (debate.oppTeamId) assignedTeamIds.add(debate.oppTeamId);
+        for (const judge of debate.judges) {
+          assignedJudgeIds.add(judge.participantId);
+        }
+      }
+
+      unassignedTeams = allTeams.filter((team) => !assignedTeamIds.has(team.id));
+      unassignedJudges = allJudges.filter(
+        (judge) => !assignedJudgeIds.has(judge.id)
       );
     }
 
@@ -157,7 +178,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
   const validation = SavePairingsSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(
-      { error: 'Validation Error', details: validation.error.format() },
+      { error: 'Invalid request body' },
       { status: 400 }
     );
   }

@@ -6,7 +6,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { hashToken } from './tokens';
+import { hashToken, isPortalTokenExpired } from './tokens';
 
 export interface PortalAuthResult {
   participantId: string;
@@ -16,18 +16,15 @@ export interface PortalAuthResult {
 }
 
 /**
- * Extract the bearer token from the Authorization header or query string.
+ * Extract the bearer token from the Authorization header.
  */
 export function extractToken(req: Request): string | null {
-  // Prefer Authorization header
   const authHeader = req.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
     return authHeader.slice(7);
   }
 
-  // Fallback to query param
-  const url = new URL(req.url);
-  return url.searchParams.get('token');
+  return null;
 }
 
 /**
@@ -63,6 +60,9 @@ export async function validatePortalToken(
 
   // Must not be revoked
   if (link.revokedAt) return null;
+
+  // Must not be expired
+  if (isPortalTokenExpired(link.expiresAt)) return null;
 
   // Must be a JUDGE participant
   if (link.participant.role !== 'JUDGE') return null;
@@ -123,6 +123,7 @@ export async function validatePortalBallotAccess(
 
   if (!link) return null;
   if (link.revokedAt) return null;
+  if (isPortalTokenExpired(link.expiresAt)) return null;
   if (link.participant.role !== 'JUDGE') return null;
 
   // Load the ballot and verify ownership

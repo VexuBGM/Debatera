@@ -92,10 +92,31 @@ export async function listInstitutions(
 export async function getInstitution(institutionId: string) {
   return prisma.institution.findUnique({
     where: { id: institutionId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      isPublic: true,
+      createdAt: true,
       members: {
-        include: { user: true },
         orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          userId: true,
+          role: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              firstName: true,
+              lastName: true,
+              imageUrl: true,
+            },
+          },
+        },
+      },
+      tournamentInstitutions: {
+        select: { id: true },
       },
     },
   });
@@ -233,8 +254,13 @@ export async function listTournaments(
 export async function getTournament(tournamentId: string) {
   return prisma.tournament.findUnique({
     where: { id: tournamentId },
-    include: {
-      createdBy: true,
+    select: {
+      id: true,
+      name: true,
+      createdAt: true,
+      createdByUserId: true,
+      isPublic: true,
+      registrationClosesAt: true,
       settings: { select: { eventMode: true } },
     },
   });

@@ -12,9 +12,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentAdmin } from '@/lib/tournamentRounds/authorization';
-import { generateToken, hashToken } from '@/lib/portal';
+import { generateToken, getPortalTokenExpiresAt, hashToken } from '@/lib/portal';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
-import { headers } from 'next/headers';
+import { rateLimit } from '@/lib/security/rateLimit';
+import { buildJudgePortalLink } from '@/lib/security/url';
 
 export const runtime = 'nodejs';
 
@@ -26,6 +27,17 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const rateLimited = rateLimit(
+      req,
+      'api:portal:generate-all-links',
+      {
+        limit: 5,
+        windowMs: 60_000,
+      },
+      userId
+    );
+    if (rateLimited) return rateLimited;
 
     const { id: tournamentId } = await params;
     await requireTournamentAdmin(tournamentId, userId);
@@ -46,19 +58,17 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    const headersList = await headers();
-    const host = headersList.get('host') || 'localhost:3000';
-    const protocol = headersList.get('x-forwarded-proto') || 'http';
-
     const links: Array<{
       participantId: string;
       judgeName: string;
       url: string;
+      expiresAt: Date;
     }> = [];
 
     for (const judge of judges) {
       const token = generateToken();
       const tokenHashed = hashToken(token);
+      const expiresAt = getPortalTokenExpiresAt();
 
       await prisma.tournamentParticipantAccessLink.upsert({
         where: { participantId: judge.id },
@@ -66,9 +76,11 @@ export async function POST(req: Request, { params }: RouteParams) {
           tournamentId,
           participantId: judge.id,
           tokenHash: tokenHashed,
+          expiresAt,
         },
         update: {
           tokenHash: tokenHashed,
+          expiresAt,
           revokedAt: null,
           updatedAt: new Date(),
         },
@@ -77,7 +89,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       links.push({
         participantId: judge.id,
         judgeName: displayNameFromDbUser(judge.user),
-        url: `${protocol}://${host}/tournaments/${tournamentId}/p/${token}`,
+        url: buildJudgePortalLink(tournamentId, token),
+        expiresAt,
       });
     }
 
