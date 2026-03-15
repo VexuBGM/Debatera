@@ -47,6 +47,7 @@ model User {
 model Institution {
   id        String   @id @default(dbgenerated("('inst_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
   name      String   @unique
+  isPublic  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   // Relationships
@@ -85,6 +86,7 @@ model Tournament {
   id                   String    @id @default(dbgenerated("('tourn_'::text || (gen_random_uuid())::text)")) @db.VarChar(128)
   name                 String
   createdByUserId      String    @db.VarChar(128)
+  isPublic             Boolean   @default(false)
   createdAt            DateTime  @default(now())
   registrationClosesAt DateTime?
 
@@ -136,6 +138,8 @@ model TournamentSettings {
   eventMode            EventMode     @default(IRL)
   pairingSystem        PairingSystem @default(SWISS)
   showDebaterNames     Boolean       @default(false)  // When true, display debater names instead of team names
+  speakerTopN          Int?          // null = show all speakers, positive int = show top N by avg points
+  hideSpeakerPoints    Boolean       @default(false)  // When true, hide numeric point values in speaker standings
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -441,7 +445,9 @@ model TournamentParticipantAccessLink {
   id            String    @id @default(cuid())
   tournamentId  String    @db.VarChar(128)
   participantId String    @unique // One link per participant
-  tokenHash     String    @unique // SHA-256 hash of the token (never store plaintext)
+  tokenHash     String    @unique // SHA-256 hash of the token (used for lookup/validation)
+  encryptedToken String?            // AES-256-GCM encrypted plaintext (allows organizer to view link again)
+  expiresAt     DateTime  @default(dbgenerated("(now() + '14 days'::interval)"))
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastUsedAt    DateTime?
@@ -453,6 +459,7 @@ model TournamentParticipantAccessLink {
 
   @@index([tournamentId])
   @@index([tokenHash])
+  @@index([expiresAt])
 }
 
 // ============================================================================

@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@clerk/nextjs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -13,7 +16,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, Users, Medal } from 'lucide-react';
+import { PaginationControls } from '@/components/ui/pagination';
+import type { PaginationMeta } from '@/lib/pagination';
+import { Trophy, Users, Medal, ArrowLeft, UserPlus } from 'lucide-react';
 
 // ============================================================================
 // Types (matching API response)
@@ -48,7 +53,10 @@ interface StandingsData {
   tournamentId: string;
   tournamentName: string;
   teamStandings: TeamStanding[];
+  teamPagination: PaginationMeta;
   speakerStandings: SpeakerStanding[];
+  speakerPagination: PaginationMeta;
+  hideSpeakerPoints: boolean;
 }
 
 // ============================================================================
@@ -58,17 +66,26 @@ interface StandingsData {
 export default function StandingsPage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const [data, setData] = useState<StandingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [teamPage, setTeamPage] = useState(1);
+  const [speakerPage, setSpeakerPage] = useState(1);
+  const PAGE_SIZE = 20;
 
-  useEffect(() => {
-    async function fetchStandings() {
+  const fetchStandings = useCallback(
+    async (tPage: number, sPage: number) => {
       try {
         setLoading(true);
         const includeInProgress = searchParams.get('includeInProgress');
-        const qs = includeInProgress === '1' ? '?includeInProgress=1' : '';
-        const res = await fetch(`/api/tournaments/${params.id}/standings${qs}`);
+        const qs = new URLSearchParams();
+        if (includeInProgress === '1') qs.set('includeInProgress', '1');
+        qs.set('teamPage', String(tPage));
+        qs.set('teamPageSize', String(PAGE_SIZE));
+        qs.set('speakerPage', String(sPage));
+        qs.set('speakerPageSize', String(PAGE_SIZE));
+        const res = await fetch(`/api/tournaments/${params.id}/standings?${qs.toString()}`);
         if (!res.ok) {
           if (res.status === 404) {
             setError('Tournament not found.');
@@ -84,9 +101,13 @@ export default function StandingsPage() {
       } finally {
         setLoading(false);
       }
-    }
-    fetchStandings();
-  }, [params.id, searchParams]);
+    },
+    [params.id, searchParams],
+  );
+
+  useEffect(() => {
+    void fetchStandings(teamPage, speakerPage);
+  }, [teamPage, speakerPage, fetchStandings]);
 
   if (loading) {
     return (
@@ -115,11 +136,33 @@ export default function StandingsPage() {
     <PageShell>
       <div className="space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {data.tournamentName}
-          </h1>
-          <p className="text-slate-400 text-sm">Points &amp; Standings</p>
+        <div className="space-y-3">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {data.tournamentName}
+            </h1>
+            <p className="text-slate-400 text-sm">Points &amp; Standings</p>
+          </div>
+
+          {isAuthLoaded && (
+            <div className="flex justify-center">
+              {isSignedIn ? (
+                <Button variant="outline" asChild>
+                  <Link href={`/tournaments/${data.tournamentId}`}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Tournament
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild>
+                  <Link href={`/sign-in?redirect_url=/tournaments/${data.tournamentId}/register/members`}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Register
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {!hasData ? (
@@ -167,15 +210,19 @@ export default function StandingsPage() {
                           <TableHead className="hidden sm:table-cell">
                             Institution
                           </TableHead>
-                          <TableHead className="text-right">
-                            Avg Pts
-                          </TableHead>
-                          <TableHead className="text-right hidden sm:table-cell">
-                            Speeches
-                          </TableHead>
-                          <TableHead className="text-right hidden sm:table-cell">
-                            Reply Pts
-                          </TableHead>
+                          {!data.hideSpeakerPoints && (
+                            <>
+                              <TableHead className="text-right">
+                                Avg Pts
+                              </TableHead>
+                              <TableHead className="text-right hidden sm:table-cell">
+                                Speeches
+                              </TableHead>
+                              <TableHead className="text-right hidden sm:table-cell">
+                                Reply Pts
+                              </TableHead>
+                            </>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -196,15 +243,19 @@ export default function StandingsPage() {
                             <TableCell className="hidden sm:table-cell text-slate-400">
                               {s.institutionName}
                             </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {s.averagePoints}
-                            </TableCell>
-                            <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
-                              {s.speechesCount}
-                            </TableCell>
-                            <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
-                              {s.replyAveragePoints > 0 ? s.replyAveragePoints : '–'}
-                            </TableCell>
+                            {!data.hideSpeakerPoints && (
+                              <>
+                                <TableCell className="text-right font-semibold tabular-nums">
+                                  {s.averagePoints}
+                                </TableCell>
+                                <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
+                                  {s.speechesCount}
+                                </TableCell>
+                                <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
+                                  {s.replyAveragePoints > 0 ? s.replyAveragePoints : '–'}
+                                </TableCell>
+                              </>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -212,6 +263,13 @@ export default function StandingsPage() {
                   </div>
                 </CardContent>
               </Card>
+              {data.speakerPagination && data.speakerPagination.totalPages > 1 && (
+                <PaginationControls
+                  pagination={data.speakerPagination}
+                  onPageChange={setSpeakerPage}
+                  className="mt-3"
+                />
+              )}
             </TabsContent>
 
             {/* Teams Tab */}
@@ -270,6 +328,13 @@ export default function StandingsPage() {
                   </div>
                 </CardContent>
               </Card>
+              {data.teamPagination && (
+                <PaginationControls
+                  pagination={data.teamPagination}
+                  onPageChange={setTeamPage}
+                  className="mt-3"
+                />
+              )}
             </TabsContent>
           </Tabs>
         )}
@@ -290,7 +355,7 @@ export default function StandingsPage() {
 /** Minimal page wrapper — mirrors the portal layout (no Navbar/Sidebar). */
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-linear-to-b from-[#0b1b34] to-slate-950 text-white antialiased">
+    <main className="min-h-screen bg-background text-foreground antialiased">
       <div className="mx-auto max-w-6xl px-4 py-6">{children}</div>
     </main>
   );

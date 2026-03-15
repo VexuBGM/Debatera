@@ -181,7 +181,7 @@ export default function TournamentVenuesPage() {
               To manage venues, change the event mode to <strong>IRL</strong> in{' '}
               <a
                 href={`/tournaments/${tournament.id}/settings`}
-                className="text-cyan-500 underline underline-offset-2 hover:text-cyan-400"
+                className="text-brand underline underline-offset-2 hover:text-brand/90"
               >
                 Tournament Settings
               </a>.
@@ -197,7 +197,7 @@ export default function TournamentVenuesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <MapPin className="h-6 w-6 text-cyan-500" />
+          <MapPin className="h-6 w-6 text-brand" />
           <div>
             <h1 className="text-2xl font-semibold">Venues</h1>
             <p className="text-sm text-muted-foreground">

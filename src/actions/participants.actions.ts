@@ -15,6 +15,12 @@ import {
   type BulkAddGuestParticipantsInput,
   type ParticipantWithUser,
 } from '@/lib/validations/participants';
+import {
+  generateGuestUserId,
+  parseGuestParticipantNames,
+  splitGuestDisplayName,
+} from '@/lib/domains/participants/guestParticipants';
+import { resolveTeamManagementScope } from '@/lib/domains/teams/teamManagementScope';
 
 // =============================================================================
 // Types
@@ -24,24 +30,6 @@ interface ActionResponse<T = undefined> {
   success: boolean;
   data?: T;
   error?: string;
-}
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function generateGuestUserId(): string {
-  return `guest_${crypto.randomUUID()}`;
-}
-
-function splitName(displayName: string): { firstName: string; lastName: string | null } {
-  const parts = displayName.trim().split(/\s+/);
-  if (parts.length === 1) {
-    return { firstName: parts[0], lastName: null };
-  }
-  const firstName = parts[0];
-  const lastName = parts.slice(1).join(' ');
-  return { firstName, lastName };
 }
 
 /**
@@ -137,7 +125,7 @@ export async function addGuestParticipant(
 
     // Create guest User
     const guestUserId = generateGuestUserId();
-    const { firstName, lastName } = splitName(parsed.displayName);
+    const { firstName, lastName } = splitGuestDisplayName(parsed.displayName);
 
     await prisma.user.create({
       data: {
@@ -201,10 +189,7 @@ export async function bulkAddGuestParticipants(
     );
 
     // Parse lines
-    const lines = parsed.names
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+    const lines = parseGuestParticipantNames(parsed.names);
 
     if (lines.length === 0) {
       return { success: false, error: 'No valid names provided' };
@@ -221,12 +206,12 @@ export async function bulkAddGuestParticipants(
     let totalCreated = 0;
 
     for (let i = 0; i < lines.length; i++) {
-      const name = lines[i];
+      const { name } = lines[i];
 
       // Validate name length
       if (name.length > 128) {
         results.push({
-          line: i + 1,
+          line: lines[i].line,
           name,
           success: false,
           error: 'Name too long (max 128 characters)',
@@ -236,7 +221,7 @@ export async function bulkAddGuestParticipants(
 
       try {
         const guestUserId = generateGuestUserId();
-        const { firstName, lastName } = splitName(name);
+        const { firstName, lastName } = splitGuestDisplayName(name);
 
         await prisma.user.create({
           data: {
@@ -258,7 +243,7 @@ export async function bulkAddGuestParticipants(
         });
 
         results.push({
-          line: i + 1,
+          line: lines[i].line,
           name,
           success: true,
           participantId: participant.id,
@@ -266,7 +251,7 @@ export async function bulkAddGuestParticipants(
         totalCreated++;
       } catch (error: any) {
         results.push({
-          line: i + 1,
+          line: lines[i].line,
           name,
           success: false,
           error: error.message || 'Failed to create participant',
@@ -375,8 +360,16 @@ export async function getTournamentParticipants(
       return { success: false, error: 'Forbidden' };
     }
 
+    const scope = await resolveTeamManagementScope(tournamentId, userId);
+    const participantWhere = isCreator
+      ? { tournamentId }
+      : {
+          tournamentId,
+          institutionId: { in: scope.manageableInstitutionIds },
+        };
+
     const participants = await prisma.tournamentParticipant.findMany({
-      where: { tournamentId },
+      where: participantWhere,
       include: {
         user: {
           select: {
@@ -403,7 +396,13 @@ export async function getTournamentParticipants(
 
     // Get approved institutions for this tournament
     const approvedInstitutions = await prisma.tournamentInstitution.findMany({
-      where: { tournamentId, status: 'APPROVED' },
+      where: isCreator
+        ? { tournamentId, status: 'APPROVED' }
+        : {
+            tournamentId,
+            status: 'APPROVED',
+            institutionId: { in: scope.manageableInstitutionIds },
+          },
       include: { institution: { select: { id: true, name: true } } },
     });
 

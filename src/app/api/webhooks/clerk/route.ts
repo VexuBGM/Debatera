@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Webhook } from 'svix';
+import { rateLimit } from '@/lib/security/rateLimit';
 
 const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
 if (!WEBHOOK_SECRET) console.warn('CLERK_WEBHOOK_SECRET not set');
@@ -8,6 +9,12 @@ export const runtime = 'nodejs'; // required for svix crypto
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimited = rateLimit(req, 'api:webhooks:clerk', {
+      limit: 120,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
     const payload = await req.text();
     const headers = {
       'svix-id': req.headers.get('svix-id')!,

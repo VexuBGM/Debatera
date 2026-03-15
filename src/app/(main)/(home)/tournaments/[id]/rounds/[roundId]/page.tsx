@@ -47,6 +47,7 @@ import {
 import { toast } from 'sonner';
 import { RoundEditor } from './RoundEditor';
 import { autoAllocateVenuesAction } from '@/actions/venues.actions';
+import { useSetBreadcrumbOverride } from '@/components/BreadcrumbOverrides';
 import type { RoundData, TeamData, JudgeData, VenueData, EditorDebate } from './types';
 
 // =============================================================================
@@ -87,6 +88,7 @@ export default function RoundEditorPage() {
   const tournamentId = params?.id;
   const roundId = params?.roundId;
   const { userId } = useAuth();
+  const setBreadcrumbOverride = useSetBreadcrumbOverride();
 
   // Data state
   const [round, setRound] = useState<RoundData | null>(null);
@@ -148,6 +150,7 @@ export default function RoundEditorPage() {
 
       const data = await res.json();
       setRound(data.round);
+      if (roundId) setBreadcrumbOverride(roundId, data.round.name);
       setAllTeams(data.allTeams);
       setAllJudges(data.allJudges);
       setIsAdmin(data.isAdmin);
@@ -198,7 +201,7 @@ export default function RoundEditorPage() {
     } finally {
       setLoading(false);
     }
-  }, [tournamentId, roundId, router]);
+  }, [tournamentId, roundId, router, setBreadcrumbOverride]);
 
   useEffect(() => {
     void fetchPairings();
@@ -358,6 +361,7 @@ export default function RoundEditorPage() {
       if (!res.ok) throw new Error(data?.error || 'Failed to update name');
 
       setRound((prev) => (prev ? { ...prev, name: editedName } : null));
+      if (roundId) setBreadcrumbOverride(roundId, editedName);
       toast.success('Round name updated');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to update name');
@@ -451,7 +455,7 @@ export default function RoundEditorPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Trophy className="h-6 w-6 text-cyan-500" />
+          <Trophy className="h-6 w-6 text-brand" />
           <div>
             {isEditingName && canEdit ? (
               <div className="flex items-center gap-2">
@@ -545,7 +549,7 @@ export default function RoundEditorPage() {
       <Card>
         <CardHeader className="py-3 pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-cyan-500" />
+            <MessageSquare className="h-4 w-4 text-brand" />
             Motion
             {isAdmin && !isEditingMotion && (
               <Button

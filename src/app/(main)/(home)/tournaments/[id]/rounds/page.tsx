@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { PaginationControls } from '@/components/ui/pagination';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,9 @@ import { Label } from '@/components/ui/label';
 import { Plus, Edit, Trophy, Lock, ChevronDown, Check, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { PageContainer } from '@/components/PageContainer';
+import { PageHeader } from '@/components/PageHeader';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // =============================================================================
 // Types
@@ -66,18 +70,18 @@ interface Tournament {
 // Status Badge Helper
 // =============================================================================
 
-function getStatusBadgeVariant(status: RoundStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+function getStatusBadgeVariant(status: RoundStatus): 'draft' | 'published' | 'in-progress' | 'completed' {
   switch (status) {
     case 'DRAFT':
-      return 'secondary';
+      return 'draft';
     case 'PUBLISHED':
-      return 'default';
+      return 'published';
     case 'IN_PROGRESS':
-      return 'destructive';
+      return 'in-progress';
     case 'COMPLETED':
-      return 'outline';
+      return 'completed';
     default:
-      return 'secondary';
+      return 'draft';
   }
 }
 
@@ -110,6 +114,12 @@ export default function TournamentRoundsPage() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [roundsPage, setRoundsPage] = useState(1);
+  const [roundsPaginationMeta, setRoundsPaginationMeta] = useState<{
+    page: number; pageSize: number; total: number; totalPages: number;
+    hasNextPage: boolean; hasPreviousPage: boolean;
+  } | null>(null);
+  const ROUNDS_PAGE_SIZE = 10;
 
   // Create round dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -130,11 +140,31 @@ export default function TournamentRoundsPage() {
   const isOwner = tournament?.createdByUserId === userId;
 
   // Fetch tournament details and rounds
+  const fetchRounds = useCallback(async (page: number) => {
+    if (!tournamentId) return;
+    try {
+      const roundsRes = await fetch(
+        `/api/tournaments/${tournamentId}/rounds?page=${page}&pageSize=${ROUNDS_PAGE_SIZE}`,
+      );
+      if (!roundsRes.ok) throw new Error('Failed to fetch rounds');
+      const roundsData = await roundsRes.json();
+      setRounds(roundsData.rounds || []);
+      if (roundsData.pagination) setRoundsPaginationMeta(roundsData.pagination);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load rounds');
+    }
+  }, [tournamentId]);
+
   useEffect(() => {
     if (!tournamentId) return;
     void fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
+
+  useEffect(() => {
+    if (!tournamentId) return;
+    void fetchRounds(roundsPage);
+  }, [roundsPage, fetchRounds, tournamentId]);
 
   async function fetchData() {
     try {
@@ -144,11 +174,14 @@ export default function TournamentRoundsPage() {
       const tournamentData = await tournamentRes.json();
       setTournament(tournamentData);
 
-      // Fetch rounds
-      const roundsRes = await fetch(`/api/tournaments/${tournamentId}/rounds`);
+      // Fetch rounds (page 1 initially)
+      const roundsRes = await fetch(
+        `/api/tournaments/${tournamentId}/rounds?page=1&pageSize=${ROUNDS_PAGE_SIZE}`,
+      );
       if (!roundsRes.ok) throw new Error('Failed to fetch rounds');
       const roundsData = await roundsRes.json();
       setRounds(roundsData.rounds || []);
+      if (roundsData.pagination) setRoundsPaginationMeta(roundsData.pagination);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -277,48 +310,45 @@ export default function TournamentRoundsPage() {
   // Loading state
   if (loading) {
     return (
-      <main className="max-w-4xl mx-auto p-4 space-y-4">
+      <PageContainer size="md">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96 w-full" />
-      </main>
+      </PageContainer>
     );
   }
 
   // Not found state
   if (!tournament) {
     return (
-      <main className="max-w-4xl mx-auto p-4">
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4 text-center">
-          <Trophy className="h-16 w-16 text-muted-foreground" />
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Tournament Not Found</h1>
-            <p className="max-w-md text-muted-foreground">
-              The tournament you&apos;re looking for doesn&apos;t exist or may have
-              been removed.
-            </p>
-          </div>
-          <Link href="/">
-            <Button>Browse Tournaments</Button>
-          </Link>
-        </div>
-      </main>
+      <PageContainer size="md">
+        <EmptyState
+          icon={<Trophy className="h-16 w-16" />}
+          title="Tournament Not Found"
+          description="The tournament you're looking for doesn't exist or may have been removed."
+          action={{ label: 'Browse Tournaments', href: '/' }}
+          className="min-h-[60vh]"
+        />
+      </PageContainer>
     );
   }
 
   // Non-admin: show read-only view
   if (!isOwner) {
     return (
-      <main className="max-w-4xl mx-auto p-4 space-y-6">
-        <div className="flex items-center gap-4">
-          <Trophy className="h-6 w-6 text-cyan-500" />
-          <h1 className="text-2xl font-semibold">{tournament.name} - Rounds</h1>
-        </div>
+      <PageContainer size="md">
+        <PageHeader
+          icon={<Trophy className="h-6 w-6 text-brand" />}
+          title={`${tournament.name} - Rounds`}
+        />
 
         {rounds.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Lock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No rounds have been published yet.</p>
+            <CardContent>
+              <EmptyState
+                icon={<Lock className="h-12 w-12" />}
+                title="No Rounds Yet"
+                description="No rounds have been published yet."
+              />
             </CardContent>
           </Card>
         ) : (
@@ -340,26 +370,31 @@ export default function TournamentRoundsPage() {
             ))}
           </div>
         )}
-      </main>
+        {roundsPaginationMeta && (
+          <PaginationControls
+            pagination={roundsPaginationMeta}
+            onPageChange={(p) => setRoundsPage(p)}
+            className="mt-4"
+          />
+        )}
+      </PageContainer>
     );
   }
 
   // Admin view
   return (
-    <main className="max-w-4xl mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Trophy className="h-6 w-6 text-cyan-500" />
-          <h1 className="text-2xl font-semibold">{tournament.name} - Rounds</h1>
-        </div>
-
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Round
-            </Button>
-          </DialogTrigger>
+    <PageContainer size="md">
+      <PageHeader
+        icon={<Trophy className="h-6 w-6 text-brand" />}
+        title={`${tournament.name} - Rounds`}
+        actions={
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Round
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Round</DialogTitle>
@@ -392,21 +427,18 @@ export default function TournamentRoundsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {rounds.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle>No Rounds Yet</CardTitle>
-            <CardDescription>
-              Create your first round to start setting up the pairings.
-            </CardDescription>
-          </CardHeader>
           <CardContent>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create First Round
-            </Button>
+            <EmptyState
+              icon={<Trophy className="h-12 w-12" />}
+              title="No Rounds Yet"
+              description="Create your first round to start setting up the pairings."
+              action={{ label: 'Create First Round', onClick: () => setCreateDialogOpen(true) }}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -487,6 +519,13 @@ export default function TournamentRoundsPage() {
           ))}
         </div>
       )}
+      {roundsPaginationMeta && (
+        <PaginationControls
+          pagination={roundsPaginationMeta}
+          onPageChange={setRoundsPage}
+          className="mt-4"
+        />
+      )}
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
@@ -543,6 +582,6 @@ export default function TournamentRoundsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </PageContainer>
   );
 }

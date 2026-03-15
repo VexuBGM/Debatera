@@ -101,7 +101,11 @@ export async function ensureInstitutionForTournament(
 // "Independent Adjudicators" per-tournament institution
 // ─────────────────────────────────────────────────────
 
-const INDEPENDENT_ADJ_NAME = 'Independent Adjudicators';
+export const INDEPENDENT_ADJ_NAME = 'Independent Adjudicators';
+
+export function isIndependentAdjudicatorsInstitutionName(name: string) {
+  return normalizeInstitutionName(name) === INDEPENDENT_ADJ_NAME;
+}
 
 /**
  * Ensure the per-tournament "Independent Adjudicators" institution exists

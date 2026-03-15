@@ -1,15 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination';
 import { FileText, Check, Edit, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import type { PaginationMeta } from '@/lib/pagination';
+import { PageContainer } from '@/components/PageContainer';
+import { PageHeader } from '@/components/PageHeader';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // ============================================================================
 // Types
@@ -49,20 +54,21 @@ export default function MyBallotsPage() {
   const [ballots, setBallots] = useState<BallotListItem[]>([]);
   const [eventMode, setEventMode] = useState<'IRL' | 'ONLINE'>('IRL');
   const [loading, setLoading] = useState(true);
+  const [ballotsPage, setBallotsPage] = useState(1);
+  const [ballotsPaginationMeta, setBallotsPaginationMeta] = useState<PaginationMeta | null>(null);
+  const BALLOTS_PAGE_SIZE = 10;
 
-  useEffect(() => {
-    if (!tournamentId || !userId) return;
-    void fetchBallots();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournamentId, userId]);
-
-  async function fetchBallots() {
+  const fetchBallots = useCallback(async (page: number) => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/ballots/my?tournamentId=${tournamentId}`);
+      const res = await fetch(
+        `/api/ballots/my?tournamentId=${tournamentId}&page=${page}&pageSize=${BALLOTS_PAGE_SIZE}`,
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to fetch ballots');
       setEventMode(data.eventMode ?? 'IRL');
       setBallots(data.ballots);
+      if (data.pagination) setBallotsPaginationMeta(data.pagination);
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to load ballots'
@@ -70,57 +76,66 @@ export default function MyBallotsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [tournamentId]);
+
+  useEffect(() => {
+    if (!tournamentId || !userId) return;
+    void fetchBallots(ballotsPage);
+  }, [tournamentId, userId, ballotsPage, fetchBallots]);
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-4">
+      <PageContainer size="md">
         <Skeleton className="h-8 w-48" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (ballots.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Scale className="h-6 w-6" />
-          My Ballots
-        </h1>
+      <PageContainer size="md">
+        <PageHeader
+          icon={<Scale className="h-6 w-6" />}
+          title="My Ballots"
+        />
         <Card>
-          <CardContent className="py-12 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              No ballots assigned to you in this tournament yet.
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ballots are created automatically when you are allocated as a
-              judge in a debate.
-            </p>
+          <CardContent>
+            <EmptyState
+              icon={<FileText className="h-12 w-12" />}
+              title="No ballots assigned yet"
+              description="Ballots are created automatically when you are allocated as a judge in a debate."
+            />
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Scale className="h-6 w-6" />
-        My Ballots
-      </h1>
+    <PageContainer size="md">
+      <PageHeader
+        icon={<Scale className="h-6 w-6" />}
+        title="My Ballots"
+      />
 
       <div className="space-y-3">
         {ballots.map((ballot) => (
           <BallotCard key={ballot.id} ballot={ballot} eventMode={eventMode} />
         ))}
       </div>
-    </div>
+      {ballotsPaginationMeta && (
+        <PaginationControls
+          pagination={ballotsPaginationMeta}
+          onPageChange={setBallotsPage}
+          className="mt-4"
+        />
+      )}
+    </PageContainer>
   );
 }
 

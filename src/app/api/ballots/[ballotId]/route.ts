@@ -149,6 +149,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
           number: debate.round.number,
           name: debate.round.name,
           status: debate.round.status,
+          motion: debate.round.motion,
+          infoSlide: debate.round.infoSlide,
         },
         debate: {
           id: debate.id,

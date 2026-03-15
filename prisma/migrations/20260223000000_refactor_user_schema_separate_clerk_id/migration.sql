@@ -1,0 +1,2 @@
+-- This migration was originally planned but never implemented.
+-- Kept as an empty placeholder to maintain migration history consistency.

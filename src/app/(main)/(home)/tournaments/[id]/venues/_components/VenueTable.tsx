@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PaginationControls } from '@/components/ui/pagination';
 import { Edit, Trash2, MapPin } from 'lucide-react';
 import { updateVenue, type VenueWithCategories } from '@/actions/venues.actions';
 import { EditVenueDialog } from './EditVenueDialog';
@@ -32,6 +33,8 @@ interface VenueTableProps {
   onRefresh: () => void;
 }
 
+const VENUES_PAGE_SIZE = 20;
+
 export function VenueTable({ venues, categories, isAdmin, onRefresh }: VenueTableProps) {
   // Edit dialog state
   const [editingVenue, setEditingVenue] = useState<VenueWithCategories | null>(null);
@@ -44,6 +47,11 @@ export function VenueTable({ venues, categories, isAdmin, onRefresh }: VenueTabl
 
   // Inline active toggle (optimistic)
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(venues.length / VENUES_PAGE_SIZE));
+  const pagedVenues = venues.slice((page - 1) * VENUES_PAGE_SIZE, page * VENUES_PAGE_SIZE);
 
   async function handleToggleActive(venue: VenueWithCategories) {
     setTogglingIds((prev) => new Set(prev).add(venue.id));
@@ -116,7 +124,7 @@ export function VenueTable({ venues, categories, isAdmin, onRefresh }: VenueTabl
               </TableRow>
             </TableHeader>
             <TableBody>
-              {venues.map((venue) => (
+              {pagedVenues.map((venue) => (
                 <TableRow
                   key={venue.id}
                   className={!venue.isActive ? 'opacity-50' : undefined}
@@ -182,6 +190,20 @@ export function VenueTable({ venues, categories, isAdmin, onRefresh }: VenueTabl
           </Table>
         </CardContent>
       </Card>
+      {venues.length > VENUES_PAGE_SIZE && (
+        <PaginationControls
+          pagination={{
+            page,
+            pageSize: VENUES_PAGE_SIZE,
+            total: venues.length,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPreviousPage: page > 1,
+          }}
+          onPageChange={setPage}
+          className="mt-3"
+        />
+      )}
 
       {/* Edit Dialog */}
       <EditVenueDialog

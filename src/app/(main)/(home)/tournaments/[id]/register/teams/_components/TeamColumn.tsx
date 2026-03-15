@@ -2,13 +2,13 @@
 
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2 } from 'lucide-react';
-import { DebaterCard } from './DebaterCard';
+import { Trash2, UserPlus } from 'lucide-react';
 import type { DebaterParticipant } from '@/actions/teams.actions';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { DebaterCard } from './DebaterCard';
 
 interface TeamColumnProps {
     id: string;
@@ -18,12 +18,10 @@ interface TeamColumnProps {
     teamMaxSize: number;
     isLocked: boolean;
     onDelete?: () => void;
+    onAddDebaters?: () => void;
+    onAssignExisting?: () => void;
 }
 
-/**
- * A column in the team management board.
- * Can be the "Unassigned" pool or a specific team.
- */
 export function TeamColumn({
     id,
     title,
@@ -32,57 +30,85 @@ export function TeamColumn({
     teamMaxSize,
     isLocked,
     onDelete,
+    onAddDebaters,
+    onAssignExisting,
 }: TeamColumnProps) {
     const isTeam = id !== 'unassigned';
     const memberCount = debaters.length;
-
-    // Make the column a drop target
     const { setNodeRef, isOver } = useDroppable({ id });
 
-    // Determine status badges
     const needsMore = isTeam && memberCount < teamMinSize;
     const isFull = isTeam && memberCount >= teamMaxSize;
 
     return (
         <Card
             ref={setNodeRef}
-            className={`
-        min-w-[280px] max-w-[320px] flex-shrink-0 
-        bg-white/5 border-white/10
-        transition-colors duration-200
-        ${isOver ? 'border-cyan-500/50 bg-cyan-500/5' : ''}
-      `}
+            className={[
+                'min-w-[296px] max-w-[312px] flex-shrink-0 gap-0 border-white/10 bg-white/5 py-0 transition-colors duration-200',
+                isOver ? 'border-brand/50 bg-brand/10' : '',
+            ].join(' ')}
         >
-            <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <CardTitle className="text-sm font-medium text-white">
-                            {title}
-                        </CardTitle>
-                        <span className="text-xs text-white/50">({memberCount})</span>
+            <CardHeader className="border-b border-white/10 px-4 py-3.5">
+                <div className="space-y-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-sm font-medium text-white">{title}</CardTitle>
+                                <span className="text-xs text-white/45">({memberCount})</span>
+                            </div>
+                            <p className="text-xs text-white/40">
+                                {isTeam ? 'Add debaters directly here or move existing ones in.' : 'Debaters removed from teams appear here.'}
+                            </p>
+                        </div>
+
+                        {isTeam && (
+                            <div className="flex items-center gap-2">
+                                {needsMore && (
+                                    <Badge variant="outline" className="border-amber-300/30 text-amber-200">
+                                        Need {teamMinSize - memberCount}
+                                    </Badge>
+                                )}
+                                {isFull && (
+                                    <Badge variant="outline" className="border-emerald-300/30 text-emerald-200">
+                                        Full
+                                    </Badge>
+                                )}
+                                {onDelete && !isLocked && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-red-300 hover:bg-red-400/10 hover:text-red-200"
+                                        onClick={onDelete}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    {/* Status badges and delete button for teams */}
-                    {isTeam && (
-                        <div className="flex items-center gap-2">
-                            {needsMore && (
-                                <Badge variant="outline" className="text-yellow-400 border-yellow-400/50 text-xs">
-                                    Needs {teamMinSize - memberCount} more
-                                </Badge>
+                    {isTeam && !isLocked && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {onAddDebaters && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+                                    onClick={onAddDebaters}
+                                >
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Add Debaters
+                                </Button>
                             )}
-                            {isFull && (
-                                <Badge variant="outline" className="text-green-400 border-green-400/50 text-xs">
-                                    Full
-                                </Badge>
-                            )}
-                            {onDelete && !isLocked && (
+                            {onAssignExisting && (
                                 <Button
                                     variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                                    onClick={onDelete}
+                                    size="sm"
+                                    className="text-white/80 hover:bg-white/10 hover:text-white"
+                                    onClick={onAssignExisting}
                                 >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Assign Existing
                                 </Button>
                             )}
                         </div>
@@ -90,19 +116,19 @@ export function TeamColumn({
                 </div>
             </CardHeader>
 
-            <CardContent className="pt-0">
-                <ScrollArea className="h-[300px]">
+            <CardContent className="px-4 py-3.5">
+                <ScrollArea className="h-[380px] pr-1">
                     <SortableContext
-                        items={debaters.map(d => `participant:${d.id}`)}
+                        items={debaters.map((debater) => `participant:${debater.id}`)}
                         strategy={verticalListSortingStrategy}
                     >
-                        <div className="space-y-2 pr-3">
+                        <div className="space-y-2.5 pr-2">
                             {debaters.length === 0 ? (
-                                <div className="py-8 text-center text-sm text-white/40">
-                                    {isTeam ? 'Drop debaters here' : 'No unassigned debaters'}
+                                <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-8 text-center text-sm text-white/40">
+                                    {isTeam ? 'Drop debaters here or use the actions above.' : 'No unassigned debaters right now.'}
                                 </div>
                             ) : (
-                                debaters.map(debater => (
+                                debaters.map((debater) => (
                                     <DebaterCard
                                         key={debater.id}
                                         debater={debater}

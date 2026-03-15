@@ -19,6 +19,8 @@ import {
 } from '@/lib/tournamentRounds';
 import { TournamentRoundStatus } from '@prisma/client';
 import { ensureCallsForRound } from '@/lib/stream/ensure';
+import { getTournamentViewAccess } from '@/lib/security/access';
+import { rateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -33,8 +35,19 @@ type RouteParams = { params: Promise<{ id: string; roundId: string }> };
  */
 export async function GET(req: Request, { params }: RouteParams) {
   try {
+    const rateLimited = rateLimit(req, 'api:tournament-round:get', {
+      limit: 120,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
     const { userId } = await auth();
     const { id: tournamentId, roundId } = await params;
+    const access = await getTournamentViewAccess(tournamentId, userId);
+
+    if (!access.exists || !access.canView) {
+      return NextResponse.json({ error: 'Round not found' }, { status: 404 });
+    }
 
     const round = await getRoundById(roundId);
 
@@ -48,7 +61,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     }
 
     // Check access for DRAFT rounds
-    const isAdmin = userId ? await isTournamentAdmin(tournamentId, userId) : false;
+    const isAdmin = access.isAdmin;
     if (round.status === TournamentRoundStatus.DRAFT && !isAdmin) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
@@ -92,7 +105,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   const validation = UpdateRoundSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(
-      { error: 'Validation Error', details: validation.error.format() },
+      { error: 'Invalid request body' },
       { status: 400 }
     );
   }

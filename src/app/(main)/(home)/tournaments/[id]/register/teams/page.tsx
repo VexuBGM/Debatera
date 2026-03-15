@@ -37,7 +37,9 @@ export default async function TeamsPage({ params }: TeamsPageProps) {
         tournament,
         allTeams,
         manageableInstitutions,
-        currentUserParticipantInstitutionId
+        currentUserParticipantInstitutionId,
+        isOrganizer,
+        canCreateInstitutions,
     } = result.data;
 
     const isLocked = isRegistrationClosed(tournament.registrationClosesAt);
@@ -63,13 +65,13 @@ export default async function TeamsPage({ params }: TeamsPageProps) {
     }
 
     return (
-        <div className="container mx-auto py-6 px-4 space-y-8">
+        <div className="container mx-auto space-y-6 px-4 py-5">
             {/* Header */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 <h1 className="text-2xl font-bold text-white">
                     Team Management - {tournament.name}
                 </h1>
-                <p className="text-white/70">
+                <p className="text-sm text-white/70">
                     Teams must have {tournament.teamMinSize}-{tournament.teamMaxSize} members.
                     {isLocked && (
                         <span className="ml-2 text-red-400 font-medium">
@@ -80,14 +82,16 @@ export default async function TeamsPage({ params }: TeamsPageProps) {
             </div>
 
             {/* Management Board (if user can manage at least one institution) */}
-            {manageableInstitutions.length > 0 && (
+            {(manageableInstitutions.length > 0 || canCreateInstitutions) && (
                 <ManageTeamsBoard
                     tournamentId={tournamentId}
                     tournament={tournament}
                     manageableInstitutions={manageableInstitutions}
-                    defaultInstitutionId={defaultInstitutionId!}
+                    defaultInstitutionId={defaultInstitutionId}
                     initialTeamState={initialTeamState}
                     isLocked={isLocked}
+                    isOrganizer={isOrganizer}
+                    canCreateInstitutions={canCreateInstitutions}
                 />
             )}
 

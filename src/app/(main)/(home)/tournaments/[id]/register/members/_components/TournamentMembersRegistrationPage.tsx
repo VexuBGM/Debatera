@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { PaginationControls } from '@/components/ui/pagination';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -78,6 +79,18 @@ type TournamentParticipant = {
   };
 };
 
+type PaginatedResponse<T> = {
+  data: T[];
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
 async function readJsonOrError(res: Response): Promise<any> {
   const text = await res.text();
   try {
@@ -85,6 +98,21 @@ async function readJsonOrError(res: Response): Promise<any> {
   } catch {
     return { error: text };
   }
+}
+
+function readArrayPayload<T>(json: unknown): T[] {
+  if (Array.isArray(json)) return json as T[];
+
+  if (
+    typeof json === 'object' &&
+    json !== null &&
+    'data' in json &&
+    Array.isArray((json as PaginatedResponse<T>).data)
+  ) {
+    return (json as PaginatedResponse<T>).data;
+  }
+
+  return [];
 }
 
 function displayUser(u: InstitutionMember['user'] | TournamentParticipant['user']) {
@@ -113,6 +141,8 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
 
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [participantsPage, setParticipantsPage] = useState(1);
+  const PARTICIPANTS_PAGE_SIZE = 20;
 
   const [roleByUserId, setRoleByUserId] = useState<Record<string, 'DEBATER' | 'JUDGE'>>({});
   const [registeringUserId, setRegisteringUserId] = useState<string | null>(null);
@@ -179,10 +209,11 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
       const res = await fetch(`/api/institutions/${institutionId}/members`);
       const json = await readJsonOrError(res);
       if (!res.ok) throw new Error(json?.error || 'Failed to load members');
-      setMembers(json);
+      const nextMembers = readArrayPayload<InstitutionMember>(json);
+      setMembers(nextMembers);
       setRoleByUserId(prev => {
         const next = { ...prev };
-        for (const m of json as InstitutionMember[]) {
+        for (const m of nextMembers) {
           if (!next[m.user.id]) next[m.user.id] = 'DEBATER';
         }
         return next;
@@ -556,7 +587,12 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
                     )}
 
                     {!participantsLoading &&
-                      participants.map(p => (
+                      participants
+                        .slice(
+                          (participantsPage - 1) * PARTICIPANTS_PAGE_SIZE,
+                          participantsPage * PARTICIPANTS_PAGE_SIZE,
+                        )
+                        .map(p => (
                         <TableRow key={p.id}>
                           <TableCell>
                             <div className="font-medium">{displayUser(p.user)}</div>
@@ -580,6 +616,20 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
                   </TableBody>
                 </Table>
               </div>
+              {participants.length > PARTICIPANTS_PAGE_SIZE && (
+                <PaginationControls
+                  pagination={{
+                    page: participantsPage,
+                    pageSize: PARTICIPANTS_PAGE_SIZE,
+                    total: participants.length,
+                    totalPages: Math.ceil(participants.length / PARTICIPANTS_PAGE_SIZE),
+                    hasNextPage: participantsPage < Math.ceil(participants.length / PARTICIPANTS_PAGE_SIZE),
+                    hasPreviousPage: participantsPage > 1,
+                  }}
+                  onPageChange={setParticipantsPage}
+                  className="mt-3"
+                />
+              )}
             </CardContent>
           </Card>
         </div>

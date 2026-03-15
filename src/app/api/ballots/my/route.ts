@@ -2,7 +2,8 @@
  * API: My Ballots
  *
  * GET /api/ballots/my?tournamentId=xxx
- * Returns all ballots assigned to the current user for a tournament.
+ * Returns paginated ballots assigned to the current user for a tournament.
+ * Supports ?page=1&pageSize=20 query params.
  */
 
 import { NextResponse } from 'next/server';
@@ -10,6 +11,7 @@ import { auth } from '@clerk/nextjs/server';
 import { TournamentRoundStatus } from '@prisma/client';
 import { getBallotsForAdjudicator } from '@/lib/ballots';
 import { prisma } from '@/lib/prisma';
+import { parsePaginationParams, buildPaginationMeta } from '@/lib/pagination';
 
 export const runtime = 'nodejs';
 
@@ -40,7 +42,7 @@ export async function GET(req: Request) {
     const allBallots = await getBallotsForAdjudicator(userId, tournamentId);
 
     // Only show ballots whose round is IN_PROGRESS or COMPLETED
-    const ballots = allBallots.filter((ballot) => {
+    const filtered = allBallots.filter((ballot) => {
       const roundStatus = ballot.adjudicator.debate.round.status;
       return (
         roundStatus === TournamentRoundStatus.IN_PROGRESS ||
@@ -48,8 +50,15 @@ export async function GET(req: Request) {
       );
     });
 
+    // Apply pagination to the filtered list
+    const pagination = parsePaginationParams(searchParams);
+    const { page, pageSize } = pagination;
+    const total = filtered.length;
+    const start = (page - 1) * pageSize;
+    const paginated = filtered.slice(start, start + pageSize);
+
     // Map to a safe shape (never expose other judges' data)
-    const response = ballots.map((ballot) => ({
+    const ballots = paginated.map((ballot) => ({
       id: ballot.id,
       status: ballot.status,
       vote: ballot.vote,
@@ -88,7 +97,10 @@ export async function GET(req: Request) {
       },
     }));
 
-    return NextResponse.json({ ballots: response, eventMode }, { status: 200 });
+    return NextResponse.json(
+      { ballots, eventMode, pagination: buildPaginationMeta(total, pagination) },
+      { status: 200 },
+    );
   } catch (err) {
     console.error('Error fetching my ballots:', err);
     return NextResponse.json(

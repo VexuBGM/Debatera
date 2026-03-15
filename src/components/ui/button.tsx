@@ -18,6 +18,18 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        "ghost-muted":
+          "text-muted-foreground hover:bg-muted hover:text-foreground",
+        brand:
+          "bg-brand text-brand-foreground hover:bg-brand/90",
+        organizer:
+          "bg-role-organizer text-white hover:bg-role-organizer/90",
+        judge:
+          "bg-role-judge text-white hover:bg-role-judge/90",
+        debater:
+          "bg-role-debater text-white hover:bg-role-debater/90",
+        "organizer-outline":
+          "border border-role-organizer text-role-organizer hover:bg-role-organizer/10",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

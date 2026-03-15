@@ -1,29 +1,65 @@
-'use client';
-
 import '../../globals.css';
-import React, { useState } from 'react';
-import TopNav from '@/components/Navbar';
-import Sidebar from '@/components/SideBar';
+import React from 'react';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
+import AppShell, { type UserContext } from '@/components/AppShell';
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const { userId } = await auth();
+
+  let userContext: UserContext = {
+    isAdmin: false,
+    institutionCount: 0,
+    activeTournaments: [],
+  };
+
+  if (userId) {
+    const [institutionCount, participations, ownedTournaments] = await Promise.all([
+      prisma.institutionMember.count({ where: { userId } }),
+      prisma.tournamentParticipant.findMany({
+        where: { userId },
+        select: {
+          role: true,
+          tournament: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      prisma.tournament.findMany({
+        where: { createdByUserId: userId },
+        select: { id: true, name: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+    ]);
+
+    // Build active tournaments list: owned ones as ORGANIZER + participations
+    const tournamentMap = new Map<string, UserContext['activeTournaments'][number]>();
+
+    for (const t of ownedTournaments) {
+      tournamentMap.set(t.id, { id: t.id, name: t.name, role: 'ORGANIZER' });
+    }
+
+    for (const p of participations) {
+      if (!tournamentMap.has(p.tournament.id)) {
+        tournamentMap.set(p.tournament.id, {
+          id: p.tournament.id,
+          name: p.tournament.name,
+          role: p.role as 'DEBATER' | 'JUDGE',
+        });
+      }
+    }
+
+    userContext = {
+      isAdmin: false, // No global admin role in schema yet
+      institutionCount,
+      activeTournaments: Array.from(tournamentMap.values()).slice(0, 5),
+    };
+  }
 
   return (
-    <>
-      <div className="min-h-screen bg-linear-to-b from-[#0b1b34] to-slate-950 text-white antialiased">
-        <TopNav onMenuClick={() => setMobileMenuOpen(true)} />
-        <div className="mx-auto">
-          <div className="flex gap-2 sm:gap-3 lg:gap-4">
-            <Sidebar 
-              mobileOpen={mobileMenuOpen} 
-              onMobileClose={() => setMobileMenuOpen(false)} 
-            />
-            <main className="flex-1 py-3 sm:py-4 px-2 sm:px-0 min-w-0">
-              {children}
-            </main>
-          </div>
-        </div>
-      </div>
-    </>
+    <AppShell userContext={userContext}>
+      {children}
+    </AppShell>
   );
 }

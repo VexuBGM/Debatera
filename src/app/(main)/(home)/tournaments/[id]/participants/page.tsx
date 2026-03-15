@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { PaginationControls } from '@/components/ui/pagination';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Upload, Trash2, UserPlus, Link2, Copy, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Users, Plus, Upload, Trash2, UserPlus, Link2, Copy, AlertTriangle, RefreshCw, Clock, CheckCircle2 } from 'lucide-react';
 import {
   DialogDescription,
   DialogFooter,
@@ -58,6 +59,9 @@ export default function ParticipantsPage() {
   const [loading, setLoading] = useState(true);
   const [debaters, setDebaters] = useState<ParticipantWithUser[]>([]);
   const [judges, setJudges] = useState<ParticipantWithUser[]>([]);
+  const PARTICIPANTS_PAGE_SIZE = 25;
+  const [judgesPage, setJudgesPage] = useState(1);
+  const [debatersPage, setDebatersPage] = useState(1);
   const [institutions, setInstitutions] = useState<Array<{ id: string; name: string }>>([]);
   const [tournament, setTournament] = useState<{ id: string; name: string; createdByUserId: string } | null>(null);
   const [isOrganizer, setIsOrganizer] = useState(false);
@@ -82,8 +86,17 @@ export default function ParticipantsPage() {
   const [removeLoadingId, setRemoveLoadingId] = useState<string | null>(null);
 
   // Portal link state
+  interface PortalLinkInfo {
+    participantId: string;
+    status: 'active' | 'expired' | 'revoked';
+    url: string | null;
+    expiresAt: string;
+    lastUsedAt: string | null;
+    createdAt: string;
+  }
+  const [portalLinks, setPortalLinks] = useState<Map<string, PortalLinkInfo>>(new Map());
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [generatedLink, setGeneratedLink] = useState<{ url: string; judgeName: string } | null>(null);
+  const [selectedJudge, setSelectedJudge] = useState<{ id: string; name: string } | null>(null);
   const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null);
   const [allLinksDialogOpen, setAllLinksDialogOpen] = useState(false);
   const [allLinks, setAllLinks] = useState<Array<{ participantId: string; judgeName: string; url: string }>>([]);
@@ -103,6 +116,22 @@ export default function ParticipantsPage() {
       setInstitutions(result.data.institutions);
       setTournament(result.data.tournament);
       setIsOrganizer(result.data.isOrganizer);
+
+      // Fetch existing portal link statuses (non-blocking)
+      if (result.data.isOrganizer) {
+        fetch(`/api/tournaments/${tournamentId}/portal/links`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => {
+            if (data?.links) {
+              const map = new Map<string, PortalLinkInfo>();
+              for (const link of data.links) {
+                map.set(link.participantId, link);
+              }
+              setPortalLinks(map);
+            }
+          })
+          .catch(() => { /* non-critical */ });
+      }
     } catch {
       toast.error('Failed to load participants');
     } finally {
@@ -192,6 +221,11 @@ export default function ParticipantsPage() {
     }
   }
 
+  function handleViewLink(participantId: string, judgeName: string) {
+    setSelectedJudge({ id: participantId, name: judgeName });
+    setLinkDialogOpen(true);
+  }
+
   async function handleGenerateLink(participantId: string) {
     if (!tournamentId) return;
     setGeneratingLinkId(participantId);
@@ -203,8 +237,21 @@ export default function ParticipantsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to generate link');
-      setGeneratedLink({ url: data.url, judgeName: data.judgeName });
-      setLinkDialogOpen(true);
+
+      // Update local link state
+      setPortalLinks((prev) => {
+        const next = new Map(prev);
+        next.set(participantId, {
+          participantId,
+          status: 'active',
+          url: data.url,
+          expiresAt: data.expiresAt,
+          lastUsedAt: null,
+          createdAt: new Date().toISOString(),
+        });
+        return next;
+      });
+      toast.success('Portal link generated');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to generate link');
     } finally {
@@ -260,6 +307,15 @@ export default function ParticipantsPage() {
   const canManage = isOrganizer || (userId && tournament.createdByUserId === userId);
 
   function renderParticipantList(participants: ParticipantWithUser[], role: 'DEBATER' | 'JUDGE') {
+    const page = role === 'JUDGE' ? judgesPage : debatersPage;
+    const setPage = role === 'JUDGE' ? setJudgesPage : setDebatersPage;
+    const total = participants.length;
+    const totalPages = Math.max(1, Math.ceil(total / PARTICIPANTS_PAGE_SIZE));
+    const paged = participants.slice(
+      (page - 1) * PARTICIPANTS_PAGE_SIZE,
+      page * PARTICIPANTS_PAGE_SIZE,
+    );
+
     if (participants.length === 0) {
       return (
         <div className="text-center py-8 text-muted-foreground">
@@ -273,57 +329,81 @@ export default function ParticipantsPage() {
     }
 
     return (
-      <div className="divide-y">
-        {participants.map((p) => (
-          <div key={p.id} className="flex items-center justify-between py-3 px-1">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                {getDisplayName(p.user).charAt(0).toUpperCase()}
+      <>
+        <div className="divide-y">
+          {paged.map((p) => (
+            <div key={p.id} className="flex items-center justify-between py-3 px-1">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                  {getDisplayName(p.user).charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{getDisplayName(p.user)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.institution.name}
+                    {p.user.id.startsWith('guest_') && (
+                      <Badge variant="outline" className="ml-2 text-[10px] py-0">Guest</Badge>
+                    )}
+                    {role === 'DEBATER' && p.teamMembership && (
+                      <Badge variant="secondary" className="ml-2 text-[10px] py-0">In team</Badge>
+                    )}
+                    {role === 'DEBATER' && !p.teamMembership && (
+                      <Badge variant="destructive" className="ml-2 text-[10px] py-0">Unassigned</Badge>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-sm">{getDisplayName(p.user)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {p.institution.name}
-                  {p.user.id.startsWith('guest_') && (
-                    <Badge variant="outline" className="ml-2 text-[10px] py-0">Guest</Badge>
+              {canManage && (
+                <div className="flex items-center gap-1">
+                  {role === 'JUDGE' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-8 w-8 ${
+                        portalLinks.get(p.id)?.status === 'active'
+                          ? 'text-green-500 hover:text-green-400'
+                          : 'text-muted-foreground hover:text-blue-500'
+                      }`}
+                      onClick={() => handleViewLink(p.id, getDisplayName(p.user))}
+                      disabled={generatingLinkId === p.id}
+                      title={
+                        portalLinks.get(p.id)?.status === 'active'
+                          ? 'View portal link'
+                          : 'Generate portal link'
+                      }
+                    >
+                      <Link2 className="h-4 w-4" />
+                    </Button>
                   )}
-                  {role === 'DEBATER' && p.teamMembership && (
-                    <Badge variant="secondary" className="ml-2 text-[10px] py-0">In team</Badge>
-                  )}
-                  {role === 'DEBATER' && !p.teamMembership && (
-                    <Badge variant="destructive" className="ml-2 text-[10px] py-0">Unassigned</Badge>
-                  )}
-                </p>
-              </div>
-            </div>
-            {canManage && (
-              <div className="flex items-center gap-1">
-                {role === 'JUDGE' && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-blue-500"
-                    onClick={() => handleGenerateLink(p.id)}
-                    disabled={generatingLinkId === p.id}
-                    title="Generate portal link"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRemove(p.id)}
+                    disabled={removeLoadingId === p.id}
                   >
-                    <Link2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => handleRemove(p.id)}
-                  disabled={removeLoadingId === p.id}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {total > PARTICIPANTS_PAGE_SIZE && (
+          <PaginationControls
+            pagination={{
+              page,
+              pageSize: PARTICIPANTS_PAGE_SIZE,
+              total,
+              totalPages,
+              hasNextPage: page < totalPages,
+              hasPreviousPage: page > 1,
+            }}
+            onPageChange={setPage}
+            className="mt-3"
+          />
+        )}
+      </>
     );
   }
 
@@ -490,27 +570,88 @@ export default function ParticipantsPage() {
         )}
       </div>
 
-      {/* Portal Link Dialogs */}
+      {/* Portal Link Dialog (View / Generate / Regenerate) */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Judge Portal Link</DialogTitle>
             <DialogDescription>
-              Private portal link for <strong>{generatedLink?.judgeName}</strong>
+              Portal link for <strong>{selectedJudge?.name}</strong>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center gap-2 rounded-md border bg-muted/50 p-3">
-              <code className="text-xs flex-1 break-all select-all">{generatedLink?.url}</code>
-              <Button size="icon" variant="outline" className="shrink-0" onClick={() => generatedLink && handleCopyLink(generatedLink.url)}>
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-xs">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>Anyone with this link can submit ballots as this judge. Keep it private.</span>
-            </div>
-          </div>
+          {(() => {
+            const linkInfo = selectedJudge ? portalLinks.get(selectedJudge.id) : null;
+            const hasActiveLink = linkInfo?.status === 'active' && linkInfo.url;
+
+            if (hasActiveLink) {
+              return (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 rounded-md border bg-muted/50 p-3">
+                    <code className="text-xs flex-1 break-all select-all">{linkInfo.url}</code>
+                    <Button size="icon" variant="outline" className="shrink-0" onClick={() => handleCopyLink(linkInfo.url!)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                      Active — expires {new Date(linkInfo.expiresAt).toLocaleDateString()}
+                    </span>
+                    {linkInfo.lastUsedAt && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Last used {new Date(linkInfo.lastUsedAt).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-xs">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>Anyone with this link can submit ballots as this judge. Keep it private.</span>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => selectedJudge && handleGenerateLink(selectedJudge.id)}
+                      disabled={generatingLinkId === selectedJudge?.id}
+                    >
+                      <RefreshCw className={`h-3 w-3 mr-2 ${generatingLinkId === selectedJudge?.id ? 'animate-spin' : ''}`} />
+                      {generatingLinkId === selectedJudge?.id ? 'Regenerating…' : 'Regenerate'}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              );
+            }
+
+            // No active link — show generate option
+            return (
+              <div className="space-y-3 pt-2">
+                {linkInfo?.status === 'expired' && (
+                  <p className="text-sm text-muted-foreground">
+                    Previous link expired on {new Date(linkInfo.expiresAt).toLocaleDateString()}.
+                  </p>
+                )}
+                {linkInfo?.status === 'revoked' && (
+                  <p className="text-sm text-muted-foreground">
+                    Previous link was revoked.
+                  </p>
+                )}
+                {!linkInfo && (
+                  <p className="text-sm text-muted-foreground">
+                    No portal link has been generated for this judge yet.
+                  </p>
+                )}
+                <Button
+                  className="w-full"
+                  onClick={() => selectedJudge && handleGenerateLink(selectedJudge.id)}
+                  disabled={generatingLinkId === selectedJudge?.id}
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  {generatingLinkId === selectedJudge?.id ? 'Generating…' : 'Generate Portal Link'}
+                </Button>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -579,7 +720,7 @@ export default function ParticipantsPage() {
 
         <TabsContent value="debaters">
           {canManage && (
-            <div className="mb-3 p-3 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 text-sm text-blue-700 dark:text-blue-300">
+            <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
               To add debaters, go to the <strong>Teams</strong> page and use &quot;Add Debaters&quot; on each team. Debaters inherit the team&apos;s institution automatically.
             </div>
           )}

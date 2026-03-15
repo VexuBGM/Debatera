@@ -6,7 +6,7 @@
  * Token-authenticated endpoint (no Clerk session required).
  * Returns the judge's tournament context and ballot assignments.
  *
- * Auth: Bearer token in Authorization header or ?token= query param.
+ * Auth: Bearer token in Authorization header.
  */
 
 import { NextResponse } from 'next/server';
@@ -15,6 +15,7 @@ import { extractToken, validatePortalToken } from '@/lib/portal';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { createBallotForJudge } from '@/lib/ballots';
 import { TournamentRoundStatus } from '@prisma/client';
+import { rateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -22,6 +23,12 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(req: Request, { params }: RouteParams) {
   try {
+    const rateLimited = rateLimit(req, 'api:portal:judge', {
+      limit: 120,
+      windowMs: 60_000,
+    });
+    if (rateLimited) return rateLimited;
+
     const { id: tournamentId } = await params;
 
     // Extract and validate token

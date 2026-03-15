@@ -36,6 +36,12 @@ interface TournamentSettings {
     debateFormat: 'WSDC';
     eventMode: 'ONLINE' | 'IRL';
     showDebaterNames: boolean;
+    speakerTopN: number | null;
+    hideSpeakerPoints: boolean;
+}
+
+interface TournamentData {
+    isPublic: boolean;
 }
 
 export default function TournamentSettingsPage() {
@@ -47,6 +53,8 @@ export default function TournamentSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [tournament, setTournament] = useState<TournamentData>({ isPublic: false });
+    const [togglingVisibility, setTogglingVisibility] = useState(false);
     const [settings, setSettings] = useState<TournamentSettings>({
         registrationOpensAt: null,
         registrationClosesAt: null,
@@ -55,11 +63,14 @@ export default function TournamentSettingsPage() {
         debateFormat: 'WSDC',
         eventMode: 'IRL',
         showDebaterNames: false,
+        speakerTopN: null,
+        hideSpeakerPoints: false,
     });
 
     useEffect(() => {
         if (!tournamentId) return;
         fetchSettings();
+        fetchTournament();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tournamentId]);
 
@@ -85,11 +96,48 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                speakerTopN: data.speakerTopN ?? null,
+                hideSpeakerPoints: data.hideSpeakerPoints ?? false,
             });
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Failed to load settings');
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function fetchTournament() {
+        try {
+            const res = await fetch(`/api/tournaments/${tournamentId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setTournament({ isPublic: data.isPublic ?? false });
+            }
+        } catch {
+            // Tournament visibility will default to false
+        }
+    }
+
+    async function handleToggleVisibility(isPublic: boolean) {
+        setTogglingVisibility(true);
+        try {
+            const res = await fetch(`/api/tournaments/${tournamentId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isPublic }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data?.error || 'Failed to update visibility');
+            }
+
+            setTournament({ isPublic });
+            toast.success(isPublic ? 'Tournament is now public' : 'Tournament is now private');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Failed to update visibility');
+        } finally {
+            setTogglingVisibility(false);
         }
     }
 
@@ -116,6 +164,8 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                speakerTopN: data.speakerTopN ?? null,
+                hideSpeakerPoints: data.hideSpeakerPoints ?? false,
             });
 
             toast.success('Settings updated successfully');
@@ -277,6 +327,59 @@ export default function TournamentSettingsPage() {
                                 onCheckedChange={(checked) => setSettings(s => ({ ...s, showDebaterNames: checked }))}
                             />
                         </div>
+
+                        <div className="border-t" />
+
+                        <h3 className="text-sm font-medium leading-none">Speaker Standings</h3>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="speakerTopN">Show top speakers only</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    When enabled, the speaker standings page only shows the top N speakers ranked by average points.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {settings.speakerTopN !== null && (
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        value={settings.speakerTopN}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            setSettings(s => ({
+                                                ...s,
+                                                speakerTopN: Number.isFinite(val) && val > 0 ? val : 1,
+                                            }));
+                                        }}
+                                        className="w-16 h-9"
+                                        aria-label="Number of top speakers"
+                                    />
+                                )}
+                                <Switch
+                                    id="speakerTopN"
+                                    checked={settings.speakerTopN !== null}
+                                    onCheckedChange={(checked) =>
+                                        setSettings(s => ({ ...s, speakerTopN: checked ? 5 : null }))
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="hideSpeakerPoints">Hide speaker points (show rank only)</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    When enabled, speaker standings show only the rank and speaker info without numeric point values.
+                                </p>
+                            </div>
+                            <Switch
+                                id="hideSpeakerPoints"
+                                checked={settings.hideSpeakerPoints}
+                                onCheckedChange={(checked) => setSettings(s => ({ ...s, hideSpeakerPoints: checked }))}
+                            />
+                        </div>
                     </div>
 
                     <div className="pt-4 flex justify-end">
@@ -287,6 +390,31 @@ export default function TournamentSettingsPage() {
                         </Button>
                     </div>
 
+                </CardContent>
+            </Card>
+
+            {/* Visibility */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Visibility</CardTitle>
+                    <CardDescription>Control who can discover this tournament in the listings.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="isPublic">Public tournament</Label>
+                            <p className="text-xs text-muted-foreground">
+                                When enabled, this tournament will appear in the public listing for all users.
+                                When private, only participants and associated institution members can see it.
+                            </p>
+                        </div>
+                        <Switch
+                            id="isPublic"
+                            checked={tournament.isPublic}
+                            onCheckedChange={handleToggleVisibility}
+                            disabled={togglingVisibility}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 

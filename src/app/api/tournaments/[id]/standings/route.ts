@@ -4,6 +4,7 @@
  * Public endpoint – returns team standings and speaker standings for a tournament.
  * Only includes data from rounds with status == COMPLETED (unless ?includeInProgress=1).
  * Returns ONLY safe fields: names, points, ranks.  No comments, no private notes.
+ * Supports ?teamPage=1&teamPageSize=20 and ?speakerPage=1&speakerPageSize=20 for pagination.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,6 +12,8 @@ import { Prisma, TournamentRoundStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 import { REPLY_ROLES } from '@/lib/ballots/constants';
+import { parsePaginationParams, buildPaginationMeta, type PaginationMeta } from '@/lib/pagination';
+import { filterTopSpeakers } from '@/lib/domains/reporting/filterTopSpeakers';
 
 // ============================================================================
 // Types
@@ -110,9 +113,11 @@ export async function GET(
   // ---- Fetch settings ----
   const settings = await prisma.tournamentSettings.findUnique({
     where: { tournamentId },
-    select: { showDebaterNames: true },
+    select: { showDebaterNames: true, speakerTopN: true, hideSpeakerPoints: true },
   });
   const showDebaterNames = settings?.showDebaterNames ?? false;
+  const speakerTopNSetting = settings?.speakerTopN ?? null;
+  const hideSpeakerPoints = settings?.hideSpeakerPoints ?? false;
 
   // ---- Fetch all tournament teams ----
   const allTeams = await prisma.tournamentTeam.findMany({
@@ -471,12 +476,60 @@ export async function GET(
   );
 
   // ===================================================================
+  // Pagination for standings
+  // ===================================================================
+  const sp = request.nextUrl.searchParams;
+
+  // team standings pagination uses teamPage / teamPageSize params
+  const teamPaginationParams = parsePaginationParams(
+    new URLSearchParams({
+      page: sp.get('teamPage') ?? '1',
+      pageSize: sp.get('teamPageSize') ?? '20',
+    }),
+  );
+  const teamStart = (teamPaginationParams.page - 1) * teamPaginationParams.pageSize;
+  const paginatedTeamStandings = teamStandings.slice(
+    teamStart,
+    teamStart + teamPaginationParams.pageSize,
+  );
+
+  // speaker standings: Top N filter (from settings) or normal pagination
+  let paginatedSpeakerStandings: SpeakerStanding[];
+  let speakerPaginationMeta: PaginationMeta;
+
+  if (speakerTopNSetting !== null && speakerTopNSetting > 0) {
+    const topN = filterTopSpeakers(speakerStandings, speakerTopNSetting);
+    paginatedSpeakerStandings = topN;
+    speakerPaginationMeta = buildPaginationMeta(topN.length, {
+      page: 1,
+      pageSize: Math.max(1, topN.length),
+    });
+  } else {
+    // Normal pagination
+    const speakerPaginationParams = parsePaginationParams(
+      new URLSearchParams({
+        page: sp.get('speakerPage') ?? '1',
+        pageSize: sp.get('speakerPageSize') ?? '20',
+      }),
+    );
+    const speakerStart = (speakerPaginationParams.page - 1) * speakerPaginationParams.pageSize;
+    paginatedSpeakerStandings = speakerStandings.slice(
+      speakerStart,
+      speakerStart + speakerPaginationParams.pageSize,
+    );
+    speakerPaginationMeta = buildPaginationMeta(speakerStandings.length, speakerPaginationParams);
+  }
+
+  // ===================================================================
   // Response
   // ===================================================================
   return NextResponse.json({
     tournamentId: tournament.id,
     tournamentName: tournament.name,
-    teamStandings,
-    speakerStandings,
+    teamStandings: paginatedTeamStandings,
+    teamPagination: buildPaginationMeta(teamStandings.length, teamPaginationParams),
+    speakerStandings: paginatedSpeakerStandings,
+    speakerPagination: speakerPaginationMeta,
+    hideSpeakerPoints,
   });
 }

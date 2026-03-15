@@ -1,3 +1,4 @@
+import { ensureUserInDB } from '@/lib/ensureUser';
 import prisma from '@/lib/prisma';
 
 /**
@@ -77,6 +78,10 @@ export type MyProfileData = NonNullable<Awaited<ReturnType<typeof getMyProfile>>
  * Includes all public data plus private-only sections.
  */
 export async function getMyProfile(userId: string) {
+  // Refresh the local user snapshot from Clerk so avatar/name changes
+  // made outside this form are reflected immediately on /me.
+  await ensureUserInDB();
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
