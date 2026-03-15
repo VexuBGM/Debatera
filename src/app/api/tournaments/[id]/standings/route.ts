@@ -12,7 +12,8 @@ import { Prisma, TournamentRoundStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 import { REPLY_ROLES } from '@/lib/ballots/constants';
-import { parsePaginationParams, buildPaginationMeta } from '@/lib/pagination';
+import { parsePaginationParams, buildPaginationMeta, type PaginationMeta } from '@/lib/pagination';
+import { filterTopSpeakers } from '@/lib/domains/reporting/filterTopSpeakers';
 
 // ============================================================================
 // Types
@@ -112,9 +113,11 @@ export async function GET(
   // ---- Fetch settings ----
   const settings = await prisma.tournamentSettings.findUnique({
     where: { tournamentId },
-    select: { showDebaterNames: true },
+    select: { showDebaterNames: true, speakerTopN: true, hideSpeakerPoints: true },
   });
   const showDebaterNames = settings?.showDebaterNames ?? false;
+  const speakerTopNSetting = settings?.speakerTopN ?? null;
+  const hideSpeakerPoints = settings?.hideSpeakerPoints ?? false;
 
   // ---- Fetch all tournament teams ----
   const allTeams = await prisma.tournamentTeam.findMany({
@@ -490,18 +493,32 @@ export async function GET(
     teamStart + teamPaginationParams.pageSize,
   );
 
-  // speaker standings pagination uses speakerPage / speakerPageSize params
-  const speakerPaginationParams = parsePaginationParams(
-    new URLSearchParams({
-      page: sp.get('speakerPage') ?? '1',
-      pageSize: sp.get('speakerPageSize') ?? '20',
-    }),
-  );
-  const speakerStart = (speakerPaginationParams.page - 1) * speakerPaginationParams.pageSize;
-  const paginatedSpeakerStandings = speakerStandings.slice(
-    speakerStart,
-    speakerStart + speakerPaginationParams.pageSize,
-  );
+  // speaker standings: Top N filter (from settings) or normal pagination
+  let paginatedSpeakerStandings: SpeakerStanding[];
+  let speakerPaginationMeta: PaginationMeta;
+
+  if (speakerTopNSetting !== null && speakerTopNSetting > 0) {
+    const topN = filterTopSpeakers(speakerStandings, speakerTopNSetting);
+    paginatedSpeakerStandings = topN;
+    speakerPaginationMeta = buildPaginationMeta(topN.length, {
+      page: 1,
+      pageSize: Math.max(1, topN.length),
+    });
+  } else {
+    // Normal pagination
+    const speakerPaginationParams = parsePaginationParams(
+      new URLSearchParams({
+        page: sp.get('speakerPage') ?? '1',
+        pageSize: sp.get('speakerPageSize') ?? '20',
+      }),
+    );
+    const speakerStart = (speakerPaginationParams.page - 1) * speakerPaginationParams.pageSize;
+    paginatedSpeakerStandings = speakerStandings.slice(
+      speakerStart,
+      speakerStart + speakerPaginationParams.pageSize,
+    );
+    speakerPaginationMeta = buildPaginationMeta(speakerStandings.length, speakerPaginationParams);
+  }
 
   // ===================================================================
   // Response
@@ -512,6 +529,7 @@ export async function GET(
     teamStandings: paginatedTeamStandings,
     teamPagination: buildPaginationMeta(teamStandings.length, teamPaginationParams),
     speakerStandings: paginatedSpeakerStandings,
-    speakerPagination: buildPaginationMeta(speakerStandings.length, speakerPaginationParams),
+    speakerPagination: speakerPaginationMeta,
+    hideSpeakerPoints,
   });
 }

@@ -36,6 +36,8 @@ interface TournamentSettings {
     debateFormat: 'WSDC';
     eventMode: 'ONLINE' | 'IRL';
     showDebaterNames: boolean;
+    speakerTopN: number | null;
+    hideSpeakerPoints: boolean;
 }
 
 interface TournamentData {
@@ -61,6 +63,8 @@ export default function TournamentSettingsPage() {
         debateFormat: 'WSDC',
         eventMode: 'IRL',
         showDebaterNames: false,
+        speakerTopN: null,
+        hideSpeakerPoints: false,
     });
 
     useEffect(() => {
@@ -92,6 +96,8 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                speakerTopN: data.speakerTopN ?? null,
+                hideSpeakerPoints: data.hideSpeakerPoints ?? false,
             });
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Failed to load settings');
@@ -158,6 +164,8 @@ export default function TournamentSettingsPage() {
                 debateFormat: data.debateFormat ?? 'WSDC',
                 eventMode: data.eventMode ?? 'IRL',
                 showDebaterNames: data.showDebaterNames ?? false,
+                speakerTopN: data.speakerTopN ?? null,
+                hideSpeakerPoints: data.hideSpeakerPoints ?? false,
             });
 
             toast.success('Settings updated successfully');
@@ -317,6 +325,59 @@ export default function TournamentSettingsPage() {
                                 id="showDebaterNames"
                                 checked={settings.showDebaterNames}
                                 onCheckedChange={(checked) => setSettings(s => ({ ...s, showDebaterNames: checked }))}
+                            />
+                        </div>
+
+                        <div className="border-t" />
+
+                        <h3 className="text-sm font-medium leading-none">Speaker Standings</h3>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="speakerTopN">Show top speakers only</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    When enabled, the speaker standings page only shows the top N speakers ranked by average points.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {settings.speakerTopN !== null && (
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        value={settings.speakerTopN}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            setSettings(s => ({
+                                                ...s,
+                                                speakerTopN: Number.isFinite(val) && val > 0 ? val : 1,
+                                            }));
+                                        }}
+                                        className="w-16 h-9"
+                                        aria-label="Number of top speakers"
+                                    />
+                                )}
+                                <Switch
+                                    id="speakerTopN"
+                                    checked={settings.speakerTopN !== null}
+                                    onCheckedChange={(checked) =>
+                                        setSettings(s => ({ ...s, speakerTopN: checked ? 5 : null }))
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="hideSpeakerPoints">Hide speaker points (show rank only)</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    When enabled, speaker standings show only the rank and speaker info without numeric point values.
+                                </p>
+                            </div>
+                            <Switch
+                                id="hideSpeakerPoints"
+                                checked={settings.hideSpeakerPoints}
+                                onCheckedChange={(checked) => setSettings(s => ({ ...s, hideSpeakerPoints: checked }))}
                             />
                         </div>
                     </div>

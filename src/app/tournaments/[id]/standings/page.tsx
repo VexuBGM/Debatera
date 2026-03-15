@@ -56,6 +56,7 @@ interface StandingsData {
   teamPagination: PaginationMeta;
   speakerStandings: SpeakerStanding[];
   speakerPagination: PaginationMeta;
+  hideSpeakerPoints: boolean;
 }
 
 // ============================================================================
@@ -209,15 +210,19 @@ export default function StandingsPage() {
                           <TableHead className="hidden sm:table-cell">
                             Institution
                           </TableHead>
-                          <TableHead className="text-right">
-                            Avg Pts
-                          </TableHead>
-                          <TableHead className="text-right hidden sm:table-cell">
-                            Speeches
-                          </TableHead>
-                          <TableHead className="text-right hidden sm:table-cell">
-                            Reply Pts
-                          </TableHead>
+                          {!data.hideSpeakerPoints && (
+                            <>
+                              <TableHead className="text-right">
+                                Avg Pts
+                              </TableHead>
+                              <TableHead className="text-right hidden sm:table-cell">
+                                Speeches
+                              </TableHead>
+                              <TableHead className="text-right hidden sm:table-cell">
+                                Reply Pts
+                              </TableHead>
+                            </>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -238,15 +243,19 @@ export default function StandingsPage() {
                             <TableCell className="hidden sm:table-cell text-slate-400">
                               {s.institutionName}
                             </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {s.averagePoints}
-                            </TableCell>
-                            <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
-                              {s.speechesCount}
-                            </TableCell>
-                            <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
-                              {s.replyAveragePoints > 0 ? s.replyAveragePoints : '–'}
-                            </TableCell>
+                            {!data.hideSpeakerPoints && (
+                              <>
+                                <TableCell className="text-right font-semibold tabular-nums">
+                                  {s.averagePoints}
+                                </TableCell>
+                                <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
+                                  {s.speechesCount}
+                                </TableCell>
+                                <TableCell className="text-right hidden sm:table-cell text-slate-400 tabular-nums">
+                                  {s.replyAveragePoints > 0 ? s.replyAveragePoints : '–'}
+                                </TableCell>
+                              </>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -254,7 +263,7 @@ export default function StandingsPage() {
                   </div>
                 </CardContent>
               </Card>
-              {data.speakerPagination && (
+              {data.speakerPagination && data.speakerPagination.totalPages > 1 && (
                 <PaginationControls
                   pagination={data.speakerPagination}
                   onPageChange={setSpeakerPage}

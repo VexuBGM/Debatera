@@ -138,6 +138,8 @@ model TournamentSettings {
   eventMode            EventMode     @default(IRL)
   pairingSystem        PairingSystem @default(SWISS)
   showDebaterNames     Boolean       @default(false)  // When true, display debater names instead of team names
+  speakerTopN          Int?          // null = show all speakers, positive int = show top N by avg points
+  hideSpeakerPoints    Boolean       @default(false)  // When true, hide numeric point values in speaker standings
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 

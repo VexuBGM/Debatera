@@ -10,6 +10,8 @@ export const TournamentSettingsInputSchema = z.object({
     teamSizeMax: z.number().int().min(1).default(5),
     debateFormat: DebateFormatEnum.default('WSDC'),
     showDebaterNames: z.boolean().optional(),
+    speakerTopN: z.number().int().min(1).nullable().optional(),
+    hideSpeakerPoints: z.boolean().optional(),
 }).refine((data) => {
     // teamSizeMax >= teamSizeMin
     return data.teamSizeMax >= data.teamSizeMin;

@@ -110,6 +110,8 @@ export async function PATCH(
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
+                ...(data.speakerTopN !== undefined && { speakerTopN: data.speakerTopN }),
+                ...(data.hideSpeakerPoints !== undefined && { hideSpeakerPoints: data.hideSpeakerPoints }),
             },
             update: {
                 registrationOpensAt: data.registrationOpensAt ? new Date(data.registrationOpensAt) : null,
@@ -118,6 +120,8 @@ export async function PATCH(
                 teamSizeMax: data.teamSizeMax,
                 debateFormat: data.debateFormat,
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
+                ...(data.speakerTopN !== undefined && { speakerTopN: data.speakerTopN }),
+                ...(data.hideSpeakerPoints !== undefined && { hideSpeakerPoints: data.hideSpeakerPoints }),
             },
         });
 
