@@ -29,33 +29,35 @@ const CreateTournamentSchema = z.object({
     });
   }
 
-  if (data.registrationOpen && data.registrationClose) {
-    const openDate = new Date(data.registrationOpen);
-    const closeDate = new Date(data.registrationClose);
+  const openDate = data.registrationOpen ? new Date(data.registrationOpen) : null;
+  const closeDate = data.registrationClose ? new Date(data.registrationClose) : null;
 
-    if (Number.isNaN(openDate.getTime())) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'registrationOpen must be a valid date-time',
-        path: ['registrationOpen'],
-      });
-    }
+  if (openDate && Number.isNaN(openDate.getTime())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'registrationOpen must be a valid date-time',
+      path: ['registrationOpen'],
+    });
+  }
 
-    if (Number.isNaN(closeDate.getTime())) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'registrationClose must be a valid date-time',
-        path: ['registrationClose'],
-      });
-    }
+  if (closeDate && Number.isNaN(closeDate.getTime())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'registrationClose must be a valid date-time',
+      path: ['registrationClose'],
+    });
+  }
 
-    if (!Number.isNaN(openDate.getTime()) && !Number.isNaN(closeDate.getTime()) && openDate >= closeDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'registrationOpen must be before registrationClose',
-        path: ['registrationOpen'],
-      });
-    }
+  if (
+    openDate && closeDate &&
+    !Number.isNaN(openDate.getTime()) && !Number.isNaN(closeDate.getTime()) &&
+    openDate >= closeDate
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'registrationOpen must be before registrationClose',
+      path: ['registrationOpen'],
+    });
   }
 });
 

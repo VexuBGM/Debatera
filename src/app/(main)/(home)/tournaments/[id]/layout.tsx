@@ -25,18 +25,21 @@ export default async function TournamentLayout({
       id: true,
       name: true,
       createdByUserId: true,
+      isPublic: true,
       settings: { select: { eventMode: true } },
     },
   });
 
   if (!tournament) notFound();
 
-  // Determine user role
+  // Determine user role and view permission
   let userRole: TournamentRole = 'SPECTATOR';
+  let canView = !!tournament.isPublic;
 
   if (userId) {
     if (tournament.createdByUserId === userId) {
       userRole = 'ORGANIZER';
+      canView = true;
     } else {
       const participation = await prisma.tournamentParticipant.findUnique({
         where: { tournamentId_userId: { tournamentId, userId } },
@@ -44,9 +47,12 @@ export default async function TournamentLayout({
       });
       if (participation) {
         userRole = participation.role as TournamentRole;
+        canView = true;
       }
     }
   }
+
+  if (!canView) notFound();
 
   const eventMode = tournament.settings?.eventMode ?? 'ONLINE';
 

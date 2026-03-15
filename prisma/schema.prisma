@@ -445,7 +445,8 @@ model TournamentParticipantAccessLink {
   id            String    @id @default(cuid())
   tournamentId  String    @db.VarChar(128)
   participantId String    @unique // One link per participant
-  tokenHash     String    @unique // SHA-256 hash of the token (never store plaintext)
+  tokenHash     String    @unique // SHA-256 hash of the token (used for lookup/validation)
+  encryptedToken String?            // AES-256-GCM encrypted plaintext (allows organizer to view link again)
   expiresAt     DateTime  @default(dbgenerated("(now() + '14 days'::interval)"))
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

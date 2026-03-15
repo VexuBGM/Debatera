@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentAdmin } from '@/lib/tournamentRounds/authorization';
-import { generateToken, getPortalTokenExpiresAt, hashToken } from '@/lib/portal';
+import { generateToken, getPortalTokenExpiresAt, hashToken, encryptToken } from '@/lib/portal';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { rateLimit } from '@/lib/security/rateLimit';
 import { buildJudgePortalLink } from '@/lib/security/url';
@@ -68,6 +68,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     for (const judge of judges) {
       const token = generateToken();
       const tokenHashed = hashToken(token);
+      const tokenEncrypted = encryptToken(token);
       const expiresAt = getPortalTokenExpiresAt();
 
       await prisma.tournamentParticipantAccessLink.upsert({
@@ -76,10 +77,12 @@ export async function POST(req: Request, { params }: RouteParams) {
           tournamentId,
           participantId: judge.id,
           tokenHash: tokenHashed,
+          encryptedToken: tokenEncrypted,
           expiresAt,
         },
         update: {
           tokenHash: tokenHashed,
+          encryptedToken: tokenEncrypted,
           expiresAt,
           revokedAt: null,
           updatedAt: new Date(),

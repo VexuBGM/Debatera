@@ -155,7 +155,7 @@ export default function StandingsPage() {
                 </Button>
               ) : (
                 <Button asChild>
-                  <Link href={`/tournaments/${data.tournamentId}/register`}>
+                  <Link href={`/sign-in?redirect_url=/tournaments/${data.tournamentId}/register/members`}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Register
                   </Link>

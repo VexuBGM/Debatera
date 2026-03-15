@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 function getStorageKey(tournamentId: string): string {
   return `debatera:portal-token:${tournamentId}`;
@@ -53,13 +53,15 @@ export function usePortalToken(tournamentId?: string) {
     setReady(true);
   }, [tournamentId]);
 
+  const handleClearToken = useCallback(() => {
+    if (!tournamentId) return;
+    clearPortalToken(tournamentId);
+    setToken(null);
+  }, [tournamentId]);
+
   return {
     token,
     ready,
-    clearToken: () => {
-      if (!tournamentId) return;
-      clearPortalToken(tournamentId);
-      setToken(null);
-    },
+    clearToken: handleClearToken,
   };
 }

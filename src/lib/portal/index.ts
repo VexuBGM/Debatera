@@ -12,3 +12,4 @@ export {
 } from './tokens';
 export { extractToken, validatePortalToken, validatePortalBallotAccess } from './auth';
 export type { PortalAuthResult } from './auth';
+export { encryptToken, decryptToken } from './encryption';

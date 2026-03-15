@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentAdmin } from '@/lib/tournamentRounds/authorization';
-import { generateToken, getPortalTokenExpiresAt, hashToken } from '@/lib/portal';
+import { generateToken, getPortalTokenExpiresAt, hashToken, encryptToken } from '@/lib/portal';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/security/rateLimit';
@@ -79,6 +79,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     // Generate new token
     const token = generateToken();
     const tokenHashed = hashToken(token);
+    const tokenEncrypted = encryptToken(token);
     const expiresAt = getPortalTokenExpiresAt();
 
     // Upsert the access link (rotate token if already exists)
@@ -88,10 +89,12 @@ export async function POST(req: Request, { params }: RouteParams) {
         tournamentId,
         participantId,
         tokenHash: tokenHashed,
+        encryptedToken: tokenEncrypted,
         expiresAt,
       },
       update: {
         tokenHash: tokenHashed,
+        encryptedToken: tokenEncrypted,
         expiresAt,
         revokedAt: null, // Un-revoke if previously revoked
         updatedAt: new Date(),
