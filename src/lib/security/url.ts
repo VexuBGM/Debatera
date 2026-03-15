@@ -1,6 +1,20 @@
+function addDefaultProtocol(value: string): string {
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(value)) {
+    return value;
+  }
+
+  const isLocalhost =
+    value.startsWith('localhost') ||
+    value.startsWith('127.0.0.1') ||
+    value.startsWith('[::1]');
+
+  return `${isLocalhost ? 'http' : 'https'}://${value}`;
+}
+
 function normalizeConfiguredBaseUrl(value: string): string {
   const trimmed = value.trim();
-  const url = new URL(trimmed);
+  const normalizedInput = addDefaultProtocol(trimmed);
+  const url = new URL(normalizedInput);
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error('NEXT_PUBLIC_BASE_URL must use http or https');
