@@ -1,196 +1,171 @@
 # Debatera
 
-A comprehensive debate hosting and organization platform with integrated feedback system.
+Debatera is a full-stack platform for running debate tournaments from one place. It combines tournament administration, institution and team management, pairings, ballots, standings, judge portals, and online debate rooms so organizers do not need to stitch together separate tools for tabbing, calls, and coordination.
 
-## Features
+> Status: active development. The core tournament loop is implemented and usable, with follow-up improvements tracked in [`docs/`](./docs).
 
-- **User Authentication**: Powered by Clerk with role-based access control
-- **Tournament Management**: Create and manage debate tournaments (verified by admins)
-- **Team Organization**: Create teams and manage team memberships
-- **Debate Hosting**: 1v1 team format debates with real-time capabilities
-- **Call-Level Roles**: Per-debate participant roles (Debater, Judge, Spectator)
-- **Judge Feedback System**: Structured feedback and voting from judges
-- **Video Integration**: Real-time video calls via Stream
+## Why Debatera
 
-## Tech Stack
+Most debate tournaments still rely on a fragmented workflow:
 
-- **Frontend**: Next.js 15 with React 19
-- **Authentication**: Clerk
-- **Database**: PostgreSQL with Prisma ORM
-- **Video**: Stream SDK
-- **Styling**: Tailwind CSS
+- tab software for rounds and pairings
+- chat tools for coordination
+- video tools for online debates
+- separate timers and ballot collection
 
-## Getting Started
+Debatera aims to make the tournament itself the product, not the integration work around it.
+
+## What the app supports today
+
+- institution-based registration and membership management
+- tournament creation with configurable event mode, registration windows, and pairing system
+- participant registration for debaters and judges
+- team creation and team-member assignment
+- round creation, publishing, and pairings management
+- Swiss and random auto-generation, plus manual pairings editing
+- conflict-aware judge assignment
+- venue management and automatic room allocation for IRL events
+- Stream-powered online debate rooms
+- synced debate stopwatch controls inside the call room
+- per-judge ballots with automatic result computation
+- public team and speaker standings
+- token-based judge portal links
+- Clerk authentication, profiles, and protected routes
+- rate limiting and baseline security headers
+
+## Tournament workflow
+
+1. Create institutions and invite members.
+2. Create a tournament and configure settings.
+3. Approve institution registrations.
+4. Register debaters and judges, then build teams.
+5. Create rounds and generate or edit pairings.
+6. Publish rounds, assign judges and venues, and open calls for online debates.
+7. Submit ballots, compute results, and review standings.
+
+## Tech stack
+
+| Layer | Tools |
+| --- | --- |
+| App framework | Next.js 16, React 19, TypeScript |
+| Styling | Tailwind CSS 4, shadcn/ui, Radix UI |
+| Auth | Clerk |
+| Database | PostgreSQL, Prisma 7 |
+| Video | Stream Video |
+| Validation | Zod |
+| Tests | Vitest |
+
+## Getting started
 
 ### Prerequisites
 
-- Node.js 18+
-- PostgreSQL 12+
-- npm or pnpm
+- Node.js `>=20.9.0`
+- npm `>=10`
+- PostgreSQL
+- A Clerk application
+- A Stream application if you want to use online debate rooms
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/VexuBGM/Debatera.git
-   cd Debatera
-   ```
+1. Install dependencies.
 
-2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Set up environment variables:
+2. Create your local environment file from [`.env.example`](./.env.example).
+
    ```bash
    cp .env.example .env
+   # PowerShell: Copy-Item .env.example .env
    ```
-   
-   Fill in your environment variables:
-   - `DATABASE_URL`: PostgreSQL connection string
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Clerk public key
-   - `CLERK_SECRET_KEY`: Clerk secret key
-   - `CLERK_WEBHOOK_SECRET`: Clerk webhook secret
-   - `NEXT_PUBLIC_STREAM_API_KEY`: Stream API key
-   - `STREAM_SECRET_KEY`: Stream secret key
 
-4. Set up the database:
+3. Fill in the required environment variables.
+
+4. Run the database migrations.
+
    ```bash
-   # Generate Prisma client
-   npx prisma generate
-   
-   # Run migrations
    npx prisma migrate dev
-   
-   # Seed the database
-   npx prisma db seed
    ```
 
-5. Start the development server:
+5. Start the development server.
+
    ```bash
    npm run dev
    ```
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser
+6. Open `http://localhost:3000`.
 
-## Database Setup
+### Environment variables
 
-For detailed database setup instructions, see [DATABASE.md](./DATABASE.md).
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | PostgreSQL connection string for Prisma |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk client-side key |
+| `CLERK_SECRET_KEY` | Yes | Clerk server-side key |
+| `NEXT_PUBLIC_STREAM_API_KEY` | For online events | Stream client key |
+| `STREAM_API_SECRET` | For online events | Stream server secret |
+| `NEXT_PUBLIC_BASE_URL` | Recommended | Absolute base URL used for stable portal links |
+| `CLERK_WEBHOOK_SECRET` | Optional | Verifies the Clerk webhook endpoint |
+| `PORTAL_TOKEN_TTL_DAYS` | Optional | Judge portal token lifetime, defaults to `14` |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Optional | Overrides the sign-in route |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Optional | Overrides the sign-up route |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Optional | Post sign-in redirect |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Optional | Post sign-up redirect |
 
-Quick start:
-```bash
-# Validate the database layer
-./validate-db-layer.sh
+### Local development notes
 
-# View database in Prisma Studio
-npx prisma studio
+- `npm run build` runs `prisma migrate deploy` before the Next.js production build.
+- The Clerk webhook route at `/api/webhooks/clerk` currently verifies and logs webhook events; it does not yet perform full user sync.
+- Judge portal links are generated as absolute URLs, so `NEXT_PUBLIC_BASE_URL` should be set in shared or production environments.
+- Stream-based calls are only created for tournaments configured with `eventMode = ONLINE`.
+
+## Available scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the Next.js dev server with Turbopack |
+| `npm run build` | Apply production migrations and build the app |
+| `npm run start` | Start the production server |
+| `npm run lint` | Run ESLint |
+| `npm run backfill:user-names` | Backfill local user display names from Clerk |
+| `npx vitest run` | Run the test suite |
+| `npx prisma studio` | Open Prisma Studio |
+
+## Repository map
+
+```text
+src/
+  app/          Next.js App Router pages and API routes
+  components/   UI components and feature-specific interfaces
+  lib/          Domain logic, services, security, pairings, portals, and stream integration
+prisma/
+  schema.prisma Database schema
+  migrations/   Prisma migrations
+scripts/
+  backfill-user-names.ts
+docs/
+  online_tournament_readiness.md
+  rounds.md
+  tournament-settings.md
+  the_whole_idea.md
 ```
 
-## API Documentation
+## Product areas worth exploring
 
-The platform provides RESTful APIs for all core features. See [API_TESTING.md](./API_TESTING.md) for detailed endpoint documentation and testing examples.
+- `src/app/tournaments/[id]/standings/page.tsx` for the public standings experience
+- `src/lib/pairings/generateSwissPairings.ts` for Swiss pairings orchestration
+- `src/lib/venues/autoAllocate.ts` for venue assignment logic
+- `src/app/api/tournaments/[id]/portal/generate-all-links/route.ts` for judge portal link generation
+- `src/components/debate/SyncedStopwatch.tsx` for the in-call synchronized timer
 
-### API Overview
+## Further reading
 
-- **Tournaments**: Create, list, and verify tournaments
-- **Teams**: Create teams and manage memberships
-- **Debates**: Create debates, manage participants, collect feedback
-- **Roles**: Per-debate participant roles (DEBATER, JUDGE, SPECTATOR)
-- **Feedback**: Judge feedback submission and final decision setting
-
-## Project Structure
-
-```
-/prisma
-  ├── schema.prisma       # Database schema
-  ├── seed.ts            # Seed data script
-  └── migrations/        # Database migrations
-
-/src
-  ├── app/
-  │   ├── (auth)/        # Authentication pages
-  │   ├── (main)/        # Main application pages
-  │   └── api/           # API route handlers
-  │       ├── tournaments/
-  │       ├── teams/
-  │       └── debates/
-  ├── components/        # React components
-  ├── lib/              # Utility functions
-  │   ├── prisma.ts     # Prisma client singleton
-  │   ├── auth.ts       # Authentication helpers
-  │   └── ensureUser.ts # User synchronization
-  └── providers/        # React context providers
-```
-
-## User Roles
-
-### App-Level Roles
-- **USER**: Regular users (default)
-- **ADMIN**: Platform administrators (can verify tournaments)
-
-### Call-Level Roles (Per Debate)
-- **DEBATER**: Participates in the debate (has side and speaking order)
-- **JUDGE**: Evaluates the debate and provides feedback
-- **SPECTATOR**: Watches the debate
-
-## Development
-
-### Linting
-```bash
-npm run lint
-```
-
-### Building
-```bash
-npm run build
-```
-
-### Database Commands
-```bash
-# Reset database (WARNING: deletes all data)
-npx prisma migrate reset
-
-# View/edit database
-npx prisma studio
-
-# Generate Prisma client after schema changes
-npx prisma generate
-```
-
-## Validation
-
-Run the validation script to ensure the database layer is properly set up:
-
-```bash
-./validate-db-layer.sh
-```
-
-This checks:
-- Prisma schema validity
-- Migration files
-- API route handlers
-- Authentication helpers
-- TypeScript compilation
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- [Online tournament readiness audit](./docs/online_tournament_readiness.md)
+- [Rounds notes](./docs/rounds.md)
+- [Tournament settings notes](./docs/tournament-settings.md)
+- [Original product vision](./docs/the_whole_idea.md)
 
 ## License
 
-This project is private and proprietary.
-
-## Support
-
-For issues and questions, please open an issue in the GitHub repository.
-
-# dev (clerk webhook)
-winget install Cloudflare.cloudflared 
-cloudflared login
-cloudflared tunnel --url http://localhost:3000
-
-then clerk webhook
+This project is proprietary. All rights reserved.
