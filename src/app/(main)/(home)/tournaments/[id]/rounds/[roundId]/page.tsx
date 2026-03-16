@@ -761,7 +761,7 @@ export default function RoundEditorPage() {
       )}
 
       {showModificationQueue && (
-        <Card>
+        <Card id="ballot-modification-requests" className="scroll-mt-24">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Ballot Modification Requests</CardTitle>
           </CardHeader>

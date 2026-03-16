@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,6 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -22,15 +21,19 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { acceptInstitutionInvite, declineInstitutionInvite } from '@/actions/invitation.actions';
 
-interface InstitutionInviteNotification {
+interface BaseNotification {
   id: string;
-  type: 'INSTITUTION_INVITE';
   title: string;
   message: string | null;
   entityType: string | null;
   entityId: string | null;
   isRead: boolean;
   createdAt: string;
+  href?: string | null;
+}
+
+interface InstitutionInviteNotification extends BaseNotification {
+  type: 'INSTITUTION_INVITE';
   invitation: {
     id: string;
     role: 'ADMIN' | 'MEMBER';
@@ -49,13 +52,8 @@ interface InstitutionInviteNotification {
   } | null;
 }
 
-interface GeneralNotification {
-  id: string;
+interface GeneralNotification extends BaseNotification {
   type: 'GENERAL';
-  title: string;
-  message: string | null;
-  isRead: boolean;
-  createdAt: string;
 }
 
 type NotificationItem = InstitutionInviteNotification | GeneralNotification;
@@ -66,12 +64,13 @@ interface TopNavProps {
 }
 
 export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
-  const pathname = usePathname();
+  const router = useRouter();
   const { userId } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
@@ -102,6 +101,21 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
     }, 30000);
     return () => clearInterval(interval);
   }, [userId, fetchNotifications]);
+
+  const markNotificationAsRead = useCallback(
+    async (notificationId: string) => {
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: [notificationId] }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark notification as read');
+      }
+    },
+    []
+  );
 
   const handleAcceptInvite = async (invitationId: string) => {
     setProcessingInviteId(invitationId);
@@ -138,6 +152,35 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
       setProcessingInviteId(null);
     }
   };
+
+  const handleNotificationClick = useCallback(
+    async (notification: GeneralNotification) => {
+      if (!notification.href) return;
+
+      setNotificationsOpen(false);
+
+      if (!notification.isRead) {
+        setNotifications((currentNotifications) =>
+          currentNotifications.map((currentNotification) =>
+            currentNotification.id === notification.id
+              ? { ...currentNotification, isRead: true }
+              : currentNotification
+          )
+        );
+        setUnreadCount((currentCount) => Math.max(0, currentCount - 1));
+
+        try {
+          await markNotificationAsRead(notification.id);
+        } catch (error) {
+          console.error('Error marking notification as read:', error);
+          fetchNotifications();
+        }
+      }
+
+      router.push(notification.href);
+    },
+    [fetchNotifications, markNotificationAsRead, router]
+  );
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-surface-1/70 backdrop-blur-xl">
@@ -211,7 +254,7 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
 
             {/* Notifications - Invites, judge assignments, round pairings, schedule changes, feedback received, moderation pings. */}
             <SignedIn>
-              <DropdownMenu>
+              <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     size="icon"
@@ -324,18 +367,24 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
 
                         // Handle general notifications
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={notification.id}
+                            onClick={() => void handleNotificationClick(notification)}
+                            disabled={!notification.href}
                             className={cn(
-                              "border-b p-3 last:border-b-0",
-                              !notification.isRead && "bg-brand/5"
+                              "w-full border-b p-3 text-left last:border-b-0",
+                              !notification.isRead && "bg-brand/5",
+                              notification.href
+                                ? "cursor-pointer transition-colors hover:bg-accent/40 focus:bg-accent/40 focus:outline-none"
+                                : "cursor-default"
                             )}
                           >
                             <p className="text-sm font-medium">{notification.title}</p>
                             {notification.message && (
                               <p className="text-xs text-muted-foreground">{notification.message}</p>
                             )}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
