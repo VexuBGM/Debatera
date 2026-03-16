@@ -53,6 +53,7 @@ export async function GET(req: Request) {
 
           return {
             ...notification,
+            href: null,
             invitation: invitation
               ? {
                   id: invitation.id,
@@ -64,7 +65,43 @@ export async function GET(req: Request) {
               : null,
           };
         }
-        return notification;
+
+        if (
+          notification.entityType === 'BallotModificationRequest' &&
+          notification.entityId
+        ) {
+          const request = await prisma.ballotModificationRequest.findUnique({
+            where: { id: notification.entityId },
+            select: {
+              ballot: {
+                select: {
+                  debate: {
+                    select: {
+                      roundId: true,
+                      round: {
+                        select: {
+                          tournamentId: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          return {
+            ...notification,
+            href: request
+              ? `/tournaments/${request.ballot.debate.round.tournamentId}/rounds/${request.ballot.debate.roundId}#ballot-modification-requests`
+              : null,
+          };
+        }
+
+        return {
+          ...notification,
+          href: null,
+        };
       })
     );
 

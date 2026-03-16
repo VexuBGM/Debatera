@@ -9,7 +9,11 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { TournamentRoundStatus } from '@prisma/client';
-import { getBallotsForAdjudicator } from '@/lib/ballots';
+import {
+  getBallotsForAdjudicator,
+  canRequestBallotModification,
+  serializeBallotModificationRequest,
+} from '@/lib/ballots';
 import { prisma } from '@/lib/prisma';
 import { parsePaginationParams, buildPaginationMeta } from '@/lib/pagination';
 
@@ -61,6 +65,16 @@ export async function GET(req: Request) {
     const ballots = paginated.map((ballot) => ({
       id: ballot.id,
       status: ballot.status,
+      isReopened: ballot.reopenedAt !== null,
+      canRequestModification: canRequestBallotModification({
+        ballotStatus: ballot.status,
+        roundStatus: ballot.adjudicator.debate.round.status,
+        hasPendingRequest:
+          ballot.modificationRequests[0]?.status === 'PENDING',
+      }),
+      latestModificationRequest: serializeBallotModificationRequest(
+        ballot.modificationRequests[0]
+      ),
       vote: ballot.vote,
       createdAt: ballot.createdAt,
       updatedAt: ballot.updatedAt,

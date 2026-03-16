@@ -9,6 +9,8 @@
  */
 
 import { NextResponse } from 'next/server';
+import { SpeechRole } from '@prisma/client';
+
 import { prisma } from '@/lib/prisma';
 import { extractToken, validatePortalBallotAccess } from '@/lib/portal';
 import {
@@ -17,8 +19,8 @@ import {
   PROP_ROLES,
   OPP_ROLES,
   computeDebateResult,
+  canJudgeEditBallotState,
 } from '@/lib/ballots';
-import { SpeechRole, BallotStatus, TournamentRoundStatus } from '@prisma/client';
 import { rateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
@@ -58,18 +60,15 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    // Already submitted
-    if (portalAuth.ballot.status === BallotStatus.SUBMITTED) {
+    if (
+      !canJudgeEditBallotState({
+        ballotStatus: portalAuth.ballot.status,
+        roundStatus: portalAuth.roundStatus,
+        reopenedAt: portalAuth.ballot.reopenedAt,
+      })
+    ) {
       return NextResponse.json(
-        { error: 'Ballot has already been submitted and cannot be edited' },
-        { status: 403 }
-      );
-    }
-
-    // Round must be IN_PROGRESS
-    if (portalAuth.roundStatus !== TournamentRoundStatus.IN_PROGRESS) {
-      return NextResponse.json(
-        { error: 'Cannot submit ballot — round is not in progress' },
+        { error: 'Cannot submit ballot in its current state' },
         { status: 403 }
       );
     }
@@ -82,7 +81,6 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const data = parsed.data;
 
-    // Deep validation
     const validationErrors = validateBallotSubmission(data);
     if (validationErrors.length > 0) {
       return NextResponse.json(
@@ -91,7 +89,6 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    // Compute totals
     let propTotal = 0;
     let oppTotal = 0;
 
@@ -103,7 +100,6 @@ export async function POST(req: Request, { params }: RouteParams) {
       }
     }
 
-    // Submit in transaction
     await prisma.$transaction(async (tx) => {
       await tx.ballot.update({
         where: { id: ballotId },
@@ -114,6 +110,8 @@ export async function POST(req: Request, { params }: RouteParams) {
           oppTotal,
           privateNotes: data.privateNotes ?? null,
           submittedAt: new Date(),
+          reopenedAt: null,
+          reopenedByUserId: null,
         },
       });
 
@@ -133,7 +131,6 @@ export async function POST(req: Request, { params }: RouteParams) {
       }
     });
 
-    // Try to compute debate result
     const debateResult = await computeDebateResult(portalAuth.ballot.debateId);
 
     return NextResponse.json(

@@ -78,6 +78,23 @@ export const SubmitBallotSchema = z.object({
 
 export type SubmitBallotInput = z.infer<typeof SubmitBallotSchema>;
 
+export const BallotModificationRequestCreateSchema = z.object({
+  reason: z.string().trim().max(2000).nullable().optional(),
+});
+
+export type BallotModificationRequestCreateInput = z.infer<
+  typeof BallotModificationRequestCreateSchema
+>;
+
+export const ResolveBallotModificationRequestSchema = z.object({
+  status: z.enum(['APPROVED', 'REJECTED']),
+  resolutionNote: z.string().trim().max(2000).nullable().optional(),
+});
+
+export type ResolveBallotModificationRequestInput = z.infer<
+  typeof ResolveBallotModificationRequestSchema
+>;
+
 // ============================================================================
 // Server-side validation helpers
 // ============================================================================

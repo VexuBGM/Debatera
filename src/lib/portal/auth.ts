@@ -97,11 +97,12 @@ export async function validatePortalBallotAccess(
   | (PortalAuthResult & {
       ballot: {
         id: string;
-        status: string;
+        status: 'DRAFT' | 'SUBMITTED';
         debateId: string;
         adjudicatorId: string;
+        reopenedAt: Date | null;
       };
-      roundStatus: string;
+      roundStatus: 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
     })
   | null
 > {
@@ -169,6 +170,7 @@ export async function validatePortalBallotAccess(
       status: ballot.status,
       debateId: ballot.debateId,
       adjudicatorId: ballot.adjudicatorId,
+      reopenedAt: ballot.reopenedAt,
     },
     roundStatus: ballot.adjudicator.debate.round.status,
   };

@@ -30,6 +30,7 @@ export default function PortalBallotPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [requestingModification, setRequestingModification] = useState(false);
   const [vote, setVote] = useState<'PROPOSITION' | 'OPPOSITION' | ''>('');
   const [speeches, setSpeeches] = useState<BallotSpeechFormState>({});
   const [privateNotes, setPrivateNotes] = useState('');
@@ -206,6 +207,40 @@ export default function PortalBallotPage() {
     }
   }
 
+  async function handleRequestModification(reason: string) {
+    if (!ballotId || !token || !tournamentId || !ballot?.canRequestModification) return;
+
+    setRequestingModification(true);
+    try {
+      const res = await fetch(
+        `/api/tournaments/${tournamentId}/portal/ballots/${ballotId}/modification-request`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ reason: reason || null }),
+        }
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) clearToken();
+        throw new Error(data?.error || 'Failed to send modification request');
+      }
+
+      toast.success('Modification request sent');
+      await fetchBallot();
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to send modification request'
+      );
+    } finally {
+      setRequestingModification(false);
+    }
+  }
+
   if (loading || !ready) {
     return (
       <PageContainer size="lg">
@@ -247,6 +282,7 @@ export default function PortalBallotPage() {
         privateNotes={privateNotes}
         saving={saving}
         submitting={submitting}
+        requestingModification={requestingModification}
         backHref={`/tournaments/${tournamentId}/p`}
         backLabel="Back to Portal"
         onVoteChange={setVote}
@@ -254,6 +290,7 @@ export default function PortalBallotPage() {
         onUpdateSpeech={updateSpeech}
         onSave={handleSave}
         onSubmit={handleSubmit}
+        onRequestModification={handleRequestModification}
       />
     </PageContainer>
   );

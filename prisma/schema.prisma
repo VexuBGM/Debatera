@@ -37,6 +37,8 @@ model User {
   invitationsCreated     InstitutionInvitation[] @relation("InvitationCreator")
   notifications          Notification[]
   teamsCreated           TournamentTeam[]        @relation("TeamsCreated")
+  ballotsReopened        Ballot[]               @relation("BallotReopenedBy")
+  resolvedBallotModificationRequests BallotModificationRequest[] @relation("BallotModificationResolvedBy")
 
   @@index([email])
 }
@@ -197,6 +199,7 @@ model TournamentParticipant {
   teamMembership   TournamentTeamMember?
   judgeAssignments TournamentDebateJudge[]
   accessLink       TournamentParticipantAccessLink?
+  ballotModificationRequests BallotModificationRequest[]
 
   @@unique([tournamentId, userId])
   @@index([tournamentId])
@@ -471,6 +474,12 @@ enum BallotStatus {
   SUBMITTED
 }
 
+enum BallotModificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum Side {
   PROPOSITION
   OPPOSITION
@@ -502,18 +511,45 @@ model Ballot {
   oppTotal        Decimal?     @db.Decimal(5, 1)
   privateNotes    String?      @db.Text
   submittedAt     DateTime?
+  reopenedAt      DateTime?
+  reopenedByUserId String?     @db.VarChar(128)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   // Relationships
-  debate      TournamentDebate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
-  adjudicator TournamentDebateJudge @relation(fields: [adjudicatorId], references: [id], onDelete: Cascade)
-  speeches    BallotSpeech[]
+  debate                TournamentDebate             @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  adjudicator           TournamentDebateJudge        @relation(fields: [adjudicatorId], references: [id], onDelete: Cascade)
+  reopenedBy            User?                        @relation("BallotReopenedBy", fields: [reopenedByUserId], references: [id], onDelete: SetNull)
+  speeches              BallotSpeech[]
+  modificationRequests  BallotModificationRequest[]
 
   @@unique([debateId, adjudicatorId])
   @@index([debateId])
   @@index([adjudicatorId])
   @@index([status])
+  @@index([reopenedByUserId])
+}
+
+model BallotModificationRequest {
+  id                   String                         @id @default(cuid())
+  ballotId             String
+  requestedByParticipantId String
+  status               BallotModificationRequestStatus @default(PENDING)
+  reason               String?                        @db.Text
+  resolutionNote       String?                        @db.Text
+  resolvedByUserId     String?                        @db.VarChar(128)
+  resolvedAt           DateTime?
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+
+  ballot       Ballot               @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+  requestedBy  TournamentParticipant @relation(fields: [requestedByParticipantId], references: [id], onDelete: Cascade)
+  resolvedBy   User?                @relation("BallotModificationResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([ballotId])
+  @@index([requestedByParticipantId])
+  @@index([status])
+  @@index([resolvedByUserId])
 }
 
 // Individual speech score within a ballot

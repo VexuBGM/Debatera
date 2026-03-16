@@ -10,3 +10,4 @@ export * from './validation';
 export * from './queries';
 export * from './createBallots';
 export * from './computeResult';
+export * from './modificationRequests';

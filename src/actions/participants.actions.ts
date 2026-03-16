@@ -21,6 +21,7 @@ import {
   splitGuestDisplayName,
 } from '@/lib/domains/participants/guestParticipants';
 import { resolveTeamManagementScope } from '@/lib/domains/teams/teamManagementScope';
+import { createTournamentParticipantForUser } from '@/lib/participants/createTournamentParticipant';
 
 // =============================================================================
 // Types
@@ -138,17 +139,15 @@ export async function addGuestParticipant(
     });
 
     // Create TournamentParticipant
-    const participant = await prisma.tournamentParticipant.create({
-      data: {
-        tournamentId: parsed.tournamentId,
-        userId: guestUserId,
-        institutionId,
-        role: parsed.role,
-      },
+    const participant = await createTournamentParticipantForUser(prisma, {
+      tournamentId: parsed.tournamentId,
+      userId: guestUserId,
+      institutionId,
+      role: parsed.role,
     });
 
     revalidatePath(`/tournaments/${parsed.tournamentId}/participants`);
-    return { success: true, data: { participantId: participant.id } };
+    return { success: true, data: { participantId: participant.participantId } };
   } catch (error: any) {
     if (error.message === 'Unauthorized') return { success: false, error: 'Unauthorized' };
     if (error.message === 'Forbidden') return { success: false, error: 'Forbidden' };
@@ -233,20 +232,18 @@ export async function bulkAddGuestParticipants(
           },
         });
 
-        const participant = await prisma.tournamentParticipant.create({
-          data: {
-            tournamentId: parsed.tournamentId,
-            userId: guestUserId,
-            institutionId: institutionId,
-            role: parsed.role,
-          },
+        const participant = await createTournamentParticipantForUser(prisma, {
+          tournamentId: parsed.tournamentId,
+          userId: guestUserId,
+          institutionId,
+          role: parsed.role,
         });
 
         results.push({
           line: lines[i].line,
           name,
           success: true,
-          participantId: participant.id,
+          participantId: participant.participantId,
         });
         totalCreated++;
       } catch (error: any) {

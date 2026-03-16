@@ -7,8 +7,8 @@ import {
   TournamentInstitutionStatus,
   TournamentParticipantRole,
 } from '@prisma/client';
-import { Prisma } from '@prisma/client';
 import { assertRegistrationOpen, TournamentSettingsLike } from '@/lib/guards/tournamentSettingsGuards';
+import { createTournamentParticipantForUser } from '@/lib/participants/createTournamentParticipant';
 
 export const runtime = 'nodejs';
 
@@ -151,41 +151,33 @@ export async function POST(
       );
     }
 
-    try {
-      const participant = await prisma.tournamentParticipant.create({
-        data: {
-          tournamentId,
-          userId: targetUserId,
-          institutionId,
-          role,
+    const participant = await createTournamentParticipantForUser(prisma, {
+      tournamentId,
+      userId: targetUserId,
+      institutionId,
+      role,
+    });
+
+    if (!participant.created) {
+      const existing = await prisma.tournamentParticipant.findUnique({
+        where: { tournamentId_userId: { tournamentId, userId: targetUserId } },
+        select: {
+          id: true,
+          institution: { select: { name: true } },
         },
       });
 
-      return NextResponse.json(participant, { status: 201 });
-    } catch (err: unknown) {
-      // Concurrency/unique constraint enforcement
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        // Find existing participant to identify which institution registered them
-        const existing = await prisma.tournamentParticipant.findUnique({
-          where: { tournamentId_userId: { tournamentId, userId: targetUserId } },
-          select: {
-            id: true,
-            institution: { select: { name: true } },
-          },
-        });
+      const institutionName = existing?.institution?.name ?? 'another institution';
 
-        const institutionName = existing?.institution?.name ?? 'another institution';
-
-        return NextResponse.json(
-          {
-            error: `User is already registered for this tournament by ${institutionName}`,
-          },
-          { status: 409 }
-        );
-      }
-
-      throw err;
+      return NextResponse.json(
+        {
+          error: `User is already registered for this tournament by ${institutionName}`,
+        },
+        { status: 409 }
+      );
     }
+
+    return NextResponse.json({ id: participant.participantId }, { status: 201 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

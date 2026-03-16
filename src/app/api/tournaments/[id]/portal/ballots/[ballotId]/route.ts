@@ -16,8 +16,12 @@ import {
   SaveBallotDraftSchema,
   PROP_ROLES,
   OPP_ROLES,
+  latestBallotModificationRequestSelect,
+  serializeBallotModificationRequest,
+  canRequestBallotModification,
+  canJudgeEditBallotState,
 } from '@/lib/ballots';
-import { SpeechRole, BallotStatus, TournamentRoundStatus } from '@prisma/client';
+import { SpeechRole, TournamentRoundStatus } from '@prisma/client';
 import { rateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
@@ -79,6 +83,11 @@ export async function GET(req: Request, { params }: RouteParams) {
     const ballot = await prisma.ballot.findUnique({
       where: { id: ballotId },
       include: {
+        modificationRequests: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: latestBallotModificationRequestSelect,
+        },
         speeches: {
           orderBy: { role: 'asc' },
           include: {
@@ -153,6 +162,16 @@ export async function GET(req: Request, { params }: RouteParams) {
       {
         id: ballot.id,
         status: ballot.status,
+        isReopened: ballot.reopenedAt !== null,
+        canRequestModification: canRequestBallotModification({
+          ballotStatus: ballot.status,
+          roundStatus: debate.round.status,
+          hasPendingRequest:
+            ballot.modificationRequests[0]?.status === 'PENDING',
+        }),
+        latestModificationRequest: serializeBallotModificationRequest(
+          ballot.modificationRequests[0]
+        ),
         vote: ballot.vote,
         propTotal: ballot.propTotal ? Number(ballot.propTotal) : null,
         oppTotal: ballot.oppTotal ? Number(ballot.oppTotal) : null,
@@ -271,18 +290,15 @@ export async function PUT(req: Request, { params }: RouteParams) {
       );
     }
 
-    // Cannot edit submitted ballots
-    if (portalAuth.ballot.status === BallotStatus.SUBMITTED) {
+    if (
+      !canJudgeEditBallotState({
+        ballotStatus: portalAuth.ballot.status,
+        roundStatus: portalAuth.roundStatus,
+        reopenedAt: portalAuth.ballot.reopenedAt,
+      })
+    ) {
       return NextResponse.json(
-        { error: 'Ballot has already been submitted and cannot be edited' },
-        { status: 403 }
-      );
-    }
-
-    // Round must be IN_PROGRESS
-    if (portalAuth.roundStatus !== TournamentRoundStatus.IN_PROGRESS) {
-      return NextResponse.json(
-        { error: 'Cannot edit ballot — round is not in progress' },
+        { error: 'Cannot edit ballot in its current state' },
         { status: 403 }
       );
     }

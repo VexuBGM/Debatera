@@ -73,9 +73,21 @@ export interface BallotSpeech {
   comment: string | null;
 }
 
+export interface BallotModificationRequestSummary {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 export interface BallotData {
   id: string;
   status: 'DRAFT' | 'SUBMITTED';
+  isReopened: boolean;
+  canRequestModification: boolean;
+  latestModificationRequest: BallotModificationRequestSummary | null;
   vote: Exclude<BallotVote, ''> | null;
   propTotal: number | null;
   oppTotal: number | null;

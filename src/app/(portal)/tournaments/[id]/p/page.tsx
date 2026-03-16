@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import { PageContainer } from '@/components/PageContainer';
 import { usePortalToken } from '@/lib/portal/clientToken';
+import type { BallotModificationRequestSummary } from '@/components/ballot/model';
 
 interface PortalDebate {
   debateId: string;
@@ -35,6 +36,9 @@ interface PortalDebate {
   ballotId: string | null;
   ballotStatus: 'DRAFT' | 'SUBMITTED' | null;
   submittedAt: string | null;
+  isReopened: boolean;
+  canRequestModification: boolean;
+  latestModificationRequest: BallotModificationRequestSummary | null;
 }
 
 interface PortalRound {
@@ -237,7 +241,7 @@ function PortalDebateCard({
   roundStatus: string;
 }) {
   const isSubmitted = debate.ballotStatus === 'SUBMITTED';
-  const canEdit = roundStatus === 'IN_PROGRESS' && !isSubmitted;
+  const canEdit = !isSubmitted && (roundStatus === 'IN_PROGRESS' || debate.isReopened);
 
   return (
     <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
@@ -269,6 +273,16 @@ function PortalDebateCard({
               ) : (
                 'Draft'
               )}
+            </Badge>
+          )}
+          {debate.isReopened && (
+            <Badge variant="outline" className="border-sky-500 text-sky-400">
+              Reopened
+            </Badge>
+          )}
+          {debate.latestModificationRequest?.status === 'PENDING' && (
+            <Badge variant="outline" className="border-amber-500 text-amber-400">
+              Modification Pending
             </Badge>
           )}
         </div>

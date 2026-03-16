@@ -24,6 +24,7 @@ export default function BallotEntryPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [requestingModification, setRequestingModification] = useState(false);
   const [vote, setVote] = useState<'PROPOSITION' | 'OPPOSITION' | ''>('');
   const [speeches, setSpeeches] = useState<BallotSpeechFormState>({});
   const [privateNotes, setPrivateNotes] = useState('');
@@ -167,6 +168,33 @@ export default function BallotEntryPage() {
     }
   }
 
+  async function handleRequestModification(reason: string) {
+    if (!ballotId || !ballot?.canRequestModification) return;
+
+    setRequestingModification(true);
+    try {
+      const res = await fetch(`/api/ballots/${ballotId}/modification-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || null }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to send modification request');
+      }
+
+      toast.success('Modification request sent');
+      await fetchBallot();
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to send modification request'
+      );
+    } finally {
+      setRequestingModification(false);
+    }
+  }
+
   if (loading) {
     return (
       <PageContainer size="lg">
@@ -200,6 +228,7 @@ export default function BallotEntryPage() {
         privateNotes={privateNotes}
         saving={saving}
         submitting={submitting}
+        requestingModification={requestingModification}
         backHref={`/tournaments/${ballot.tournament.id}/my-ballots`}
         backLabel="Back to My Ballots"
         onVoteChange={setVote}
@@ -207,6 +236,7 @@ export default function BallotEntryPage() {
         onUpdateSpeech={updateSpeech}
         onSave={handleSave}
         onSubmit={handleSubmit}
+        onRequestModification={handleRequestModification}
       />
     </PageContainer>
   );
