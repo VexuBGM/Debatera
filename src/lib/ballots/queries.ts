@@ -5,6 +5,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { latestBallotModificationRequestSelect } from './modificationRequests';
 
 /**
  * Fetch all ballots assigned to a user (as adjudicator) for a tournament.
@@ -23,6 +24,11 @@ export async function getBallotsForAdjudicator(
       },
     },
     include: {
+      modificationRequests: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: latestBallotModificationRequestSelect,
+      },
       adjudicator: {
         include: {
           participant: {
@@ -53,6 +59,11 @@ export async function getBallotWithContext(ballotId: string) {
   return prisma.ballot.findUnique({
     where: { id: ballotId },
     include: {
+      modificationRequests: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: latestBallotModificationRequestSelect,
+      },
       speeches: {
         orderBy: { role: 'asc' },
         include: {

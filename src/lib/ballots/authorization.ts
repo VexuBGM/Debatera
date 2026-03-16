@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { TournamentParticipantRole, BallotStatus, TournamentRoundStatus } from '@prisma/client';
+import { canJudgeEditBallotState } from './modificationRequests';
 
 // ============================================================================
 // Viewer Roles
@@ -54,6 +55,7 @@ interface BallotAccessContext {
   ballotAdjudicatorParticipantUserId: string;
   roundStatus: TournamentRoundStatus;
   tournamentCreatorUserId: string;
+  ballotReopenedAt: Date | null;
 }
 
 /**
@@ -66,8 +68,16 @@ export function canEditBallot(
   userId: string,
   context: BallotAccessContext
 ): boolean {
-  if (context.ballotStatus === BallotStatus.SUBMITTED) return false;
-  if (context.roundStatus !== TournamentRoundStatus.IN_PROGRESS) return false;
+  if (
+    !canJudgeEditBallotState({
+      ballotStatus: context.ballotStatus,
+      roundStatus: context.roundStatus,
+      reopenedAt: context.ballotReopenedAt,
+    })
+  ) {
+    return false;
+  }
+
   return context.ballotAdjudicatorParticipantUserId === userId;
 }
 
@@ -139,6 +149,7 @@ export async function loadBallotAccessContext(ballotId: string) {
       ballotAdjudicatorParticipantUserId: ballot.adjudicator.participant.userId,
       roundStatus: round.status,
       tournamentCreatorUserId: tournament.createdByUserId,
+      ballotReopenedAt: ballot.reopenedAt,
     } satisfies BallotAccessContext,
   };
 }

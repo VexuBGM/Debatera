@@ -86,6 +86,19 @@ export interface RoundData {
   debates: DebateData[];
 }
 
+export interface BallotModificationQueueItem {
+  id: string;
+  ballotId: string;
+  debateId: string;
+  debateOrder: number;
+  judgeName: string;
+  judgeRole: JudgeRole;
+  propTeamName: string | null;
+  oppTeamName: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
 // Editor state types (for the local state that gets saved)
 export interface EditorDebate {
   id: string; // Can be a temp ID for new debates

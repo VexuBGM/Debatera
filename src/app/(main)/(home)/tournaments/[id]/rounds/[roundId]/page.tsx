@@ -42,13 +42,19 @@ import {
   Shuffle,
   Trophy,
   Upload,
-  Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RoundEditor } from './RoundEditor';
 import { autoAllocateVenuesAction } from '@/actions/venues.actions';
 import { useSetBreadcrumbOverride } from '@/components/BreadcrumbOverrides';
-import type { RoundData, TeamData, JudgeData, VenueData, EditorDebate } from './types';
+import type {
+  RoundData,
+  TeamData,
+  JudgeData,
+  VenueData,
+  EditorDebate,
+  BallotModificationQueueItem,
+} from './types';
 
 // =============================================================================
 // Status Helpers
@@ -125,10 +131,18 @@ export default function RoundEditorPage() {
   // Venue data (debate ID -> venue info)
   const [venueMap, setVenueMap] = useState<Map<string, VenueData>>(new Map());
   const [allVenues, setAllVenues] = useState<VenueData[]>([]);
+  const [ballotModificationRequests, setBallotModificationRequests] = useState<
+    BallotModificationQueueItem[]
+  >([]);
 
   // Confirmation dialogs
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<BallotModificationQueueItem | null>(null);
+  const [resolveAction, setResolveAction] = useState<'APPROVED' | 'REJECTED' | null>(null);
+  const [resolutionNote, setResolutionNote] = useState('');
+  const [resolvingRequest, setResolvingRequest] = useState(false);
 
   // =============================================================================
   // Data Fetching
@@ -162,6 +176,7 @@ export default function RoundEditorPage() {
       setEventMode(data.eventMode ?? 'IRL');
       setUserCallEligibility(data.userCallEligibility ?? {});
       setShowDebaterNames(data.showDebaterNames ?? false);
+      setBallotModificationRequests(data.ballotModificationRequests ?? []);
 
       // Initialize editor debates from server data
       const debates: EditorDebate[] = data.round.debates.map((d: RoundData['debates'][0]) => {
@@ -407,6 +422,55 @@ export default function RoundEditorPage() {
     }
   }
 
+  function openResolveDialog(
+    request: BallotModificationQueueItem,
+    action: 'APPROVED' | 'REJECTED'
+  ) {
+    setSelectedRequest(request);
+    setResolveAction(action);
+    setResolutionNote('');
+    setResolveDialogOpen(true);
+  }
+
+  async function handleResolveRequest() {
+    if (!selectedRequest || !resolveAction) return;
+
+    setResolvingRequest(true);
+    try {
+      const res = await fetch(
+        `/api/tournaments/${tournamentId}/ballot-modification-requests/${selectedRequest.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: resolveAction,
+            resolutionNote: resolutionNote.trim() || null,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to resolve request');
+      }
+
+      toast.success(
+        resolveAction === 'APPROVED'
+          ? 'Ballot reopened for editing'
+          : 'Modification request rejected'
+      );
+      setResolveDialogOpen(false);
+      setSelectedRequest(null);
+      setResolveAction(null);
+      setResolutionNote('');
+      await fetchPairings();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resolve request');
+    } finally {
+      setResolvingRequest(false);
+    }
+  }
+
   // =============================================================================
   // Validation
   // =============================================================================
@@ -449,6 +513,8 @@ export default function RoundEditorPage() {
 
   const isDraft = round.status === 'DRAFT';
   const canEdit = isAdmin && isDraft;
+  const showModificationQueue =
+    isAdmin && (round.status === 'IN_PROGRESS' || round.status === 'COMPLETED');
 
   return (
     <main className="max-w-6xl mx-auto p-4 space-y-6">
@@ -694,6 +760,72 @@ export default function RoundEditorPage() {
         </Card>
       )}
 
+      {showModificationQueue && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Ballot Modification Requests</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {ballotModificationRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No pending ballot modification requests for this round.
+              </p>
+            ) : (
+              ballotModificationRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-xl border border-border/60 bg-muted/20 p-4"
+                >
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">Debate {request.debateOrder + 1}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={
+                            request.judgeRole === 'CHAIR'
+                              ? 'border-amber-500 text-amber-400'
+                              : undefined
+                          }
+                        >
+                          {request.judgeRole === 'CHAIR' ? 'Chair' : 'Panelist'}
+                        </Badge>
+                      </div>
+                      <p className="font-medium">
+                        {request.propTeamName ?? 'TBD'} vs {request.oppTeamName ?? 'TBD'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Requested by {request.judgeName} on{' '}
+                        {new Date(request.createdAt).toLocaleString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {request.reason || 'No reason provided.'}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => openResolveDialog(request, 'APPROVED')}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openResolveDialog(request, 'REJECTED')}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Validation hints */}
       {canEdit && editorDebates.length > 0 && !canPublish() && !hasChanges && (
         <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
@@ -772,6 +904,74 @@ export default function RoundEditorPage() {
             </Button>
             <Button onClick={() => handleStatusChange('PUBLISHED')}>
               Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={resolveDialogOpen}
+        onOpenChange={(open) => {
+          setResolveDialogOpen(open);
+          if (!open) {
+            setSelectedRequest(null);
+            setResolveAction(null);
+            setResolutionNote('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {resolveAction === 'APPROVED'
+                ? 'Approve Modification Request'
+                : 'Reject Modification Request'}
+            </DialogTitle>
+            <DialogDescription>
+              {resolveAction === 'APPROVED'
+                ? 'Approving will reopen the ballot and invalidate the current debate result until it is re-submitted.'
+                : 'Rejecting will keep the submitted ballot locked.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedRequest && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
+                <p className="font-medium">
+                  {selectedRequest.propTeamName ?? 'TBD'} vs{' '}
+                  {selectedRequest.oppTeamName ?? 'TBD'}
+                </p>
+                <p className="text-muted-foreground">
+                  {selectedRequest.judgeName} requested a reopen.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Resolution note</label>
+                <Textarea
+                  value={resolutionNote}
+                  onChange={(event) => setResolutionNote(event.target.value)}
+                  placeholder="Optional note for the judge..."
+                  rows={4}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setResolveDialogOpen(false)}
+              disabled={resolvingRequest}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleResolveRequest} disabled={resolvingRequest}>
+              {resolvingRequest
+                ? 'Saving...'
+                : resolveAction === 'APPROVED'
+                  ? 'Approve & Reopen'
+                  : 'Reject Request'}
             </Button>
           </DialogFooter>
         </DialogContent>

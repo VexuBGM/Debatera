@@ -23,6 +23,7 @@ import {
   assertCanManageInstitution,
   resolveTeamManagementScope,
 } from '@/lib/domains/teams/teamManagementScope';
+import { createTournamentParticipantForUser } from '@/lib/participants/createTournamentParticipant';
 
 export type TeamWithMembers = Prisma.TournamentTeamGetPayload<{
     include: {
@@ -652,13 +653,11 @@ export async function bulkAddGuestDebatersToInstitution(input: {
                     },
                 });
 
-                await prisma.tournamentParticipant.create({
-                    data: {
-                        tournamentId: parsed.tournamentId,
-                        userId: guestUserId,
-                        institutionId: resolvedInstitution.institutionId,
-                        role: 'DEBATER',
-                    },
+                await createTournamentParticipantForUser(prisma, {
+                    tournamentId: parsed.tournamentId,
+                    userId: guestUserId,
+                    institutionId: resolvedInstitution.institutionId,
+                    role: 'DEBATER',
                 });
 
                 results.push({
@@ -1197,19 +1196,17 @@ export async function bulkAddDebatersToTeam(
                     },
                 });
 
-                const participant = await prisma.tournamentParticipant.create({
-                    data: {
-                        tournamentId: parsed.tournamentId,
-                        userId: guestUserId,
-                        institutionId: team.institutionId, // inherit from team
-                        role: 'DEBATER',
-                    },
+                const participant = await createTournamentParticipantForUser(prisma, {
+                    tournamentId: parsed.tournamentId,
+                    userId: guestUserId,
+                    institutionId: team.institutionId,
+                    role: 'DEBATER',
                 });
 
                 await prisma.tournamentTeamMember.create({
                     data: {
                         teamId: team.id,
-                        participantId: participant.id,
+                        participantId: participant.participantId,
                     },
                 });
 

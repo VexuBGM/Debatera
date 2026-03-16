@@ -14,7 +14,6 @@ import {
   canEditBallot,
   SubmitBallotSchema,
   validateBallotSubmission,
-  SPEECH_ROLE_SIDE,
   PROP_ROLES,
   OPP_ROLES,
   computeDebateResult,
@@ -98,6 +97,8 @@ export async function POST(req: Request, { params }: RouteParams) {
           oppTotal,
           privateNotes: data.privateNotes ?? null,
           submittedAt: new Date(),
+          reopenedAt: null,
+          reopenedByUserId: null,
         },
       });
 

@@ -21,6 +21,7 @@ import { prisma } from '@/lib/prisma';
 import { getDebateRoleForUser, type DebateStreamRole } from '@/lib/stream/eligibility';
 import { getTournamentViewAccess } from '@/lib/security/access';
 import { rateLimit } from '@/lib/security/rateLimit';
+import { displayNameFromDbUser } from '@/lib/users/displayName';
 
 export const runtime = 'nodejs';
 
@@ -97,6 +98,18 @@ export async function GET(req: Request, { params }: RouteParams) {
     let allVenues: Array<{ id: string; name: string; priority: number }> = [];
     let unassignedTeams: typeof allTeams = [];
     let unassignedJudges: typeof allJudges = [];
+    let ballotModificationRequests: Array<{
+      id: string;
+      ballotId: string;
+      debateId: string;
+      debateOrder: number;
+      judgeName: string;
+      judgeRole: string;
+      propTeamName: string | null;
+      oppTeamName: string | null;
+      reason: string | null;
+      createdAt: string;
+    }> = [];
 
     if (isAdmin) {
       [allTeams, allJudges, allVenues] = await Promise.all([
@@ -108,6 +121,54 @@ export async function GET(req: Request, { params }: RouteParams) {
           select: { id: true, name: true, priority: true },
         }),
       ]);
+
+      if (round.status !== TournamentRoundStatus.DRAFT) {
+        const requests = await prisma.ballotModificationRequest.findMany({
+          where: {
+            status: 'PENDING',
+            ballot: {
+              debate: {
+                roundId,
+              },
+            },
+          },
+          include: {
+            ballot: {
+              include: {
+                adjudicator: {
+                  include: {
+                    participant: {
+                      include: { user: true },
+                    },
+                    debate: {
+                      include: {
+                        propTeam: true,
+                        oppTeam: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        ballotModificationRequests = requests.map((request) => ({
+          id: request.id,
+          ballotId: request.ballotId,
+          debateId: request.ballot.debateId,
+          debateOrder: request.ballot.adjudicator.debate.order,
+          judgeName: displayNameFromDbUser(
+            request.ballot.adjudicator.participant.user
+          ),
+          judgeRole: request.ballot.adjudicator.role,
+          propTeamName: request.ballot.adjudicator.debate.propTeam?.name ?? null,
+          oppTeamName: request.ballot.adjudicator.debate.oppTeam?.name ?? null,
+          reason: request.reason,
+          createdAt: request.createdAt.toISOString(),
+        }));
+      }
 
       const assignedTeamIds = new Set<string>();
       const assignedJudgeIds = new Set<string>();
@@ -138,6 +199,7 @@ export async function GET(req: Request, { params }: RouteParams) {
         eventMode,
         showDebaterNames,
         userCallEligibility,
+        ballotModificationRequests,
       },
       { status: 200 }
     );
