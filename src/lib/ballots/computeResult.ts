@@ -1,25 +1,33 @@
 /**
  * Debate Result Computation
  *
- * After all ballots for a debate are SUBMITTED, compute and persist
+ * After ballots for a debate are SUBMITTED, compute and persist
  * the winner via majority vote. Tie-break: chair's vote wins.
+ * Special case: in a 2-judge panel, once the round is COMPLETED,
+ * a submitted chair ballot can stand in as the official result.
  */
 
 import { prisma } from '@/lib/prisma';
-import { BallotStatus, Side, JudgeRole, Prisma } from '@prisma/client';
+import { BallotStatus, Side, JudgeRole, Prisma, TournamentRoundStatus } from '@prisma/client';
 import { PROP_ROLES, OPP_ROLES } from './constants';
 
 const Decimal = Prisma.Decimal;
 
 /**
  * Attempt to compute and store the debate result.
- * Only runs if ALL ballots for the debate are SUBMITTED.
+ * Normally waits for all ballots, but allows a completed 2-judge round
+ * to use the chair ballot if that is the only submitted ballot.
  * Returns the DebateResult if created, null otherwise.
  */
 export async function computeDebateResult(debateId: string) {
   const debate = await prisma.tournamentDebate.findUnique({
     where: { id: debateId },
     include: {
+      round: {
+        select: {
+          status: true,
+        },
+      },
       ballots: {
         include: {
           speeches: true,
@@ -32,7 +40,6 @@ export async function computeDebateResult(debateId: string) {
 
   if (!debate) return null;
 
-  // All judges must have submitted ballots
   const allJudgeIds = new Set(debate.judges.map((j) => j.id));
   const submittedBallots = debate.ballots.filter(
     (b) => b.status === BallotStatus.SUBMITTED
@@ -41,19 +48,41 @@ export async function computeDebateResult(debateId: string) {
     submittedBallots.map((b) => b.adjudicatorId)
   );
 
-  // Not all judges have submitted yet
-  for (const judgeId of allJudgeIds) {
-    if (!submittedJudgeIds.has(judgeId)) return null;
+  if (submittedBallots.length === 0) return null;
+
+  const chairAssignment = debate.judges.find((j) => j.role === JudgeRole.CHAIR);
+  const chairBallot = chairAssignment
+    ? submittedBallots.find((b) => b.adjudicatorId === chairAssignment.id)
+    : null;
+
+  const allBallotsSubmitted = Array.from(allJudgeIds).every((judgeId) =>
+    submittedJudgeIds.has(judgeId)
+  );
+  const canUseChairOnlyFallback =
+    debate.round.status === TournamentRoundStatus.COMPLETED &&
+    debate.judges.length === 2 &&
+    submittedBallots.length === 1 &&
+    chairBallot !== undefined &&
+    chairBallot !== null;
+
+  if (!allBallotsSubmitted && !canUseChairOnlyFallback) {
+    return null;
   }
 
-  if (submittedBallots.length === 0) return null;
+  const ballotsToCount = allBallotsSubmitted
+    ? submittedBallots
+    : chairBallot
+      ? [chairBallot]
+      : [];
+
+  if (ballotsToCount.length === 0) return null;
 
   // Count votes
   let voteProp = 0;
   let voteOpp = 0;
   let chairVote: Side | null = null;
 
-  for (const ballot of submittedBallots) {
+  for (const ballot of ballotsToCount) {
     if (!ballot.vote) continue;
     if (ballot.vote === 'PROPOSITION') voteProp++;
     else voteOpp++;
@@ -85,12 +114,12 @@ export async function computeDebateResult(debateId: string) {
   let propTotalSum = new Decimal(0);
   let oppTotalSum = new Decimal(0);
 
-  for (const ballot of submittedBallots) {
+  for (const ballot of ballotsToCount) {
     if (ballot.propTotal) propTotalSum = propTotalSum.add(ballot.propTotal);
     if (ballot.oppTotal) oppTotalSum = oppTotalSum.add(ballot.oppTotal);
   }
 
-  const count = new Decimal(submittedBallots.length);
+  const count = new Decimal(ballotsToCount.length);
   const propTotalAvg = propTotalSum.div(count);
   const oppTotalAvg = oppTotalSum.div(count);
 

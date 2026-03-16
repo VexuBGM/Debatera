@@ -21,6 +21,8 @@ import { TournamentRoundStatus } from '@prisma/client';
 import { ensureCallsForRound } from '@/lib/stream/ensure';
 import { getTournamentViewAccess } from '@/lib/security/access';
 import { rateLimit } from '@/lib/security/rateLimit';
+import { computeDebateResult } from '@/lib/ballots';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -202,6 +204,19 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       // Best-effort: don't block response if call creation fails
       ensureCallsForRound(roundId, userId).catch((err) =>
         console.error('[stream] Failed to ensure calls for round:', err)
+      );
+    }
+
+    if (updateData.status === TournamentRoundStatus.COMPLETED) {
+      const debates = await prisma.tournamentDebate.findMany({
+        where: { roundId },
+        select: { id: true },
+      });
+
+      await Promise.all(
+        debates.map(async (debate) => {
+          await computeDebateResult(debate.id);
+        })
       );
     }
 
