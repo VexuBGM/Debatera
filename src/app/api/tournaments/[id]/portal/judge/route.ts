@@ -13,9 +13,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { extractToken, validatePortalToken } from '@/lib/portal';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
-import { createBallotForJudge } from '@/lib/ballots';
 import { TournamentRoundStatus } from '@prisma/client';
 import { rateLimit } from '@/lib/security/rateLimit';
+import {
+  createBallotForJudge,
+  canRequestBallotModification,
+  latestBallotModificationRequestSelect,
+  serializeBallotModificationRequest,
+} from '@/lib/ballots';
 
 export const runtime = 'nodejs';
 
@@ -90,6 +95,12 @@ export async function GET(req: Request, { params }: RouteParams) {
             id: true,
             status: true,
             submittedAt: true,
+            reopenedAt: true,
+            modificationRequests: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: latestBallotModificationRequestSelect,
+            },
           },
         },
         debate: {
@@ -131,6 +142,12 @@ export async function GET(req: Request, { params }: RouteParams) {
             id: true,
             status: true,
             submittedAt: true,
+            reopenedAt: true,
+            modificationRequests: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: latestBallotModificationRequestSelect,
+            },
           },
         },
         debate: {
@@ -183,6 +200,11 @@ export async function GET(req: Request, { params }: RouteParams) {
           ballotId: string | null;
           ballotStatus: string | null;
           submittedAt: string | null;
+          isReopened: boolean;
+          canRequestModification: boolean;
+          latestModificationRequest: ReturnType<
+            typeof serializeBallotModificationRequest
+          >;
         }>;
       }
     >();
@@ -212,6 +234,20 @@ export async function GET(req: Request, { params }: RouteParams) {
         ballotId: assignment.ballot?.id ?? null,
         ballotStatus: assignment.ballot?.status ?? null,
         submittedAt: assignment.ballot?.submittedAt?.toISOString() ?? null,
+        isReopened: assignment.ballot?.reopenedAt != null,
+        canRequestModification: assignment.ballot
+          ? canRequestBallotModification({
+              ballotStatus: assignment.ballot.status,
+              roundStatus: assignment.debate.round.status,
+              hasPendingRequest:
+                assignment.ballot.modificationRequests[0]?.status === 'PENDING',
+            })
+          : false,
+        latestModificationRequest: assignment.ballot
+          ? serializeBallotModificationRequest(
+              assignment.ballot.modificationRequests[0]
+            )
+          : null,
       });
     }
 

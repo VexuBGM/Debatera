@@ -49,6 +49,7 @@ interface BallotWorkspaceProps {
   privateNotes: string;
   saving: boolean;
   submitting: boolean;
+  requestingModification: boolean;
   backHref: string;
   backLabel: string;
   onVoteChange: (vote: BallotVote) => void;
@@ -60,6 +61,7 @@ interface BallotWorkspaceProps {
   ) => void;
   onSave: () => void;
   onSubmit: () => void;
+  onRequestModification: (reason: string) => void;
 }
 
 export function BallotWorkspace({
@@ -69,6 +71,7 @@ export function BallotWorkspace({
   privateNotes,
   saving,
   submitting,
+  requestingModification,
   backHref,
   backLabel,
   onVoteChange,
@@ -76,10 +79,16 @@ export function BallotWorkspace({
   onUpdateSpeech,
   onSave,
   onSubmit,
+  onRequestModification,
 }: BallotWorkspaceProps) {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [requestReason, setRequestReason] = useState('');
 
   const isSubmitted = ballot.status === 'SUBMITTED';
+  const latestRequest = ballot.latestModificationRequest;
+  const hasPendingRequest = latestRequest?.status === 'PENDING';
+  const hasRejectedRequest = latestRequest?.status === 'REJECTED';
   const propTotal = getBallotTotal(speeches, 'PROPOSITION');
   const oppTotal = getBallotTotal(speeches, 'OPPOSITION');
 
@@ -353,6 +362,59 @@ export function BallotWorkspace({
         </Card>
 
         <div className="space-y-4 xl:sticky xl:top-20">
+          {ballot.isReopened && (
+            <Card className="border-sky-500/30 bg-sky-500/10 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base">Ballot Reopened</CardTitle>
+                <CardDescription>
+                  An organizer approved your modification request. You can edit and resubmit this ballot now.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+
+          {hasPendingRequest && (
+            <Card className="border-amber-500/30 bg-amber-500/10 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base">Modification Requested</CardTitle>
+                <CardDescription>
+                  This ballot stays locked until an organizer approves or rejects your request.
+                </CardDescription>
+              </CardHeader>
+              {(latestRequest?.reason || latestRequest?.createdAt) && (
+                <CardContent className="pt-0 text-sm text-muted-foreground">
+                  {latestRequest.reason && <p>{latestRequest.reason}</p>}
+                  {latestRequest.createdAt && (
+                    <p className="mt-2">
+                      Requested {new Date(latestRequest.createdAt).toLocaleString()}
+                    </p>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+          )}
+
+          {isSubmitted && hasRejectedRequest && (
+            <Card className="border-rose-500/30 bg-rose-500/10 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base">Request Rejected</CardTitle>
+                <CardDescription>
+                  You can send another request if this ballot still needs to be changed.
+                </CardDescription>
+              </CardHeader>
+              {(latestRequest?.resolutionNote || latestRequest?.resolvedAt) && (
+                <CardContent className="pt-0 text-sm text-muted-foreground">
+                  {latestRequest.resolutionNote && <p>{latestRequest.resolutionNote}</p>}
+                  {latestRequest.resolvedAt && (
+                    <p className="mt-2">
+                      Reviewed {new Date(latestRequest.resolvedAt).toLocaleString()}
+                    </p>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+          )}
+
           <Card className="border-border/60 shadow-sm">
             <CardHeader>
               <CardTitle>Decision</CardTitle>
@@ -440,8 +502,10 @@ export function BallotWorkspace({
               <CardTitle>{isSubmitted ? 'Submitted' : 'Actions'}</CardTitle>
               <CardDescription>
                 {isSubmitted
-                  ? 'This ballot is locked and can no longer be edited.'
-                  : 'Save a draft or submit once everything is final.'}
+                  ? 'This ballot is locked unless an organizer reopens it.'
+                  : ballot.isReopened
+                    ? 'Finish your edits and resubmit this reopened ballot.'
+                    : 'Save a draft or submit once everything is final.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -466,21 +530,34 @@ export function BallotWorkspace({
                     Submit Ballot
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Submitting locks the ballot and prevents further edits.
+                    Submitting locks the ballot until an organizer approves a modification request.
                   </p>
                 </>
               ) : (
-                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm">
-                  <div className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300">
-                    <Check className="h-4 w-4" />
-                    Ballot submitted
+                <>
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm">
+                    <div className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300">
+                      <Check className="h-4 w-4" />
+                      Ballot submitted
+                    </div>
+                    <p className="mt-2 text-muted-foreground">
+                      {ballot.submittedAt
+                        ? new Date(ballot.submittedAt).toLocaleString()
+                        : 'Submission time unavailable'}
+                    </p>
                   </div>
-                  <p className="mt-2 text-muted-foreground">
-                    {ballot.submittedAt
-                      ? new Date(ballot.submittedAt).toLocaleString()
-                      : 'Submission time unavailable'}
-                  </p>
-                </div>
+
+                  {ballot.canRequestModification && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-center"
+                      onClick={() => setShowRequestDialog(true)}
+                      disabled={requestingModification}
+                    >
+                      {requestingModification ? 'Sending Request...' : 'Request Modification'}
+                    </Button>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -495,7 +572,7 @@ export function BallotWorkspace({
               Confirm Submission
             </DialogTitle>
             <DialogDescription>
-              Once submitted, this ballot cannot be edited.
+              Once submitted, this ballot locks until an organizer approves a modification request.
             </DialogDescription>
           </DialogHeader>
 
@@ -533,6 +610,53 @@ export function BallotWorkspace({
               disabled={submitting}
             >
               {submitting ? 'Submitting...' : 'Confirm & Submit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showRequestDialog}
+        onOpenChange={(open) => {
+          setShowRequestDialog(open);
+          if (!open) setRequestReason('');
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Ballot Modification</DialogTitle>
+            <DialogDescription>
+              Tell the organizer why this submitted ballot needs to be reopened.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="ballot-modification-reason">Reason</Label>
+            <Textarea
+              id="ballot-modification-reason"
+              value={requestReason}
+              onChange={(event) => setRequestReason(event.target.value)}
+              placeholder="Optional context for the organizer..."
+              rows={5}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRequestDialog(false)}
+              disabled={requestingModification}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                onRequestModification(requestReason);
+                setShowRequestDialog(false);
+              }}
+              disabled={requestingModification}
+            >
+              {requestingModification ? 'Sending...' : 'Send Request'}
             </Button>
           </DialogFooter>
         </DialogContent>

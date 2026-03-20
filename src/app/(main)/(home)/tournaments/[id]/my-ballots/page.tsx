@@ -15,6 +15,7 @@ import type { PaginationMeta } from '@/lib/pagination';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
+import type { BallotModificationRequestSummary } from '@/components/ballot/model';
 
 // ============================================================================
 // Types
@@ -23,6 +24,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 interface BallotListItem {
   id: string;
   status: 'DRAFT' | 'SUBMITTED';
+  isReopened: boolean;
+  canRequestModification: boolean;
+  latestModificationRequest: BallotModificationRequestSummary | null;
   vote: 'PROPOSITION' | 'OPPOSITION' | null;
   createdAt: string;
   updatedAt: string;
@@ -179,6 +183,16 @@ function BallotCard({ ballot, eventMode }: { ballot: BallotListItem; eventMode: 
                   'Draft'
                 )}
               </Badge>
+              {ballot.isReopened && (
+                <Badge variant="outline" className="border-sky-500 text-sky-400">
+                  Reopened
+                </Badge>
+              )}
+              {ballot.latestModificationRequest?.status === 'PENDING' && (
+                <Badge variant="outline" className="border-amber-500 text-amber-400">
+                  Modification Pending
+                </Badge>
+              )}
             </div>
 
             <p className="text-sm text-muted-foreground">

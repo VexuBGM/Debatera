@@ -14,10 +14,12 @@ import {
   canViewBallotDetails,
   canEditBallot,
   SaveBallotDraftSchema,
-  SPEECH_ROLE_SIDE,
   PROP_ROLES,
   OPP_ROLES,
   WSDC_SPEECH_ORDER,
+  latestBallotModificationRequestSelect,
+  serializeBallotModificationRequest,
+  canRequestBallotModification,
 } from '@/lib/ballots';
 import { SpeechRole } from '@prisma/client';
 
@@ -53,6 +55,11 @@ export async function GET(_req: Request, { params }: RouteParams) {
     const ballot = await prisma.ballot.findUnique({
       where: { id: ballotId },
       include: {
+        modificationRequests: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: latestBallotModificationRequestSelect,
+        },
         speeches: {
           orderBy: { role: 'asc' },
           include: {
@@ -127,6 +134,16 @@ export async function GET(_req: Request, { params }: RouteParams) {
       {
         id: ballot.id,
         status: ballot.status,
+        isReopened: ballot.reopenedAt !== null,
+        canRequestModification: canRequestBallotModification({
+          ballotStatus: ballot.status,
+          roundStatus: debate.round.status,
+          hasPendingRequest:
+            ballot.modificationRequests[0]?.status === 'PENDING',
+        }),
+        latestModificationRequest: serializeBallotModificationRequest(
+          ballot.modificationRequests[0]
+        ),
         vote: ballot.vote,
         propTotal: ballot.propTotal ? Number(ballot.propTotal) : null,
         oppTotal: ballot.oppTotal ? Number(ballot.oppTotal) : null,
