@@ -641,3 +641,94 @@ model VideoCall {
   @@index([tournamentId, kind])
   @@index([debateId])
 }
+
+// ============================================
+// AI JUDGE MODELS (appended — do not modify above)
+// ============================================
+
+enum AIJudgingStatus {
+  PENDING
+  CONTEXT_BUILDING
+  ANALYZING
+  SYNTHESIZING
+  CALIBRATING
+  WRITING_BALLOT
+  COMPLETE
+  FAILED
+}
+
+enum LensType {
+  CONTENT
+  STRATEGY
+  ENGAGEMENT
+}
+
+model AIJudgingSession {
+  id              String            @id @default(cuid())
+
+  // Optional link to a tournament debate (null if standalone)
+  debateId        String?
+
+  // Transcript data
+  transcriptText  String            @db.Text
+  motion          String
+  infoSlide       String?
+
+  // Pipeline state
+  status          AIJudgingStatus   @default(PENDING)
+  currentPhase    Int               @default(0)
+  currentSpeech   Int               @default(0)
+  errorMessage    String?
+
+  // Phase 1 output
+  debateContext   Json?
+
+  // Phase 4 output
+  calibration    Json?
+
+  // Phase 5 output
+  finalBallot    Json?
+  finalScores    Json?
+  winner         String?
+
+  // Metadata
+  modelsUsed      Json?
+  totalApiCalls   Int               @default(0)
+  totalTokensUsed Int               @default(0)
+  processingTimeMs Int?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  completedAt     DateTime?
+
+  // Relations
+  lensAnalyses    AILensAnalysis[]
+
+  @@index([status])
+  @@index([debateId])
+}
+
+model AILensAnalysis {
+  id              String            @id @default(cuid())
+  sessionId       String
+  session         AIJudgingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  lensType        LensType
+  modelUsed       String
+
+  // Per-speech analysis (array of 8 analyses)
+  speechAnalyses  Json              @default("[]")
+
+  // Phase 3: Final verdict for this lens
+  verdict         Json?
+  confidence      Float?
+
+  // Memory state (accumulated analysis)
+  currentMemory   Json              @default("{}")
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([sessionId, lensType])
+  @@index([sessionId])
+}

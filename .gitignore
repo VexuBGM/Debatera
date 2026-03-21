@@ -50,4 +50,3 @@ next-env.d.ts
 .env*.local
 
 # docs
-/docs
