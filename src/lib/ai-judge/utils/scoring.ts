@@ -13,13 +13,13 @@ export function clampScore(score: number, isReply: boolean): number {
  */
 export function computeWeightedTotal(scores: {
   content: number;
+  style: number;
   strategy: number;
-  engagement: number;
 }): number {
   return (
     scores.content * WSDC.DIMENSION_WEIGHTS.content +
-    scores.strategy * WSDC.DIMENSION_WEIGHTS.strategy +
-    scores.engagement * WSDC.DIMENSION_WEIGHTS.engagement
+    scores.style * WSDC.DIMENSION_WEIGHTS.style +
+    scores.strategy * WSDC.DIMENSION_WEIGHTS.strategy
   );
 }
 

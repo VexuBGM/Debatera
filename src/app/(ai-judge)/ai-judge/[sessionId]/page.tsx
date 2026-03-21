@@ -5,8 +5,8 @@ import Link from "next/link";
 
 interface SpeakerScore {
   content: number;
+  style: number;
   strategy: number;
-  engagement: number;
   total: number;
 }
 
@@ -305,13 +305,13 @@ export default function SessionResultPage({
                     Speaker
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">
-                    Content (50%)
+                    Content (40%)
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">
-                    Strategy (25%)
+                    Style (40%)
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">
-                    Engagement (25%)
+                    Strategy (20%)
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">
                     Total
@@ -334,10 +334,10 @@ export default function SessionResultPage({
                         {scores?.content ?? "-"}
                       </td>
                       <td className="px-4 py-3 text-center text-sm">
-                        {scores?.strategy ?? "-"}
+                        {scores?.style ?? "-"}
                       </td>
                       <td className="px-4 py-3 text-center text-sm">
-                        {scores?.engagement ?? "-"}
+                        {scores?.strategy ?? "-"}
                       </td>
                       <td className="px-4 py-3 text-center text-sm font-bold">
                         {scores?.total ?? "-"}

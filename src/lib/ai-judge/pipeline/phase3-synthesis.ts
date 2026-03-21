@@ -41,12 +41,13 @@ export async function runPhase3(
       totalTokens += result.tokensUsed;
       apiCalls++;
 
-      // Persist verdict to DB
+      // Persist verdict to DB (map STYLE -> ENGAGEMENT for Prisma enum)
+      const dbLensType = result.lensType === "STYLE" ? "ENGAGEMENT" : result.lensType;
       await prisma.aILensAnalysis.update({
         where: {
           sessionId_lensType: {
             sessionId,
-            lensType: result.lensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT",
+            lensType: dbLensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT",
           },
         },
         data: {

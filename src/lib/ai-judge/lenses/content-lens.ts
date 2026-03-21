@@ -30,7 +30,7 @@ export function createContentLens(provider: LLMProvider): LensRunner {
           speech.isReply,
         ),
         responseFormat: "json",
-        maxTokens: 2000,
+        maxTokens: 4000,
       });
 
       const parsed = extractJson<{
@@ -56,9 +56,12 @@ export function createContentLens(provider: LLMProvider): LensRunner {
 
     async synthesize(analyses: SpeechAnalysis[], debateContext: DebateContext) {
       const result = await provider.call({
-        systemPrompt: `You are a WSDC Content/Matter specialist producing your final verdict after analyzing all 8 speeches.
+        systemPrompt: `You are a WSDC Content/Matter specialist producing your final verdict after analyzing all speeches.
 
-Based on your speech-by-speech analysis, produce a final verdict for the CONTENT dimension.
+Based on your speech-by-speech analysis, produce a final verdict for the CONTENT dimension (40% weight in WSDC).
+
+WSDC scoring: constructive 60-80 (70=average), reply 30-40 (35=average).
+Most speakers score 67-75 in competitive debates.
 
 Output as JSON:
 {

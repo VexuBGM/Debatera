@@ -79,7 +79,7 @@ export interface EngagementMemory {
 
 // Phase 3: Per-lens verdict
 export interface LensVerdict {
-  lensType: "CONTENT" | "STRATEGY" | "ENGAGEMENT";
+  lensType: "CONTENT" | "STRATEGY" | "STYLE";
   winner: SideLabel;
   reasoning: string;
   speakerScores: Record<string, number>; // role -> score
@@ -100,7 +100,7 @@ export interface CalibrationResult {
   finalScores: Record<string, {
     content: number;
     strategy: number;
-    engagement: number;
+    style: number;
     total: number;
   }>;
   winner: SideLabel;
@@ -116,7 +116,7 @@ export interface FinalBallot {
   speakerScores: Record<string, {
     content: number;
     strategy: number;
-    engagement: number;
+    style: number;
     total: number;
   }>;
   speakerFeedback: Record<string, string>;

@@ -7,10 +7,10 @@ export async function runPhase4(
   verdicts: LensVerdict[],
 ): Promise<{ calibration: CalibrationResult; tokensUsed: number; apiCalls: number }> {
   const contentVerdict = verdicts.find((v) => v.lensType === "CONTENT");
+  const styleVerdict = verdicts.find((v) => v.lensType === "STYLE");
   const strategyVerdict = verdicts.find((v) => v.lensType === "STRATEGY");
-  const engagementVerdict = verdicts.find((v) => v.lensType === "ENGAGEMENT");
 
-  if (!contentVerdict && !strategyVerdict && !engagementVerdict) {
+  if (!contentVerdict && !styleVerdict && !strategyVerdict) {
     throw new Error("No lens verdicts available for calibration");
   }
 
@@ -19,7 +19,7 @@ export async function runPhase4(
     userPrompt: calibratorUserPrompt(
       contentVerdict ? JSON.stringify(contentVerdict) : "CONTENT LENS FAILED - not available",
       strategyVerdict ? JSON.stringify(strategyVerdict) : "STRATEGY LENS FAILED - not available",
-      engagementVerdict ? JSON.stringify(engagementVerdict) : "ENGAGEMENT LENS FAILED - not available",
+      styleVerdict ? JSON.stringify(styleVerdict) : "STYLE LENS FAILED - not available",
     ),
     responseFormat: "json",
     maxTokens: 3000,

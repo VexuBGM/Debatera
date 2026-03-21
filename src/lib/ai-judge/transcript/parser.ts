@@ -38,23 +38,34 @@ export function parseTranscript(text: string): ParsedTranscript {
 
   for (const line of lines) {
     const trimmed = line.trim();
+    // Strip bold/italic markers from heading lines for matching
+    const headingStripped = /^#+\s/.test(trimmed)
+      ? trimmed.replace(/\*+/g, "").trim()
+      : trimmed;
 
-    // Detect motion header
-    const motionMatch = trimmed.match(
-      /^#+\s*(?:Motion|Topic|Тема|Мoция)\s*[:\-]?\s*(.+)/i,
-    );
+    // Detect motion — heading or bullet point (* Motion: ..., - Motion: ...)
+    const motionMatch =
+      headingStripped.match(
+        /^#+\s*(?:Motion|Topic|Тема|Мoция)\s*[:\-]?\s*(.+)/i,
+      ) ||
+      trimmed.match(
+        /^[*\-]\s*(?:Motion|Topic|Тема|Мoция)\s*[:\-]\s*(.+)/i,
+      );
     if (motionMatch) {
       flushSpeech();
-      // Motion might be in quotes
       motion = motionMatch[1]!.replace(/^["'"]+|["'"]+$/g, "").trim();
       currentSection = "motion";
       continue;
     }
 
-    // Detect info slide header
-    const infoMatch = trimmed.match(
-      /^#+\s*(?:Info\s*Slide|Information|Информация|Context)\s*[:\-]?\s*(.*)/i,
-    );
+    // Detect info slide — heading or bullet point
+    const infoMatch =
+      headingStripped.match(
+        /^#+\s*(?:Info\s*Slide|Information|Информация|Context)\s*[:\-]?\s*(.*)/i,
+      ) ||
+      trimmed.match(
+        /^[*\-]\s*(?:Info\s*Slide|Information|Информация|Context)\s*[:\-]\s*(.*)/i,
+      );
     if (infoMatch) {
       flushSpeech();
       currentSection = "info";
@@ -62,21 +73,33 @@ export function parseTranscript(text: string): ParsedTranscript {
       continue;
     }
 
-    // Detect speech header
-    const speechMatch = trimmed.match(
-      /^#+\s*(?:Speech|Реч|Говорител)?\s*(\d+)\s*[:\-.]?\s*(.*)/i,
-    );
-    const altSpeechMatch =
-      !speechMatch &&
-      trimmed.match(
-        /^#+\s*(?:(?:1st|2nd|3rd|First|Second|Third)\s+)?(?:Proposition|Opposition|Prop|Opp|Reply)\b/i,
+    // Detect speech header (must be a markdown heading)
+    if (/^#+\s/.test(trimmed)) {
+      // Numbered speech: ## Speech 1, ## 1: ...
+      const speechMatch = headingStripped.match(
+        /^#+\s*(?:Speech|Реч|Говорител)?\s*(\d+)\s*[:\-.]?\s*(.*)/i,
       );
+      // Side-first: ## Proposition 1st Speaker: Name, ## Opposition Reply Speaker: Name
+      const sideFirstMatch =
+        !speechMatch &&
+        headingStripped.match(
+          /^#+\s*(?:Proposition|Opposition|Prop|Opp)\s+(?:(?:1st|2nd|3rd|First|Second|Third|Reply)\s+)?(?:Speaker|Говорител)?\b/i,
+        );
+      // Ordinal-first: ## 1st Proposition, ## Reply Opposition
+      const altSpeechMatch =
+        !speechMatch &&
+        !sideFirstMatch &&
+        headingStripped.match(
+          /^#+\s*(?:(?:1st|2nd|3rd|First|Second|Third)\s+)?(?:Proposition|Opposition|Prop|Opp|Reply)\b/i,
+        );
 
-    if (speechMatch || altSpeechMatch) {
-      flushSpeech();
-      currentSection = "speech";
-      currentSpeechHeader = trimmed.replace(/^#+\s*/, "");
-      continue;
+      if (speechMatch || sideFirstMatch || altSpeechMatch) {
+        flushSpeech();
+        currentSection = "speech";
+        // Strip heading markers and bold markers from the header
+        currentSpeechHeader = headingStripped.replace(/^#+\s*/, "");
+        continue;
+      }
     }
 
     // Accumulate content for current section
@@ -115,12 +138,28 @@ interface SpeechHeaderInfo {
 }
 
 function parseSpeechHeader(header: string, speechIndex: number): SpeechHeaderInfo {
-  // Try to extract speaker name from parentheses
-  const nameMatch = header.match(/\(([^)]+)\)/);
-  const speakerName = nameMatch ? nameMatch[1]!.trim() : null;
+  // Strip any remaining bold/italic markers
+  const cleanedHeader = header.replace(/\*+/g, "").trim();
+
+  // Try to extract speaker name from parentheses or after "Speaker:" pattern
+  const nameMatch = cleanedHeader.match(/\(([^)]+)\)/);
+  const colonNameMatch =
+    !nameMatch &&
+    cleanedHeader.match(
+      /(?:Speaker|Говорител)\s*:\s*(.+)/i,
+    );
+  const speakerName = nameMatch
+    ? nameMatch[1]!.trim()
+    : colonNameMatch
+      ? colonNameMatch[1]!.trim()
+      : null;
 
   // Clean header for analysis
-  const cleanHeader = header.replace(/\([^)]*\)/g, "").trim().toLowerCase();
+  const cleanHeader = cleanedHeader
+    .replace(/\([^)]*\)/g, "")
+    .replace(/:\s*.+$/, "")
+    .trim()
+    .toLowerCase();
 
   // Detect reply speeches
   const isReply =

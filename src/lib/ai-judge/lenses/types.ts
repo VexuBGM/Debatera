@@ -1,7 +1,7 @@
 import type { LLMProvider, Speech, DebateContext, SpeechAnalysis, LensVerdict } from "../types";
 
 export interface LensConfig {
-  lensType: "CONTENT" | "STRATEGY" | "ENGAGEMENT";
+  lensType: "CONTENT" | "STRATEGY" | "STYLE";
   provider: LLMProvider;
   systemPrompt: string;
   buildUserPrompt: (
@@ -17,7 +17,7 @@ export interface LensConfig {
 }
 
 export interface LensRunner {
-  lensType: "CONTENT" | "STRATEGY" | "ENGAGEMENT";
+  lensType: "CONTENT" | "STRATEGY" | "STYLE";
   analyzeSpeech(
     speech: Speech,
     debateContext: DebateContext,

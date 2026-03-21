@@ -9,8 +9,24 @@ interface Phase2Result {
 }
 
 /**
+ * Delay between processing speeches to avoid rate limits on free-tier models.
+ */
+const INTER_SPEECH_DELAY_MS = 1000;
+
+/**
+ * Max retries for a single lens on a single speech.
+ */
+const LENS_SPEECH_RETRIES = 2;
+
+/**
+ * Delay between retries for a single lens/speech.
+ */
+const LENS_RETRY_DELAY_MS = 2000;
+
+/**
  * Phase 2: Iterative chronological analysis
- * For each speech (sequentially), run all 3 lenses in parallel.
+ * For each speech (sequentially), run all 3 lenses.
+ * Includes per-lens retry and inter-speech delays to handle rate limits.
  */
 export async function runPhase2(
   speeches: Speech[],
@@ -28,77 +44,93 @@ export async function runPhase2(
   let totalTokens = 0;
   let totalCalls = 0;
 
-  // Process speeches sequentially
-  for (const speech of speeches) {
-    // Run all lenses in parallel for this speech
+  // Process speeches sequentially with delays
+  for (let si = 0; si < speeches.length; si++) {
+    const speech = speeches[si]!;
+
+    // Add delay between speeches (not before the first one)
+    if (si > 0) {
+      await new Promise((resolve) => setTimeout(resolve, INTER_SPEECH_DELAY_MS));
+    }
+
+    // Run all lenses in parallel — each lens uses a different provider offset
     const lensPromises = lenses.map(async (lens) => {
       const previous = lensAnalyses.get(lens.lensType) ?? [];
-      try {
-        const { analysis, tokensUsed } = await lens.analyzeSpeech(
-          speech,
-          debateContext,
-          previous,
-        );
-        return { lensType: lens.lensType, analysis, tokensUsed, error: null };
-      } catch (error) {
-        console.error(
-          `[AI Judge] Lens ${lens.lensType} failed on speech ${speech.index}:`,
-          error,
-        );
-        return {
-          lensType: lens.lensType,
-          analysis: null,
-          tokensUsed: 0,
-          error,
-        };
+
+      for (let attempt = 0; attempt <= LENS_SPEECH_RETRIES; attempt++) {
+        try {
+          const { analysis, tokensUsed } = await lens.analyzeSpeech(
+            speech,
+            debateContext,
+            previous,
+          );
+
+          const analyses = lensAnalyses.get(lens.lensType)!;
+          analyses.push(analysis);
+          totalTokens += tokensUsed;
+          totalCalls++;
+
+          // Persist lens analysis progress to DB
+          // Map STYLE -> ENGAGEMENT for DB compatibility (Prisma enum)
+          const dbLensType = lens.lensType === "STYLE" ? "ENGAGEMENT" : lens.lensType;
+          await prisma.aILensAnalysis.upsert({
+            where: {
+              sessionId_lensType: {
+                sessionId,
+                lensType: dbLensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT",
+              },
+            },
+            update: {
+              speechAnalyses: JSON.parse(JSON.stringify(analyses)),
+              currentMemory: JSON.parse(
+                JSON.stringify({ summary: analysis.memory }),
+              ),
+            },
+            create: {
+              sessionId,
+              lensType: dbLensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT",
+              modelUsed: "unknown",
+              speechAnalyses: JSON.parse(JSON.stringify(analyses)),
+              currentMemory: JSON.parse(
+                JSON.stringify({ summary: analysis.memory }),
+              ),
+            },
+          });
+
+          return true;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.warn(
+            `[AI Judge] Lens ${lens.lensType} attempt ${attempt + 1}/${LENS_SPEECH_RETRIES + 1} failed on speech ${speech.index}: ${msg.slice(0, 200)}`,
+          );
+
+          if (attempt < LENS_SPEECH_RETRIES) {
+            await new Promise((resolve) => setTimeout(resolve, LENS_RETRY_DELAY_MS));
+          }
+        }
       }
+
+      console.error(
+        `[AI Judge] Lens ${lens.lensType} PERMANENTLY failed on speech ${speech.index} after ${LENS_SPEECH_RETRIES + 1} attempts`,
+      );
+      return false;
     });
 
-    const results = await Promise.all(lensPromises);
-
-    for (const result of results) {
-      if (result.analysis) {
-        const analyses = lensAnalyses.get(result.lensType)!;
-        analyses.push(result.analysis);
-        totalTokens += result.tokensUsed;
-        totalCalls++;
-
-        // Persist lens analysis progress to DB
-        await prisma.aILensAnalysis.upsert({
-          where: {
-            sessionId_lensType: {
-              sessionId,
-              lensType: result.lensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT",
-            },
-          },
-          update: {
-            speechAnalyses: JSON.parse(JSON.stringify(analyses)),
-            currentMemory: JSON.parse(
-              JSON.stringify({ summary: result.analysis.memory }),
-            ),
-          },
-          create: {
-            sessionId,
-            lensType: result.lensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT",
-            modelUsed: "unknown",
-            speechAnalyses: JSON.parse(JSON.stringify(analyses)),
-            currentMemory: JSON.parse(
-              JSON.stringify({ summary: result.analysis.memory }),
-            ),
-          },
-        });
-      }
-    }
+    await Promise.allSettled(lensPromises);
 
     // Update session progress
     await prisma.aIJudgingSession.update({
       where: { id: sessionId },
       data: {
         currentSpeech: speech.index + 1,
-        totalApiCalls: { increment: results.filter((r) => r.analysis).length },
-        totalTokensUsed: { increment: results.reduce((s, r) => s + r.tokensUsed, 0) },
+        totalApiCalls: { increment: totalCalls },
+        totalTokensUsed: { increment: totalTokens },
       },
     });
+
+    // Reset counters after DB write so we don't double-count
+    totalCalls = 0;
+    totalTokens = 0;
 
     onSpeechComplete?.(speech.index);
   }

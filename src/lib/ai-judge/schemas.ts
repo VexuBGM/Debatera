@@ -36,7 +36,7 @@ export const speechAnalysisSchema = z.object({
 
 // Lens verdict (Phase 3 output)
 export const lensVerdictSchema = z.object({
-  lensType: z.enum(["CONTENT", "STRATEGY", "ENGAGEMENT"]),
+  lensType: z.enum(["CONTENT", "STRATEGY", "STYLE"]),
   winner: z.enum(["PROP", "OPP"]),
   reasoning: z.string(),
   speakerScores: z.record(z.string(), z.number()),
@@ -55,7 +55,7 @@ export const calibrationResultSchema = z.object({
   finalScores: z.record(z.string(), z.object({
     content: z.number(),
     strategy: z.number(),
-    engagement: z.number(),
+    style: z.number(),
     total: z.number(),
   })),
   winner: z.enum(["PROP", "OPP"]),
@@ -71,7 +71,7 @@ export const finalBallotSchema = z.object({
   speakerScores: z.record(z.string(), z.object({
     content: z.number(),
     strategy: z.number(),
-    engagement: z.number(),
+    style: z.number(),
     total: z.number(),
   })),
   speakerFeedback: z.record(z.string(), z.string()),

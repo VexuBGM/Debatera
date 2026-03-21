@@ -14,9 +14,9 @@ export const WSDC = {
   SCORE_RANGE: { min: 60, max: 80 },
   REPLY_SCORE_RANGE: { min: 30, max: 40 },
   DIMENSION_WEIGHTS: {
-    content: 0.50,
-    strategy: 0.25,
-    engagement: 0.25,
+    content: 0.40,
+    style: 0.40,
+    strategy: 0.20,
   },
   TOTAL_SPEECHES: 8,
 } as const;
@@ -24,8 +24,8 @@ export const WSDC = {
 export const LLM_CONFIG = {
   DEFAULT_TEMPERATURE: 0.3,
   DEFAULT_MAX_TOKENS: 2000,
-  RETRY_ATTEMPTS: 2,
-  RETRY_DELAYS_MS: [1000, 3000],
+  RETRY_ATTEMPTS: 1,
+  RETRY_DELAYS_MS: [1000],
 } as const;
 
 export const PIPELINE_PHASES = {

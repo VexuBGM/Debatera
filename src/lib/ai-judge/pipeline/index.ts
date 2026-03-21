@@ -2,8 +2,8 @@ import prisma from "@/lib/prisma";
 import type { ParsedTranscript } from "../types";
 import { createProviderAssignment, getModelsUsed } from "../providers/factory";
 import { createContentLens } from "../lenses/content-lens";
+import { createStyleLens } from "../lenses/style-lens";
 import { createStrategyLens } from "../lenses/strategy-lens";
-import { createEngagementLens } from "../lenses/engagement-lens";
 import { runPhase1 } from "./phase1-context";
 import { runPhase2 } from "./phase2-analysis";
 import { runPhase3 } from "./phase3-synthesis";
@@ -34,27 +34,29 @@ export async function runPipeline(
 
     // Create lenses
     const contentLens = createContentLens(assignment.contentLens);
+    const styleLens = createStyleLens(assignment.styleLens);
     const strategyLens = createStrategyLens(assignment.strategyLens);
-    const engagementLens = createEngagementLens(assignment.engagementLens);
-    const lenses = [contentLens, strategyLens, engagementLens];
+    const lenses = [contentLens, styleLens, strategyLens];
 
     // Initialize lens analysis records
     for (const lens of lenses) {
       const providerName =
         lens.lensType === "CONTENT"
           ? assignment.contentLens.name
-          : lens.lensType === "STRATEGY"
-            ? assignment.strategyLens.name
-            : assignment.engagementLens.name;
+          : lens.lensType === "STYLE"
+            ? assignment.styleLens.name
+            : assignment.strategyLens.name;
 
+      // Map STYLE -> ENGAGEMENT for Prisma enum compatibility
+      const dbLensType = lens.lensType === "STYLE" ? "ENGAGEMENT" : lens.lensType;
       await prisma.aILensAnalysis.upsert({
         where: {
-          sessionId_lensType: { sessionId, lensType: lens.lensType },
+          sessionId_lensType: { sessionId, lensType: dbLensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT" },
         },
         update: { modelUsed: providerName },
         create: {
           sessionId,
-          lensType: lens.lensType,
+          lensType: dbLensType as "CONTENT" | "STRATEGY" | "ENGAGEMENT",
           modelUsed: providerName,
         },
       });
@@ -93,6 +95,23 @@ export async function runPipeline(
       lenses,
       sessionId,
     );
+
+    // Validate completeness: each lens must have analyzed at least half the speeches
+    const minRequired = Math.ceil(transcript.speeches.length / 2);
+    for (const lens of lenses) {
+      const analyses = phase2.lensResults.get(lens.lensType) ?? [];
+      if (analyses.length < minRequired) {
+        throw new Error(
+          `Lens ${lens.lensType} only analyzed ${analyses.length}/${transcript.speeches.length} speeches (minimum ${minRequired} required). ` +
+          `This usually indicates all AI providers are rate-limited or unavailable.`,
+        );
+      }
+      if (analyses.length < transcript.speeches.length) {
+        console.warn(
+          `[AI Judge] Lens ${lens.lensType} analyzed ${analyses.length}/${transcript.speeches.length} speeches — proceeding with partial data`,
+        );
+      }
+    }
 
     // ========== PHASE 3: Per-Lens Synthesis ==========
     await prisma.aIJudgingSession.update({
