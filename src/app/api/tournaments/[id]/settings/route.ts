@@ -112,6 +112,7 @@ export async function PATCH(
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
                 ...(data.speakerTopN !== undefined && { speakerTopN: data.speakerTopN }),
                 ...(data.hideSpeakerPoints !== undefined && { hideSpeakerPoints: data.hideSpeakerPoints }),
+                ...(data.publicTabs !== undefined && { publicTabs: data.publicTabs }),
             },
             update: {
                 registrationOpensAt: data.registrationOpensAt ? new Date(data.registrationOpensAt) : null,
@@ -122,6 +123,7 @@ export async function PATCH(
                 ...(data.showDebaterNames !== undefined && { showDebaterNames: data.showDebaterNames }),
                 ...(data.speakerTopN !== undefined && { speakerTopN: data.speakerTopN }),
                 ...(data.hideSpeakerPoints !== undefined && { hideSpeakerPoints: data.hideSpeakerPoints }),
+                ...(data.publicTabs !== undefined && { publicTabs: data.publicTabs }),
             },
         });
 

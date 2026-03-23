@@ -9,6 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   let userContext: UserContext = {
     isAdmin: false,
+    isAuthenticated: !!userId,
     institutionCount: 0,
     activeTournaments: [],
   };
@@ -52,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
     userContext = {
       isAdmin: false, // No global admin role in schema yet
+      isAuthenticated: true,
       institutionCount,
       activeTournaments: Array.from(tournamentMap.values()).slice(0, 5),
     };

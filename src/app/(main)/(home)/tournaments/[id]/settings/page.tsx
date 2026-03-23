@@ -38,7 +38,15 @@ interface TournamentSettings {
     showDebaterNames: boolean;
     speakerTopN: number | null;
     hideSpeakerPoints: boolean;
+    publicTabs: string[];
 }
+
+const PUBLIC_TAB_OPTIONS = [
+    { slug: 'overview', label: 'Overview', description: 'Tournament stats and details' },
+    { slug: 'rounds', label: 'Rounds', description: 'Round list and debate pairings' },
+    { slug: 'teams', label: 'Teams', description: 'All registered teams' },
+    { slug: 'standings', label: 'Standings', description: 'Team and speaker standings' },
+] as const;
 
 interface TournamentData {
     isPublic: boolean;
@@ -65,6 +73,7 @@ export default function TournamentSettingsPage() {
         showDebaterNames: false,
         speakerTopN: null,
         hideSpeakerPoints: false,
+        publicTabs: ['overview', 'rounds', 'teams', 'standings'],
     });
 
     useEffect(() => {
@@ -98,6 +107,7 @@ export default function TournamentSettingsPage() {
                 showDebaterNames: data.showDebaterNames ?? false,
                 speakerTopN: data.speakerTopN ?? null,
                 hideSpeakerPoints: data.hideSpeakerPoints ?? false,
+                publicTabs: data.publicTabs ?? ['overview', 'rounds', 'teams', 'standings'],
             });
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Failed to load settings');
@@ -166,6 +176,7 @@ export default function TournamentSettingsPage() {
                 showDebaterNames: data.showDebaterNames ?? false,
                 speakerTopN: data.speakerTopN ?? null,
                 hideSpeakerPoints: data.hideSpeakerPoints ?? false,
+                publicTabs: data.publicTabs ?? ['overview', 'rounds', 'teams', 'standings'],
             });
 
             toast.success('Settings updated successfully');
@@ -397,9 +408,9 @@ export default function TournamentSettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Visibility</CardTitle>
-                    <CardDescription>Control who can discover this tournament in the listings.</CardDescription>
+                    <CardDescription>Control who can discover this tournament and what visitors can see.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                             <Label htmlFor="isPublic">Public tournament</Label>
@@ -415,6 +426,48 @@ export default function TournamentSettingsPage() {
                             disabled={togglingVisibility}
                         />
                     </div>
+
+                    {tournament.isPublic && (
+                        <>
+                            <div className="border-t" />
+                            <div className="space-y-4">
+                                <div className="space-y-0.5">
+                                    <h3 className="text-sm font-medium leading-none">Public access</h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Choose which tabs visitors without an account can see. Action buttons (create, edit, delete) are always hidden from unauthenticated visitors.
+                                    </p>
+                                </div>
+                                {PUBLIC_TAB_OPTIONS.map((tab) => (
+                                    <div key={tab.slug} className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <Label htmlFor={`publicTab-${tab.slug}`}>{tab.label}</Label>
+                                            <p className="text-xs text-muted-foreground">{tab.description}</p>
+                                        </div>
+                                        <Switch
+                                            id={`publicTab-${tab.slug}`}
+                                            checked={settings.publicTabs.includes(tab.slug)}
+                                            onCheckedChange={(checked) => {
+                                                setSettings(s => ({
+                                                    ...s,
+                                                    publicTabs: checked
+                                                        ? [...s.publicTabs, tab.slug]
+                                                        : s.publicTabs.filter(t => t !== tab.slug),
+                                                }));
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+
+                                <div className="pt-2 flex justify-end">
+                                    <Button onClick={handleSave} disabled={saving} size="sm">
+                                        {saving && <span className="animate-spin mr-2">&#9203;</span>}
+                                        <Save className="h-4 w-4 mr-2" />
+                                        Save Public Access
+                                    </Button>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 

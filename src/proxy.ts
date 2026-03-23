@@ -1,19 +1,26 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
-const isPublicRoute = createRouteMatcher([
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/clerk-sync-keyless(.*)',
-  '/api(.*)',
-  '/tournaments/(.*)/p', // Judge portal root (token in hash fragment, no Clerk)
-  '/tournaments/(.*)/p/(.*)', // Judge portal sub-routes (token in path, no Clerk)
-  '/tournaments/(.*)/standings(.*)', // Public standings page (no auth)
+/** Routes that require authentication — everything else is public. */
+const isProtectedRoute = createRouteMatcher([
+  '/',                      // Dashboard (personal)
+  '/me(.*)',                // Profile
+  '/institutions(.*)',      // Institution pages
+  '/tournaments/new',      // Create tournament
+  '/ballots(.*)',           // Ballot management
+  '/admin(.*)',             // Admin panel
+  '/judging(.*)',           // Judge assignments
 ])
 
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
+  if (isProtectedRoute(req)) {
     await auth.protect()
   }
+
+  // Forward pathname so server layouts can read it
+  const response = NextResponse.next()
+  response.headers.set('x-pathname', req.nextUrl.pathname)
+  return response
 })
 
 export const config = {

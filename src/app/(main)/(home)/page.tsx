@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -194,6 +195,7 @@ const quickActions = [
 
 const HomePage = () => {
   const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -203,10 +205,16 @@ const HomePage = () => {
       return;
     }
 
+    // Redirect unauthenticated users to the public browse page
+    if (isLoaded && !user) {
+      router.replace('/tournaments');
+      return;
+    }
+
     if (isLoaded) {
       setLoading(false);
     }
-  }, [isLoaded, user]);
+  }, [isLoaded, user, router]);
 
   const fetchDashboardData = async () => {
     try {

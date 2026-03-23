@@ -67,11 +67,13 @@ const Tournaments = async ({ searchParams }: TournamentsPageProps) => {
     <main className="mx-auto max-w-4xl space-y-4 p-3 sm:space-y-5 sm:p-4 md:p-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-semibold">Tournaments</h1>
-        <Link href="/tournaments/new">
-          <button className="bg-brand hover:bg-brand/90 text-brand-foreground px-4 py-2 rounded-md text-sm">
-            Create Tournament
-          </button>
-        </Link>
+        {userId && (
+          <Link href="/tournaments/new">
+            <button className="bg-brand hover:bg-brand/90 text-brand-foreground px-4 py-2 rounded-md text-sm">
+              Create Tournament
+            </button>
+          </Link>
+        )}
       </div>
       {total === 0 ? (
         <p className="text-sm sm:text-base">No tournaments yet. Create one to get started!</p>

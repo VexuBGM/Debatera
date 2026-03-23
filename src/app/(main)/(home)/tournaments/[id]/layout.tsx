@@ -2,12 +2,27 @@ import React from 'react';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { TournamentProvider, type TournamentRole } from '@/components/TournamentContext';
 import TournamentNav from '@/components/TournamentNav';
 import { Badge } from '@/components/ui/badge';
 import { Trophy } from 'lucide-react';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { BreadcrumbOverridesProvider } from '@/components/BreadcrumbOverrides';
+
+/** Map a request pathname to the public tab slug it belongs to. */
+function getTabSlugFromPath(pathname: string, tournamentId: string): string | null {
+  const base = `/tournaments/${tournamentId}`;
+  const rest = pathname.startsWith(base) ? pathname.slice(base.length) : '';
+
+  if (rest === '' || rest === '/') return 'overview';
+  if (rest.startsWith('/rounds')) return 'rounds';
+  if (rest.startsWith('/register')) return null; // register is never public
+  if (rest.startsWith('/standings')) return 'standings';
+  if (rest.startsWith('/teams')) return 'teams';
+  // All other paths (settings, participants, venues, my-debates, my-ballots) are auth-only
+  return null;
+}
 
 export default async function TournamentLayout({
   children,
@@ -26,7 +41,7 @@ export default async function TournamentLayout({
       name: true,
       createdByUserId: true,
       isPublic: true,
-      settings: { select: { eventMode: true } },
+      settings: { select: { eventMode: true, publicTabs: true } },
     },
   });
 
@@ -55,6 +70,22 @@ export default async function TournamentLayout({
   if (!canView) notFound();
 
   const eventMode = tournament.settings?.eventMode ?? 'ONLINE';
+  const publicTabs: string[] = tournament.settings?.publicTabs ?? ['overview', 'rounds', 'teams', 'standings'];
+
+  // For unauthenticated spectators, enforce tab-level access
+  if (!userId && userRole === 'SPECTATOR') {
+    const headerList = await headers();
+    const pathname = headerList.get('x-pathname') ?? '';
+    // Also try referer-based path extraction as fallback
+    const tabSlug = getTabSlugFromPath(pathname, tournamentId);
+    if (tabSlug !== null && !publicTabs.includes(tabSlug)) {
+      notFound();
+    }
+    // null tabSlug means auth-only path → block unauthenticated
+    if (tabSlug === null && pathname.includes(`/tournaments/${tournamentId}/`)) {
+      notFound();
+    }
+  }
 
   const statusVariant = 'published' as const; // TODO: derive from tournament status when field exists
 
@@ -66,6 +97,8 @@ export default async function TournamentLayout({
         tournamentName: tournament.name,
         userRole,
         eventMode,
+        publicTabs,
+        isAuthenticated: !!userId,
       }}
     >
       <div className="space-y-0">

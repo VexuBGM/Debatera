@@ -240,17 +240,19 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
               </Button>
             )}
             
-            <Button
-              asChild
-              size="sm"
-              className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 text-xs sm:text-sm"
-            >
-              <Link href="/tournaments/new">
-                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden lg:inline">Create Tournament</span>
-                <span className="lg:hidden">Tournament</span>
-              </Link>
-            </Button>
+            <SignedIn>
+              <Button
+                asChild
+                size="sm"
+                className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 text-xs sm:text-sm"
+              >
+                <Link href="/tournaments/new">
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden lg:inline">Create Tournament</span>
+                  <span className="lg:hidden">Tournament</span>
+                </Link>
+              </Button>
+            </SignedIn>
 
             {/* Notifications - Invites, judge assignments, round pairings, schedule changes, feedback received, moderation pings. */}
             <SignedIn>
