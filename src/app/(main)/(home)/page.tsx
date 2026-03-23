@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
+import LandingPage from '@/components/landing/LandingPage';
 
 type TournamentRole = 'ORGANIZER' | 'DEBATER' | 'JUDGE' | 'INSTITUTION';
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -205,9 +206,8 @@ const HomePage = () => {
       return;
     }
 
-    // Redirect unauthenticated users to the public browse page
     if (isLoaded && !user) {
-      router.replace('/tournaments');
+      setLoading(false);
       return;
     }
 
@@ -233,6 +233,11 @@ const HomePage = () => {
       setLoading(false);
     }
   };
+
+  // Show landing page for unauthenticated users
+  if (isLoaded && !user) {
+    return <LandingPage />;
+  }
 
   if (!isLoaded || loading) {
     return (

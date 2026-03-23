@@ -137,6 +137,12 @@
   }
 }
 
+/* Landing page float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
 /* Ensure Stream Video SDK wrappers fill available height */
 .str-video {
   height: 100%;

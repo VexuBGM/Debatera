@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server'
 
 /** Routes that require authentication — everything else is public. */
 const isProtectedRoute = createRouteMatcher([
-  '/',                      // Dashboard (personal)
   '/me(.*)',                // Profile
   '/institutions(.*)',      // Institution pages
   '/tournaments/new',      // Create tournament
