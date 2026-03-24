@@ -137,6 +137,18 @@
   }
 }
 
+/* Landing page float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+/* Auth page animations */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Ensure Stream Video SDK wrappers fill available height */
 .str-video {
   height: 100%;

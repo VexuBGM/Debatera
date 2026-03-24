@@ -7,6 +7,7 @@ import { CommandPalette } from '@/components/CommandPalette';
 
 export interface UserContext {
   isAdmin: boolean;
+  isAuthenticated: boolean;
   institutionCount: number;
   activeTournaments: Array<{
     id: string;

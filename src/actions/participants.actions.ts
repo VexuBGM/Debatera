@@ -325,7 +325,6 @@ export async function getTournamentParticipants(
 > {
   try {
     const { userId } = await auth();
-    if (!userId) return { success: false, error: 'Unauthorized' };
 
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -333,7 +332,35 @@ export async function getTournamentParticipants(
     });
     if (!tournament) return { success: false, error: 'Tournament not found' };
 
-    // Check permissions
+    // Unauthenticated users can view if tournament is public
+    if (!userId) {
+      if (!tournament.isPublic) return { success: false, error: 'Unauthorized' };
+
+      const participants = await prisma.tournamentParticipant.findMany({
+        where: { tournamentId },
+        include: {
+          user: { select: { id: true, displayName: true, firstName: true, lastName: true, email: true, imageUrl: true } },
+          institution: { select: { id: true, name: true } },
+          teamMembership: { select: { id: true, teamId: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      const settings = tournament.settings;
+      return {
+        success: true,
+        data: {
+          debaters: participants.filter((p) => p.role === 'DEBATER') as ParticipantWithUser[],
+          judges: participants.filter((p) => p.role === 'JUDGE') as ParticipantWithUser[],
+          institutions: [],
+          tournament: { id: tournament.id, name: tournament.name, createdByUserId: tournament.createdByUserId },
+          isOrganizer: false,
+          teamSizeMin: settings?.teamSizeMin ?? tournament.teamMinSize,
+          teamSizeMax: settings?.teamSizeMax ?? tournament.teamMaxSize,
+        },
+      };
+    }
+
+    // Check permissions for authenticated users
     const isCreator = tournament.createdByUserId === userId;
     let isInstAdmin = false;
     if (!isCreator) {
@@ -353,17 +380,17 @@ export async function getTournamentParticipants(
       }
     }
 
-    if (!isCreator && !isInstAdmin) {
-      return { success: false, error: 'Forbidden' };
-    }
+    // Non-admin authenticated users (debaters, judges) can view if tournament is public
+    const canView = isCreator || isInstAdmin || tournament.isPublic;
+    if (!canView) return { success: false, error: 'Forbidden' };
 
     const scope = await resolveTeamManagementScope(tournamentId, userId);
-    const participantWhere = isCreator
+    const canManageAll = isCreator || isInstAdmin;
+    const participantWhere = canManageAll && isCreator
       ? { tournamentId }
-      : {
-          tournamentId,
-          institutionId: { in: scope.manageableInstitutionIds },
-        };
+      : canManageAll
+      ? { tournamentId, institutionId: { in: scope.manageableInstitutionIds } }
+      : { tournamentId };
 
     const participants = await prisma.tournamentParticipant.findMany({
       where: participantWhere,
@@ -391,8 +418,8 @@ export async function getTournamentParticipants(
     const debaters = participants.filter((p) => p.role === 'DEBATER') as ParticipantWithUser[];
     const judges = participants.filter((p) => p.role === 'JUDGE') as ParticipantWithUser[];
 
-    // Get approved institutions for this tournament
-    const approvedInstitutions = await prisma.tournamentInstitution.findMany({
+    // Get approved institutions (only for managers)
+    const approvedInstitutions = canManageAll ? await prisma.tournamentInstitution.findMany({
       where: isCreator
         ? { tournamentId, status: 'APPROVED' }
         : {
@@ -401,7 +428,7 @@ export async function getTournamentParticipants(
             institutionId: { in: scope.manageableInstitutionIds },
           },
       include: { institution: { select: { id: true, name: true } } },
-    });
+    }) : [];
 
     const settings = tournament.settings;
 

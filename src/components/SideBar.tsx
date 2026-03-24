@@ -22,6 +22,24 @@ type Item = {
 type Section = { title: string; items: Item[] };
 
 function buildSidebarSections(userContext: UserContext): Section[] {
+  // Unauthenticated users get a minimal sidebar
+  if (!userContext.isAuthenticated) {
+    return [
+      {
+        title: 'Overview',
+        items: [
+          { label: 'Home', href: '/tournaments', icon: Home },
+        ],
+      },
+      {
+        title: 'Tournaments',
+        items: [
+          { label: 'Browse', href: '/tournaments', icon: Compass },
+        ],
+      },
+    ];
+  }
+
   const sections: Section[] = [
     {
       title: 'Overview',
@@ -103,6 +121,7 @@ export default function Sidebar({
 
   const defaultContext: UserContext = {
     isAdmin: false,
+    isAuthenticated: false,
     institutionCount: 0,
     activeTournaments: [],
   };

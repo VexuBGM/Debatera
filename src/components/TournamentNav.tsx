@@ -8,6 +8,7 @@ import { useTournament, type TournamentRole } from '@/components/TournamentConte
 interface Tab {
   label: string;
   href: string;
+  slug: string;
   visible: (role: TournamentRole, eventMode: string) => boolean;
 }
 
@@ -17,62 +18,78 @@ function buildTabs(tournamentId: string): Tab[] {
     {
       label: 'Overview',
       href: base,
+      slug: 'overview',
       visible: () => true,
     },
     {
       label: 'Rounds',
       href: `${base}/rounds`,
+      slug: 'rounds',
       visible: () => true,
     },
     {
       label: 'Register',
       href: `${base}/register/members`,
+      slug: 'register',
       visible: () => true,
     },
     {
       label: 'Teams',
       href: `${base}/register/teams`,
+      slug: 'teams',
       visible: () => true,
     },
     {
       label: 'Standings',
       href: `${base}/standings`,
+      slug: 'standings',
       visible: () => true,
     },
     {
       label: 'My Debates',
       href: `${base}/my-debates`,
+      slug: 'my-debates',
       visible: (role) => role === 'DEBATER',
     },
     {
       label: 'My Ballots',
       href: `${base}/my-ballots`,
+      slug: 'my-ballots',
       visible: (role) => role === 'JUDGE',
     },
     {
       label: 'Participants',
       href: `${base}/participants`,
-      visible: (role) => role === 'ORGANIZER',
+      slug: 'participants',
+      visible: () => true,
     },
     {
       label: 'Venues',
       href: `${base}/venues`,
+      slug: 'venues',
       visible: (role, eventMode) => role === 'ORGANIZER' && eventMode !== 'ONLINE',
     },
     {
       label: 'Settings',
       href: `${base}/settings`,
+      slug: 'settings',
       visible: (role) => role === 'ORGANIZER',
     },
   ];
 }
 
 export default function TournamentNav() {
-  const { tournamentId, userRole, eventMode } = useTournament();
+  const { tournamentId, userRole, eventMode, publicTabs, isAuthenticated } = useTournament();
   const pathname = usePathname();
   const tabs = buildTabs(tournamentId);
 
-  const visibleTabs = tabs.filter((t) => t.visible(userRole, eventMode));
+  const visibleTabs = tabs.filter((t) => {
+    // Unauthenticated spectators only see tabs listed in publicTabs
+    if (!isAuthenticated && userRole === 'SPECTATOR') {
+      return publicTabs.includes(t.slug);
+    }
+    return t.visible(userRole, eventMode);
+  });
 
   function isActive(tab: Tab) {
     const base = `/tournaments/${tournamentId}`;
