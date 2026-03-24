@@ -46,6 +46,7 @@ const PUBLIC_TAB_OPTIONS = [
     { slug: 'rounds', label: 'Rounds', description: 'Round list and debate pairings' },
     { slug: 'teams', label: 'Teams', description: 'All registered teams' },
     { slug: 'standings', label: 'Standings', description: 'Team and speaker standings' },
+    { slug: 'participants', label: 'Participants', description: 'All registered debaters and judges' },
 ] as const;
 
 interface TournamentData {

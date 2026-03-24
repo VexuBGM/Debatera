@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const DebateFormatEnum = z.enum(['WSDC']);
 export const EventModeEnum = z.enum(['ONLINE', 'IRL']);
 
-export const PublicTabEnum = z.enum(['overview', 'rounds', 'teams', 'standings']);
+export const PublicTabEnum = z.enum(['overview', 'rounds', 'teams', 'standings', 'participants']);
 
 export const TournamentSettingsInputSchema = z.object({
     registrationOpensAt: z.string().datetime().nullable().optional(),

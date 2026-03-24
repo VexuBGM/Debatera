@@ -21,7 +21,8 @@ function getTabSlugFromPath(pathname: string, tournamentId: string): string | nu
   if (rest.startsWith('/register')) return null; // other register paths are auth-only
   if (rest.startsWith('/standings')) return 'standings';
   if (rest.startsWith('/teams')) return 'teams';
-  // All other paths (settings, participants, venues, my-debates, my-ballots) are auth-only
+  if (rest.startsWith('/participants')) return 'participants';
+  // All other paths (settings, venues, my-debates, my-ballots) are auth-only
   return null;
 }
 

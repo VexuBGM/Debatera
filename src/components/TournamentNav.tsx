@@ -61,7 +61,7 @@ function buildTabs(tournamentId: string): Tab[] {
       label: 'Participants',
       href: `${base}/participants`,
       slug: 'participants',
-      visible: (role) => role === 'ORGANIZER',
+      visible: () => true,
     },
     {
       label: 'Venues',
