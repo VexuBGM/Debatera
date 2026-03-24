@@ -74,9 +74,6 @@ export async function getTournamentTeamsPageData(
 }>> {
     try {
         const { userId } = await auth();
-        if (!userId) {
-            return { success: false, error: 'Unauthorized' };
-        }
 
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
@@ -125,6 +122,37 @@ export async function getTournamentTeamsPageData(
             ({ institution }) => !isIndependentAdjudicatorsInstitutionName(institution.name)
         );
 
+        const settings: TournamentSettingsLike = tournament.settings ?? {
+            registrationOpensAt: null,
+            registrationClosesAt: null,
+            teamSizeMin: 2,
+            teamSizeMax: 5,
+        };
+
+        const tournamentData = {
+            id: tournament.id,
+            name: tournament.name,
+            registrationClosesAt: settings.registrationClosesAt,
+            teamMinSize: settings.teamSizeMin,
+            teamMaxSize: settings.teamSizeMax,
+            createdByUserId: tournament.createdByUserId,
+        };
+
+        // Unauthenticated users get read-only data (no management capabilities)
+        if (!userId) {
+            return {
+                success: true,
+                data: {
+                    tournament: tournamentData,
+                    allTeams,
+                    manageableInstitutions: [],
+                    currentUserParticipantInstitutionId: null,
+                    isOrganizer: false,
+                    canCreateInstitutions: false,
+                },
+            };
+        }
+
         const participatingInstitutions = await prisma.tournamentInstitution.findMany({
             where: {
                 tournamentId,
@@ -156,22 +184,6 @@ export async function getTournamentTeamsPageData(
             },
             select: { institutionId: true },
         });
-
-        const settings: TournamentSettingsLike = tournament.settings ?? {
-            registrationOpensAt: null,
-            registrationClosesAt: null,
-            teamSizeMin: 2,
-            teamSizeMax: 5,
-        };
-
-        const tournamentData = {
-            id: tournament.id,
-            name: tournament.name,
-            registrationClosesAt: settings.registrationClosesAt,
-            teamMinSize: settings.teamSizeMin,
-            teamMaxSize: settings.teamSizeMax,
-            createdByUserId: tournament.createdByUserId,
-        };
 
         return {
             success: true,

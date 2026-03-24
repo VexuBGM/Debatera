@@ -9,6 +9,8 @@ interface TournamentContextValue {
   tournamentName: string;
   userRole: TournamentRole;
   eventMode: 'IRL' | 'ONLINE';
+  publicTabs: string[];
+  isAuthenticated: boolean;
 }
 
 const TournamentCtx = createContext<TournamentContextValue | null>(null);

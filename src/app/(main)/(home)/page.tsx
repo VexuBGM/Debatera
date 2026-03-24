@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
+import LandingPage from '@/components/landing/LandingPage';
 
 type TournamentRole = 'ORGANIZER' | 'DEBATER' | 'JUDGE' | 'INSTITUTION';
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -194,6 +196,7 @@ const quickActions = [
 
 const HomePage = () => {
   const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -203,10 +206,15 @@ const HomePage = () => {
       return;
     }
 
+    if (isLoaded && !user) {
+      setLoading(false);
+      return;
+    }
+
     if (isLoaded) {
       setLoading(false);
     }
-  }, [isLoaded, user]);
+  }, [isLoaded, user, router]);
 
   const fetchDashboardData = async () => {
     try {
@@ -225,6 +233,11 @@ const HomePage = () => {
       setLoading(false);
     }
   };
+
+  // Show landing page for unauthenticated users
+  if (isLoaded && !user) {
+    return <LandingPage />;
+  }
 
   if (!isLoaded || loading) {
     return (

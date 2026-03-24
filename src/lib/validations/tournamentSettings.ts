@@ -3,6 +3,8 @@ import { z } from 'zod';
 export const DebateFormatEnum = z.enum(['WSDC']);
 export const EventModeEnum = z.enum(['ONLINE', 'IRL']);
 
+export const PublicTabEnum = z.enum(['overview', 'rounds', 'teams', 'standings', 'participants']);
+
 export const TournamentSettingsInputSchema = z.object({
     registrationOpensAt: z.string().datetime().nullable().optional(),
     registrationClosesAt: z.string().datetime().nullable().optional(),
@@ -12,6 +14,7 @@ export const TournamentSettingsInputSchema = z.object({
     showDebaterNames: z.boolean().optional(),
     speakerTopN: z.number().int().min(1).nullable().optional(),
     hideSpeakerPoints: z.boolean().optional(),
+    publicTabs: z.array(PublicTabEnum).optional(),
 }).refine((data) => {
     // teamSizeMax >= teamSizeMin
     return data.teamSizeMax >= data.teamSizeMin;

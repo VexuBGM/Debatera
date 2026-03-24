@@ -142,6 +142,7 @@ model TournamentSettings {
   showDebaterNames     Boolean       @default(false)  // When true, display debater names instead of team names
   speakerTopN          Int?          // null = show all speakers, positive int = show top N by avg points
   hideSpeakerPoints    Boolean       @default(false)  // When true, hide numeric point values in speaker standings
+  publicTabs           String[]      @default(["overview", "rounds", "teams", "standings"])  // Tabs visible to unauthenticated visitors on public tournaments
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 

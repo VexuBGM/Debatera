@@ -7,55 +7,53 @@ import AppShell, { type UserContext } from '@/components/AppShell';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
 
-  let userContext: UserContext = {
-    isAdmin: false,
-    institutionCount: 0,
-    activeTournaments: [],
-  };
-
-  if (userId) {
-    const [institutionCount, participations, ownedTournaments] = await Promise.all([
-      prisma.institutionMember.count({ where: { userId } }),
-      prisma.tournamentParticipant.findMany({
-        where: { userId },
-        select: {
-          role: true,
-          tournament: { select: { id: true, name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-      prisma.tournament.findMany({
-        where: { createdByUserId: userId },
-        select: { id: true, name: true },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-    ]);
-
-    // Build active tournaments list: owned ones as ORGANIZER + participations
-    const tournamentMap = new Map<string, UserContext['activeTournaments'][number]>();
-
-    for (const t of ownedTournaments) {
-      tournamentMap.set(t.id, { id: t.id, name: t.name, role: 'ORGANIZER' });
-    }
-
-    for (const p of participations) {
-      if (!tournamentMap.has(p.tournament.id)) {
-        tournamentMap.set(p.tournament.id, {
-          id: p.tournament.id,
-          name: p.tournament.name,
-          role: p.role as 'DEBATER' | 'JUDGE',
-        });
-      }
-    }
-
-    userContext = {
-      isAdmin: false, // No global admin role in schema yet
-      institutionCount,
-      activeTournaments: Array.from(tournamentMap.values()).slice(0, 5),
-    };
+  // Unauthenticated users get children without the AppShell (for landing page)
+  if (!userId) {
+    return <>{children}</>;
   }
+
+  const [institutionCount, participations, ownedTournaments] = await Promise.all([
+    prisma.institutionMember.count({ where: { userId } }),
+    prisma.tournamentParticipant.findMany({
+      where: { userId },
+      select: {
+        role: true,
+        tournament: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+    prisma.tournament.findMany({
+      where: { createdByUserId: userId },
+      select: { id: true, name: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  // Build active tournaments list: owned ones as ORGANIZER + participations
+  const tournamentMap = new Map<string, UserContext['activeTournaments'][number]>();
+
+  for (const t of ownedTournaments) {
+    tournamentMap.set(t.id, { id: t.id, name: t.name, role: 'ORGANIZER' });
+  }
+
+  for (const p of participations) {
+    if (!tournamentMap.has(p.tournament.id)) {
+      tournamentMap.set(p.tournament.id, {
+        id: p.tournament.id,
+        name: p.tournament.name,
+        role: p.role as 'DEBATER' | 'JUDGE',
+      });
+    }
+  }
+
+  const userContext: UserContext = {
+    isAdmin: false,
+    isAuthenticated: true,
+    institutionCount,
+    activeTournaments: Array.from(tournamentMap.values()).slice(0, 5),
+  };
 
   return (
     <AppShell userContext={userContext}>
