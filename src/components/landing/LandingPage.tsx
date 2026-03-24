@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { LandingNav } from './LandingNav';
+import { ScrollReveal } from './ScrollReveal';
 import {
   Trophy,
   Users,
@@ -238,41 +239,42 @@ export default function LandingPage() {
       {/* ── Features — alternating rows ── */}
       <section className="py-24 sm:py-32 px-4">
         <div className="mx-auto max-w-5xl">
-          <div className="text-center mb-16">
+          <ScrollReveal className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold font-heading">
               Everything you need to compete
             </h2>
             <p className="mt-4 text-muted-foreground text-lg max-w-2xl mx-auto">
               From creating a bracket to submitting the final ballot, Debatera covers every step.
             </p>
-          </div>
+          </ScrollReveal>
 
           <div className="space-y-24">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               const reversed = index % 2 === 1;
               return (
-                <div
-                  key={feature.title}
-                  className={`flex flex-col gap-10 items-center ${
-                    reversed ? 'md:flex-row-reverse' : 'md:flex-row'
-                  }`}
-                >
-                  <div className="flex-1 max-w-md">
-                    <div className={`inline-flex rounded-xl p-3 mb-4 ${feature.color}`}>
-                      <Icon className="h-6 w-6" />
+                <ScrollReveal key={feature.title} delay={index * 0.1}>
+                  <div
+                    className={`flex flex-col gap-10 items-center ${
+                      reversed ? 'md:flex-row-reverse' : 'md:flex-row'
+                    }`}
+                  >
+                    <div className="flex-1 max-w-md">
+                      <div className={`inline-flex rounded-xl p-3 mb-4 ${feature.color}`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <h3 className="text-2xl font-bold font-heading">{feature.title}</h3>
+                      <p className="mt-3 text-muted-foreground text-lg leading-relaxed">
+                        {feature.description}
+                      </p>
                     </div>
-                    <h3 className="text-2xl font-bold font-heading">{feature.title}</h3>
-                    <p className="mt-3 text-muted-foreground text-lg leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
-                  <div className="flex-1 w-full">
-                    <div className="aspect-video rounded-2xl border border-border/40 bg-surface-2/60 flex items-center justify-center">
-                      <Icon className="h-14 w-14 text-muted-foreground/15" />
+                    <div className="flex-1 w-full">
+                      <div className="aspect-video rounded-2xl border border-border/40 bg-surface-2/60 flex items-center justify-center">
+                        <Icon className="h-14 w-14 text-muted-foreground/15" />
+                      </div>
                     </div>
                   </div>
-                </div>
+                </ScrollReveal>
               );
             })}
           </div>
@@ -323,7 +325,7 @@ export default function LandingPage() {
 
       {/* ── CTA ── */}
       <section className="py-24 sm:py-32 px-4">
-        <div className="mx-auto max-w-xl text-center">
+        <ScrollReveal className="mx-auto max-w-xl text-center">
           <h2 className="text-3xl sm:text-4xl font-bold font-heading">
             Ready to elevate your debate?
           </h2>
@@ -349,7 +351,7 @@ export default function LandingPage() {
               <CheckCircle className="h-4 w-4 text-green-500" /> Setup in minutes
             </span>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* ── Footer ── */}
