@@ -24,8 +24,8 @@ export default async function RootLayout({
   // Configure Clerk redirects
   const signInUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || "/sign-in";
   const signUpUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL || "/sign-up";
-  const afterSignInUrl = process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || "/";
-  const afterSignUpUrl = process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL || "/";
+  const fallbackRedirectUrl = process.env.NEXT_PUBLIC_CLERK_FALLBACK_REDIRECT_URL || "/";
+  const signUpFallbackRedirectUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL || "/";
 
   // Ensure the authenticated user exists in the DB (keeps this call after env config)
   await ensureUserInDB();
@@ -34,8 +34,8 @@ export default async function RootLayout({
       <ClerkProvider
         signInUrl={signInUrl}
         signUpUrl={signUpUrl}
-        afterSignInUrl={afterSignInUrl}
-        afterSignUpUrl={afterSignUpUrl}
+        signInFallbackRedirectUrl={fallbackRedirectUrl}
+        signUpFallbackRedirectUrl={signUpFallbackRedirectUrl}
         appearance={{
           baseTheme: dark,
           variables: {
