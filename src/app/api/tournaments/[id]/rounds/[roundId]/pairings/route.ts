@@ -121,7 +121,31 @@ export async function GET(req: Request, { params }: RouteParams) {
           select: { id: true, name: true, priority: true },
         }),
       ]);
+    } else {
+      // For non-admins (read-only view): extract assigned teams and judges
+      // from the embedded debate data so names display correctly
+      const seenTeamIds = new Set<string>();
+      const seenJudgeIds = new Set<string>();
 
+      for (const debate of round.debates) {
+        for (const team of [debate.propTeam, debate.oppTeam]) {
+          if (team && !seenTeamIds.has(team.id)) {
+            seenTeamIds.add(team.id);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (allTeams as any[]).push(team);
+          }
+        }
+        for (const judge of debate.judges) {
+          if (!seenJudgeIds.has(judge.participantId)) {
+            seenJudgeIds.add(judge.participantId);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (allJudges as any[]).push(judge.participant);
+          }
+        }
+      }
+    }
+
+    if (isAdmin) {
       if (round.status !== TournamentRoundStatus.DRAFT) {
         const requests = await prisma.ballotModificationRequest.findMany({
           where: {

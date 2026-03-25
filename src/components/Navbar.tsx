@@ -212,13 +212,18 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
             </span>
           </Link>
 
-          {/* Search - Global search across debates, teams, tournaments, people. --> Results grouped into tabs; keyboard nav; quick “Join”/“Open” actions inline. */}
+          {/* Search - Global search across debates, teams, tournaments, people. --> Results grouped into tabs; keyboard nav; quick "Join"/"Open" actions inline. */}
           <div className="ml-2 hidden flex-1 items-center md:flex">
             <div className="relative w-full max-w-xl">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
               <Input
-                className="h-9 w-full rounded-lg border-white/10 bg-white/5 pl-9 text-white placeholder:text-white/50 focus-visible:ring-brand/40"
-                placeholder="Search debates, teams, tournaments…"
+                className="h-9 w-full rounded-lg border-white/10 bg-white/5 pl-9 text-white placeholder:text-white/50 focus-visible:ring-brand/40 cursor-pointer"
+                placeholder="Search debates, teams, tournaments..."
+                readOnly
+                onFocus={(e) => {
+                  e.target.blur();
+                  toast.info('Search coming soon!');
+                }}
               />
             </div>
           </div>
@@ -252,17 +257,19 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
               </Link>
             </Button>
             
-            <Button
-              asChild
-              size="sm"
-              className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 text-xs sm:text-sm"
-            >
-              <Link href="/tournaments/new">
-                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden lg:inline">Create Tournament</span>
-                <span className="lg:hidden">Tournament</span>
-              </Link>
-            </Button>
+            <SignedIn>
+              <Button
+                asChild
+                size="sm"
+                className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 text-xs sm:text-sm"
+              >
+                <Link href="/tournaments/new">
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden lg:inline">Create Tournament</span>
+                  <span className="lg:hidden">Tournament</span>
+                </Link>
+              </Button>
+            </SignedIn>
 
             {/* Notifications - Invites, judge assignments, round pairings, schedule changes, feedback received, moderation pings. */}
             <SignedIn>
@@ -435,8 +442,13 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/40" />
           <Input
-            className="h-8 sm:h-9 w-full rounded-lg border-white/10 bg-white/5 pl-8 sm:pl-9 text-sm text-white placeholder:text-white/50 focus-visible:ring-brand/40"
-            placeholder="Search…"
+            className="h-8 sm:h-9 w-full rounded-lg border-white/10 bg-white/5 pl-8 sm:pl-9 text-sm text-white placeholder:text-white/50 focus-visible:ring-brand/40 cursor-pointer"
+            placeholder="Search..."
+            readOnly
+            onFocus={(e) => {
+              e.target.blur();
+              toast.info('Search coming soon!');
+            }}
           />
         </div>
       </div>

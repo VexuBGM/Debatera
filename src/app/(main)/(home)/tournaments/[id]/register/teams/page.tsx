@@ -3,8 +3,7 @@ import {
     getInstitutionTeamState,
 } from '@/actions/teams.actions';
 import { isRegistrationClosed } from '@/lib/tournament-utils';
-import { auth } from '@clerk/nextjs/server';
-import { redirect, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { ManageTeamsBoard } from './_components/ManageTeamsBoard';
 import { AllTeamsList } from './_components/AllTeamsList';
 import { HelpTopics } from '@/components/docs/HelpLink';
@@ -15,18 +14,13 @@ interface TeamsPageProps {
 
 /**
  * Tournament Teams Page
- * 
+ *
  * Shows:
  * - Team management board (if user can manage any institution)
  * - Read-only list of all teams
  */
 export default async function TeamsPage({ params }: TeamsPageProps) {
     const { id: tournamentId } = await params;
-    const { userId } = await auth();
-
-    if (!userId) {
-        redirect('/sign-in');
-    }
 
     const result = await getTournamentTeamsPageData(tournamentId);
 
