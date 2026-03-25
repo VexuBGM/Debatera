@@ -4,9 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { PaginationControls } from '@/components/ui/pagination';
 import {
   Dialog,
@@ -36,12 +35,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trophy, Lock, ChevronDown, Check, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trophy, Lock, Check, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
+import { HelpTopics } from '@/components/docs/HelpLink';
+import { RoundStatusBadge } from '@/components/rounds/RoundStatusBadge';
 
 // =============================================================================
 // Types
@@ -65,44 +66,6 @@ interface Tournament {
   name: string;
   createdByUserId: string;
 }
-
-// =============================================================================
-// Status Badge Helper
-// =============================================================================
-
-function getStatusBadgeVariant(status: RoundStatus): 'draft' | 'published' | 'in-progress' | 'completed' {
-  switch (status) {
-    case 'DRAFT':
-      return 'draft';
-    case 'PUBLISHED':
-      return 'published';
-    case 'IN_PROGRESS':
-      return 'in-progress';
-    case 'COMPLETED':
-      return 'completed';
-    default:
-      return 'draft';
-  }
-}
-
-function getStatusLabel(status: RoundStatus): string {
-  switch (status) {
-    case 'DRAFT':
-      return 'Draft';
-    case 'PUBLISHED':
-      return 'Published';
-    case 'IN_PROGRESS':
-      return 'In Progress';
-    case 'COMPLETED':
-      return 'Completed';
-    default:
-      return status;
-  }
-}
-
-// =============================================================================
-// Main Component
-// =============================================================================
 
 export default function TournamentRoundsPage() {
   const params = useParams<{ id: string }>();
@@ -340,6 +303,14 @@ export default function TournamentRoundsPage() {
           icon={<Trophy className="h-6 w-6 text-brand" />}
           title={`${tournament.name} - Rounds`}
         />
+        <HelpTopics
+          topics={[
+            { section: 'Creating Rounds' },
+            { section: 'Generating Pairings' },
+            { section: 'Publishing and Running a Round' },
+          ]}
+          className="mt-4"
+        />
 
         {rounds.length === 0 ? (
           <Card>
@@ -361,9 +332,7 @@ export default function TournamentRoundsPage() {
                       <p className="font-medium">{round.name}</p>
                       <p className="text-sm text-muted-foreground">Round {round.number}</p>
                     </div>
-                    <Badge variant={getStatusBadgeVariant(round.status)}>
-                      {getStatusLabel(round.status)}
-                    </Badge>
+                    <RoundStatusBadge status={round.status} />
                   </CardContent>
                 </Card>
               </Link>
@@ -430,6 +399,14 @@ export default function TournamentRoundsPage() {
         }
       />
 
+      <HelpTopics
+        topics={[
+          { section: 'Creating Rounds' },
+          { section: 'Generating Pairings' },
+          { section: 'Publishing and Running a Round' },
+        ]}
+      />
+
       {rounds.length === 0 ? (
         <Card>
           <CardContent>
@@ -464,10 +441,7 @@ export default function TournamentRoundsPage() {
                         className="inline-flex items-center gap-1 cursor-pointer focus:outline-none"
                         disabled={updatingStatusForRound === round.id}
                       >
-                        <Badge variant={getStatusBadgeVariant(round.status)}>
-                          {getStatusLabel(round.status)}
-                          <ChevronDown className="h-3 w-3 ml-1" />
-                        </Badge>
+                        <RoundStatusBadge status={round.status} showChevron />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -477,9 +451,7 @@ export default function TournamentRoundsPage() {
                           disabled={status === round.status || updatingStatusForRound === round.id}
                           onClick={() => handleStatusChange(round.id, status)}
                         >
-                          <Badge variant={getStatusBadgeVariant(status)} className="mr-2">
-                            {getStatusLabel(status)}
-                          </Badge>
+                          <RoundStatusBadge status={status} className="mr-2" />
                           {status === round.status && <Check className="h-3 w-3 ml-auto" />}
                         </DropdownMenuItem>
                       ))}

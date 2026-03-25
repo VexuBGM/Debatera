@@ -32,6 +32,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { HelpTopics } from '@/components/docs/HelpLink';
 import {
   getTournamentParticipants,
   addGuestParticipant,
@@ -569,6 +570,13 @@ export default function ParticipantsPage() {
           </div>
         )}
       </div>
+
+      <HelpTopics
+        topics={[
+          { section: 'Managing Participants' },
+          { section: 'Judge Portal Links' },
+        ]}
+      />
 
       {/* Portal Link Dialog (View / Generate / Regenerate) */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>

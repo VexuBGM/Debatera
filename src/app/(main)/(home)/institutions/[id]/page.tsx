@@ -62,6 +62,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
+import { HelpTopics } from '@/components/docs/HelpLink';
 import {
   createInstitutionInvitation,
   getInstitutionPendingInvitations,
@@ -458,6 +459,13 @@ export default function InstitutionDetailPage() {
             )}
           </div>
         }
+      />
+
+      <HelpTopics
+        topics={[
+          { section: 'Creating an Institution' },
+          { section: 'Inviting Members' },
+        ]}
       />
 
       {/* Stats */}

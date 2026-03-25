@@ -34,6 +34,7 @@ export function ScoreInput({ value, onChange, min, max, disabled, label }: Score
             isOutOfRange && 'border-destructive focus-visible:ring-destructive/40'
           )}
           placeholder={`${min}-${max}`}
+          title={`Allowed range: ${min}-${max}. Half-point increments are allowed.`}
         />
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground mt-0.5">
           {min}-{max}

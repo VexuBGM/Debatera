@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
+import { HelpTopics } from '@/components/docs/HelpLink';
 
 type TournamentRole = 'ORGANIZER' | 'DEBATER' | 'JUDGE' | 'INSTITUTION';
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -246,6 +247,7 @@ const HomePage = () => {
   const upcomingTournaments = dashboard?.upcomingTournaments ?? [];
   const recentTournaments = dashboard?.recentTournaments ?? [];
   const recentInstitutions = dashboard?.recentInstitutions ?? [];
+  const isNewUser = recentTournaments.length === 0 && recentInstitutions.length === 0;
 
   return (
     <PageContainer size="lg">
@@ -253,6 +255,27 @@ const HomePage = () => {
         title={`Welcome back, ${user?.firstName || 'Debater'}!`}
         description="Here's what's happening with your debates today"
       />
+
+      {isNewUser && (
+        <Card className="border-brand/20 bg-linear-to-r from-brand/10 via-brand/5 to-transparent">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">New to Debatera?</CardTitle>
+            <CardDescription>
+              Start with the platform guide, then jump into your first tournament or institution workflow.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <HelpTopics
+              topics={[
+                { section: 'Getting Started' },
+                { section: 'Creating a Tournament' },
+                { section: 'Creating an Institution' },
+              ]}
+              className="bg-background/60"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="bg-linear-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">

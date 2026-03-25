@@ -9,7 +9,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,7 +32,6 @@ import {
 import {
   AlertTriangle,
   Check,
-  ChevronDown,
   Edit2,
   MapPin,
   MessageSquare,
@@ -47,6 +45,8 @@ import { toast } from 'sonner';
 import { RoundEditor } from './RoundEditor';
 import { autoAllocateVenuesAction } from '@/actions/venues.actions';
 import { useSetBreadcrumbOverride } from '@/components/BreadcrumbOverrides';
+import { HelpTopics, HelpLink } from '@/components/docs/HelpLink';
+import { RoundStatusBadge } from '@/components/rounds/RoundStatusBadge';
 import type {
   RoundData,
   TeamData,
@@ -56,44 +56,15 @@ import type {
   BallotModificationQueueItem,
 } from './types';
 
-// =============================================================================
-// Status Helpers
-// =============================================================================
-
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
 
 const ALL_ROUND_STATUSES: RoundStatus[] = ['DRAFT', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED'];
-
-function getStatusBadgeVariant(status: RoundStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (status) {
-    case 'DRAFT': return 'secondary';
-    case 'PUBLISHED': return 'default';
-    case 'IN_PROGRESS': return 'destructive';
-    case 'COMPLETED': return 'outline';
-    default: return 'secondary';
-  }
-}
-
-function getStatusLabel(status: RoundStatus): string {
-  switch (status) {
-    case 'DRAFT': return 'Draft';
-    case 'PUBLISHED': return 'Published';
-    case 'IN_PROGRESS': return 'In Progress';
-    case 'COMPLETED': return 'Completed';
-    default: return status;
-  }
-}
-
-// =============================================================================
-// Main Component
-// =============================================================================
 
 export default function RoundEditorPage() {
   const params = useParams<{ id: string; roundId: string }>();
   const router = useRouter();
   const tournamentId = params?.id;
   const roundId = params?.roundId;
-  const { userId } = useAuth();
   const setBreadcrumbOverride = useSetBreadcrumbOverride();
 
   // Data state
@@ -569,10 +540,7 @@ export default function RoundEditorPage() {
                   className="inline-flex items-center gap-1 cursor-pointer focus:outline-none"
                   disabled={updatingStatus}
                 >
-                  <Badge variant={getStatusBadgeVariant(round.status)} className="mr-0">
-                    {getStatusLabel(round.status)}
-                    <ChevronDown className="h-3 w-3 ml-1" />
-                  </Badge>
+                  <RoundStatusBadge status={round.status} showChevron className="mr-0" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -588,18 +556,14 @@ export default function RoundEditorPage() {
                       }
                     }}
                   >
-                    <Badge variant={getStatusBadgeVariant(status)} className="mr-2">
-                      {getStatusLabel(status)}
-                    </Badge>
+                    <RoundStatusBadge status={status} className="mr-2" />
                     {status === round.status && <Check className="h-3 w-3 ml-auto" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Badge variant={getStatusBadgeVariant(round.status)} className="mr-2">
-              {getStatusLabel(round.status)}
-            </Badge>
+            <RoundStatusBadge status={round.status} className="mr-2" />
           )}
 
           {hasChanges && (
@@ -610,6 +574,14 @@ export default function RoundEditorPage() {
           )}
         </div>
       </div>
+
+      <HelpTopics
+        topics={[
+          { section: 'Creating Rounds' },
+          { section: 'Generating Pairings' },
+          { section: 'Publishing and Running a Round' },
+        ]}
+      />
 
       {/* Motion / Topic */}
       <Card>
@@ -763,7 +735,14 @@ export default function RoundEditorPage() {
       {showModificationQueue && (
         <Card id="ballot-modification-requests" className="scroll-mt-24">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Ballot Modification Requests</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-3 text-base">
+              <span>Ballot Modification Requests</span>
+              <HelpLink
+                section="Handling Ballot Modification Requests"
+                label="Guide"
+                variant="inline"
+              />
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {ballotModificationRequests.length === 0 ? (

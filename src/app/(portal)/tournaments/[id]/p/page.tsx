@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import { PageContainer } from '@/components/PageContainer';
 import { usePortalToken } from '@/lib/portal/clientToken';
+import { HelpTopics } from '@/components/docs/HelpLink';
 import type { BallotModificationRequestSummary } from '@/components/ballot/model';
 
 interface PortalDebate {
@@ -160,6 +161,14 @@ export default function JudgePortalPage() {
             Judge Portal
           </Badge>
         </div>
+
+        <HelpTopics
+          topics={[
+            { section: 'Using the Judge Portal' },
+            { section: 'Entering a Ballot (WSDC Format)', label: 'Ballot scoring guide' },
+          ]}
+          className="bg-background/60"
+        />
 
         {rounds.length === 0 ? (
           <Card>

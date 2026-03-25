@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PaginationControls } from '@/components/ui/pagination';
 import type { PaginationMeta } from '@/lib/pagination';
 import { Trophy, Users, Medal, ArrowLeft, UserPlus } from 'lucide-react';
+import { HelpTopics } from '@/components/docs/HelpLink';
 
 // ============================================================================
 // Types (matching API response)
@@ -143,6 +144,11 @@ export default function StandingsPage() {
             </h1>
             <p className="text-slate-400 text-sm">Points &amp; Standings</p>
           </div>
+
+          <HelpTopics
+            topics={[{ section: 'Checking Standings' }]}
+            className="mx-auto max-w-2xl bg-slate-900/60"
+          />
 
           {isAuthLoaded && (
             <div className="flex justify-center">
@@ -340,9 +346,12 @@ export default function StandingsPage() {
         )}
 
         {/* Footer note */}
-        <p className="text-center text-xs text-slate-500">
-          Only points are shown. Feedback and comments are not displayed here.
-        </p>
+        <div className="space-y-2 text-center text-xs text-slate-500">
+          <p>
+            Teams rank by wins, then speaker points. Speakers rank by average speaker points.
+          </p>
+          <p>Only points are shown. Feedback and comments are not displayed here.</p>
+        </div>
       </div>
     </PageShell>
   );

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield } from 'lucide-react';
+import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import Image from 'next/image';
@@ -239,6 +239,18 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
                 </Link>
               </Button>
             )}
+
+            <Button
+              asChild
+              size="sm"
+              variant="ghost"
+              className="hidden md:flex gap-1 rounded-lg text-white/80 hover:bg-white/10 hover:text-white text-xs sm:text-sm"
+            >
+              <Link href="/docs">
+                <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>Help</span>
+              </Link>
+            </Button>
             
             <Button
               asChild

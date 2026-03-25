@@ -80,7 +80,9 @@ export function SpeechCard({
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Assign a speaker and enter the speech score.
+            {isReply
+              ? 'Assign the first or second speaker from this side, then enter the reply score.'
+              : 'Assign a speaker and enter the speech score.'}
           </p>
         </div>
 
