@@ -17,6 +17,11 @@ export interface ParsedHelpDoc {
   sections: HelpDocSection[];
 }
 
+export interface ResolvedHelpTarget {
+  section: HelpDocSection;
+  anchorId?: string;
+}
+
 export function slugifyHeading(value: string) {
   return value
     .toLowerCase()
@@ -29,7 +34,45 @@ export function slugifyHeading(value: string) {
 }
 
 export function buildHelpHref(section: string) {
-  return `/docs#${slugifyHeading(section)}`;
+  return `/docs/${slugifyHeading(section)}`;
+}
+
+export function findHelpTargetBySlug(
+  sections: HelpDocSection[],
+  slug: string
+): ResolvedHelpTarget | null {
+  const sectionMatch = sections.find((section) => section.id === slug);
+  if (sectionMatch) {
+    return { section: sectionMatch };
+  }
+
+  for (const section of sections) {
+    const linkMatch = section.links.find((link) => link.id === slug);
+    if (linkMatch) {
+      return { section, anchorId: linkMatch.id };
+    }
+  }
+
+  return null;
+}
+
+export function resolveHelpHref(
+  sections: HelpDocSection[],
+  href?: string | null
+) {
+  if (!href?.startsWith("#")) {
+    return href;
+  }
+
+  const slug = href.slice(1);
+  const target = findHelpTargetBySlug(sections, slug);
+  if (!target) {
+    return href;
+  }
+
+  return target.anchorId
+    ? `/docs/${target.section.id}#${target.anchorId}`
+    : `/docs/${target.section.id}`;
 }
 
 export function parseHelpDoc(markdown: string): ParsedHelpDoc {
