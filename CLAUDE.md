@@ -72,6 +72,8 @@ Core model groups:
 
 ## Additional Documentation
 
+Documentation must be maintained whenever functionality, behavior, permissions, flows, setup, integrations, or terminology change. After every implemented change, check whether it affects user-facing documentation, developer/repo documentation, or both, and update the relevant Markdown files in the same task. Never leave docs outdated on purpose. Do not document planned behavior as implemented; clearly mark partial, missing, or future work. Prefer updating the smallest correct source of truth rather than duplicating the same explanation in many files. If a UI flow changes, update task-based user docs; if architecture, setup, schema, permissions, or integrations change, update the repo docs. When unsure, add a short note in the docs about the current limitation instead of inventing certainty.
+
 | File | When to check |
 |---|---|
 | `.claude/docs/architectural_patterns.md` | Server actions, API routes, auth guards, data fetching conventions |
