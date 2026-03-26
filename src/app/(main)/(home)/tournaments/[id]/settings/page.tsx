@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+import { HelpTopics } from '@/components/docs/HelpLink';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -229,6 +230,13 @@ export default function TournamentSettingsPage() {
                 </Link>
                 <h1 className="text-2xl font-semibold">Tournament Settings</h1>
             </div>
+
+            <HelpTopics
+                topics={[
+                    { section: 'Tournament Settings Reference' },
+                    { section: 'Deleting a Tournament' },
+                ]}
+            />
 
             <Card>
                 <CardHeader>

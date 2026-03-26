@@ -26,6 +26,7 @@ import { Loader2, ArrowLeft, Video, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import type { DebateStreamRole } from "@/lib/stream/eligibility";
+import { buildHelpHref } from "@/lib/docs/help";
 import DebateInfoPanel, { type DebateContext } from "./DebateInfoPanel";
 import SyncedStopwatch from "@/components/debate/SyncedStopwatch";
 
@@ -258,6 +259,18 @@ export default function DebateCallRoom({
           {call && (
             <SyncedStopwatch debateId={debateId} call={call} role={role} />
           )}
+          <a
+            href={buildHelpHref("Joining an Online Debate")}
+            className="hidden text-xs text-slate-300 transition hover:text-white md:inline"
+          >
+            Joining guide
+          </a>
+          <a
+            href={buildHelpHref("Using the Debate Timer")}
+            className="hidden text-xs text-slate-300 transition hover:text-white md:inline"
+          >
+            Timer help
+          </a>
           <span className="text-xs px-2 py-1 rounded bg-slate-800 capitalize">
             {role}
           </span>

@@ -145,10 +145,8 @@ prisma/
 scripts/
   backfill-user-names.ts
 docs/
-  online_tournament_readiness.md
-  rounds.md
-  tournament-settings.md
-  the_whole_idea.md
+  dev/          Developer documentation (architecture, setup, domain model, etc.)
+  product/      Product planning notes and audits
 ```
 
 ## Product areas worth exploring
@@ -159,12 +157,32 @@ docs/
 - `src/app/api/tournaments/[id]/portal/generate-all-links/route.ts` for judge portal link generation
 - `src/components/debate/SyncedStopwatch.tsx` for the in-call synchronized timer
 
+## Developer documentation
+
+Located in [`docs/dev/`](./docs/dev/).
+
+| Document | Purpose |
+| --- | --- |
+| [architecture.md](./docs/dev/architecture.md) | System overview, modules, request/data flow, external services |
+| [setup.md](./docs/dev/setup.md) | Local setup, env vars, migrations, running tests |
+| [domain-model.md](./docs/dev/domain-model.md) | All Prisma entities, fields, and relationships |
+| [roles-and-permissions.md](./docs/dev/roles-and-permissions.md) | Who can do what and where authorization is enforced |
+| [tournament-lifecycle.md](./docs/dev/tournament-lifecycle.md) | End-to-end tournament flow from creation to standings |
+| [ballots-and-results.md](./docs/dev/ballots-and-results.md) | Judging flow, ballot states, result computation, tie-break logic |
+| [integrations.md](./docs/dev/integrations.md) | Clerk, Stream, Prisma, and all external dependencies |
+| [security.md](./docs/dev/security.md) | Auth, permissions, validation, known gaps |
+| [testing.md](./docs/dev/testing.md) | Current tests, coverage gaps, what to test before changing |
+| [deployment.md](./docs/dev/deployment.md) | Production requirements, migrations, hosting notes |
+| [contributing.md](./docs/dev/contributing.md) | Coding expectations, how to add features safely |
+
 ## Further reading
 
-- [Online tournament readiness audit](./docs/online_tournament_readiness.md)
-- [Rounds notes](./docs/rounds.md)
-- [Tournament settings notes](./docs/tournament-settings.md)
-- [Original product vision](./docs/the_whole_idea.md)
+Located in [`docs/product/`](./docs/product/).
+
+- [Online tournament readiness audit](./docs/product/online_tournament_readiness.md)
+- [Rounds notes](./docs/product/rounds.md)
+- [Tournament settings notes](./docs/product/tournament-settings.md)
+- [Original product vision](./docs/product/the_whole_idea.md)
 
 ## License
 

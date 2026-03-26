@@ -40,6 +40,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { HelpTopics, HelpLink } from '@/components/docs/HelpLink';
 import { cn } from '@/lib/utils';
 
 interface BallotWorkspaceProps {
@@ -261,6 +262,15 @@ export function BallotWorkspace({
                 </div>
               </div>
 
+              <HelpTopics
+                topics={[
+                  { section: 'Entering a Ballot (WSDC Format)' },
+                  { section: 'Submitting a Ballot' },
+                  { section: 'Requesting a Ballot Modification' },
+                ]}
+                className="bg-background/60"
+              />
+
               <div className="grid gap-4 lg:grid-cols-2">
                 {renderTeamSummary('PROPOSITION', 'Proposition', ballot.debate.propTeam)}
                 {renderTeamSummary('OPPOSITION', 'Opposition', ballot.debate.oppTeam)}
@@ -337,8 +347,8 @@ export function BallotWorkspace({
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Scoring guide</p>
                   <p className="mt-2 text-sm">Constructives: 60-80</p>
                   <p className="text-sm">Replies: 30-40</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Half points are allowed.
+                  <p className="mt-2 text-xs text-muted-foreground leading-5">
+                    Half points are allowed. Reply speeches must be given by the first or second speaker on that side.
                   </p>
                 </div>
               </div>
@@ -472,6 +482,10 @@ export function BallotWorkspace({
                   <RadioGroupItem value="OPPOSITION" id="ballot-vote-opp" />
                 </label>
               </RadioGroup>
+
+              <p className="text-xs leading-5 text-muted-foreground">
+                Your vote must match the side with the higher total points. If the totals do not support the winner you selected, submission will fail.
+              </p>
             </CardContent>
           </Card>
 
@@ -548,14 +562,22 @@ export function BallotWorkspace({
                   </div>
 
                   {ballot.canRequestModification && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-center"
-                      onClick={() => setShowRequestDialog(true)}
-                      disabled={requestingModification}
-                    >
-                      {requestingModification ? 'Sending Request...' : 'Request Modification'}
-                    </Button>
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-center"
+                        onClick={() => setShowRequestDialog(true)}
+                        disabled={requestingModification}
+                      >
+                        {requestingModification ? 'Sending Request...' : 'Request Modification'}
+                      </Button>
+                      <HelpLink
+                        section="Handling Ballot Modification Requests"
+                        label="How organizers handle these requests"
+                        variant="inline"
+                        className="justify-center"
+                      />
+                    </div>
                   )}
                 </>
               )}

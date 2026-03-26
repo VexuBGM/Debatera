@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { TournamentMembersRegistrationPage } from './_components/TournamentMembersRegistrationPage';
+import { HelpTopics } from '@/components/docs/HelpLink';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,6 +21,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           Request institution registration, then register participants for this tournament.
         </p>
       </div>
+
+      <HelpTopics
+        topics={[
+          { section: 'Registering for a Tournament' },
+          { section: 'Adding Participants to a Tournament', label: 'Adding participants' },
+        ]}
+      />
 
       <TournamentMembersRegistrationPage tournamentId={id} />
     </main>

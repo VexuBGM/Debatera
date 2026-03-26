@@ -4,13 +4,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
-  Home, Users, Compass, PlusCircle,
-  ClipboardList, Building2, X, UserCircle, Trophy
+  Home, Compass, PlusCircle,
+  ClipboardList, Building2, UserCircle, Trophy, BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import type { UserContext } from '@/components/AppShell';
+
+interface UserContextWithAuth extends UserContext {
+  isAuthenticated: boolean;
+}
 
 type Item = {
   label: string;
@@ -21,7 +25,7 @@ type Item = {
 
 type Section = { title: string; items: Item[] };
 
-function buildSidebarSections(userContext: UserContext): Section[] {
+function buildSidebarSections(userContext: UserContextWithAuth): Section[] {
   // Unauthenticated users get a minimal sidebar
   if (!userContext.isAuthenticated) {
     return [
@@ -29,6 +33,7 @@ function buildSidebarSections(userContext: UserContext): Section[] {
         title: 'Overview',
         items: [
           { label: 'Home', href: '/tournaments', icon: Home },
+          { label: 'Help Center', href: '/docs', icon: BookOpen },
         ],
       },
       {
@@ -47,6 +52,7 @@ function buildSidebarSections(userContext: UserContext): Section[] {
         { label: 'Home', href: '/', icon: Home },
         { label: 'My Profile', href: '/me', icon: UserCircle },
         { label: 'Institutions', href: '/institutions', icon: Building2 },
+        { label: 'Help Center', href: '/docs', icon: BookOpen },
       ],
     },
     {
@@ -97,7 +103,7 @@ function buildSidebarSections(userContext: UserContext): Section[] {
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
-  userContext?: UserContext;
+  userContext?: UserContextWithAuth;
 }
 
 export default function Sidebar({
@@ -119,7 +125,8 @@ export default function Sidebar({
     }
   }, [pathname]);
 
-  const defaultContext: UserContext = {
+  const defaultContext: UserContextWithAuth = {
+    isAuthenticated: false,
     isAdmin: false,
     isAuthenticated: false,
     institutionCount: 0,

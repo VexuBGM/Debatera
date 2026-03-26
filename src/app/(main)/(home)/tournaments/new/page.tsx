@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
+import { HelpTopics } from '@/components/docs/HelpLink';
 import { StepIndicator } from '@/components/ui/step-indicator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -102,6 +103,13 @@ export default function CreateTournamentPage() {
         icon={<Trophy className="h-7 w-7 text-brand" />}
         title="Create Tournament"
         description="Set up a new debate tournament in a few steps."
+      />
+
+      <HelpTopics
+        topics={[
+          { section: 'Creating a Tournament' },
+          { section: 'Configuring Tournament Settings', label: 'Tournament settings' },
+        ]}
       />
 
       <StepIndicator steps={STEPS} currentStep={step} className="mb-2" />

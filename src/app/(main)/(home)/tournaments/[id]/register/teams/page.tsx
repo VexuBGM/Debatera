@@ -6,6 +6,7 @@ import { isRegistrationClosed } from '@/lib/tournament-utils';
 import { notFound } from 'next/navigation';
 import { ManageTeamsBoard } from './_components/ManageTeamsBoard';
 import { AllTeamsList } from './_components/AllTeamsList';
+import { HelpTopics } from '@/components/docs/HelpLink';
 
 interface TeamsPageProps {
     params: Promise<{ id: string }>;
@@ -74,6 +75,14 @@ export default async function TeamsPage({ params }: TeamsPageProps) {
                     )}
                 </p>
             </div>
+
+            <HelpTopics
+                topics={[
+                    { section: 'Registering for a Tournament' },
+                    { section: 'Creating Teams' },
+                ]}
+                className="bg-background/60"
+            />
 
             {/* Management Board (if user can manage at least one institution) */}
             {(manageableInstitutions.length > 0 || canCreateInstitutions) && (
