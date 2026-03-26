@@ -128,7 +128,6 @@ export default function Sidebar({
   const defaultContext: UserContextWithAuth = {
     isAuthenticated: false,
     isAdmin: false,
-    isAuthenticated: false,
     institutionCount: 0,
     activeTournaments: [],
   };
