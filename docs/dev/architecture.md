@@ -34,6 +34,7 @@ External services: Clerk (auth), Stream (video), Svix (webhook delivery).
 Clerk-protected pages. The root layout calls `ensureUser()` on every request to sync the Clerk session with the local `User` table.
 
 Key page trees:
+
 - `(home)/tournaments/[id]/` — tournament dashboard (overview, rounds, teams, standings, settings)
 - `(home)/institutions/` — institution management
 - `(home)/ballots/[ballotId]/` — ballot detail view
@@ -45,8 +46,9 @@ A separate, token-authenticated app shell for judges who access ballots without 
 
 ### API Layer — `src/app/api/`
 
-All routes set `export const runtime = 'nodejs'` (required for Prisma's pg adapter). Every route:
-1. Calls `await auth()` from Clerk and returns 401 if no session (except portal routes).
+All routes set `export const runtime = 'nodejs'` (required for Prisma's pg adapter). Most protected routes:
+
+1. Call `await auth()` from Clerk and return 401 if no session (except public routes such as standings and portal routes).
 2. Validates request body with Zod before touching the database.
 3. Returns `NextResponse.json({ data?, error? }, { status })`.
 
@@ -58,22 +60,22 @@ Five files covering institution invitations, teams, participants, profiles, and 
 
 ### Domain Libraries — `src/lib/`
 
-| Directory | Responsibility |
-|---|---|
-| `ballots/` | Ballot creation, authorization, result computation, modification requests |
-| `debates/` | Debate DB queries |
-| `domains/reporting/` | Standings and speaker ranking (pure computation + service layer) |
-| `domains/participants/` | Guest participant helpers |
-| `domains/teams/` | Team management scope resolution |
-| `guards/` | Pre-condition assertions (registration window, team size) |
-| `pairings/` | Swiss pairing algorithm + seeded RNG |
-| `portal/` | Token generation, AES-256-GCM encryption, token validation |
-| `security/` | URL sanitization, rate limiting (currently unwired) |
-| `services/` | Higher-level service functions (tournaments, institutions, profiles) |
-| `stream/` | Stream SDK server client, eligibility checks, VideoCall record management |
-| `tournamentRounds/` | Round and pairing CRUD, authorization, institution conflict detection |
-| `validations/` | Shared Zod schemas |
-| `venues/` | Venue auto-allocation |
+| Directory               | Responsibility                                                            |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `ballots/`              | Ballot creation, authorization, result computation, modification requests |
+| `debates/`              | Debate DB queries                                                         |
+| `domains/reporting/`    | Standings and speaker ranking (pure computation + service layer)          |
+| `domains/participants/` | Guest participant helpers                                                 |
+| `domains/teams/`        | Team management scope resolution                                          |
+| `guards/`               | Pre-condition assertions (registration window, team size)                 |
+| `pairings/`             | Swiss pairing algorithm + seeded RNG                                      |
+| `portal/`               | Token generation, AES-256-GCM encryption, token validation                |
+| `security/`             | URL sanitization, rate limiting (currently unwired)                       |
+| `services/`             | Higher-level service functions (tournaments, institutions, profiles)      |
+| `stream/`               | Stream SDK server client, eligibility checks, VideoCall record management |
+| `tournamentRounds/`     | Round and pairing CRUD, authorization, institution conflict detection     |
+| `validations/`          | Shared Zod schemas                                                        |
+| `venues/`               | Venue auto-allocation                                                     |
 
 ---
 
@@ -134,12 +136,12 @@ Client component (bell icon)
 
 ## External Services
 
-| Service | Role | SDK |
-|---|---|---|
-| **Clerk** | Authentication, user management | `@clerk/nextjs` v6 |
-| **Stream** | Video calls for ONLINE debates | `@stream-io/video-react-sdk`, `@stream-io/node-sdk` |
-| **Svix** | Webhook signature verification for Clerk events | `svix` |
-| **PostgreSQL** | Primary database | `pg` + `@prisma/adapter-pg` |
+| Service        | Role                                            | SDK                                                 |
+| -------------- | ----------------------------------------------- | --------------------------------------------------- |
+| **Clerk**      | Authentication, user management                 | `@clerk/nextjs` v6                                  |
+| **Stream**     | Video calls for ONLINE debates                  | `@stream-io/video-react-sdk`, `@stream-io/node-sdk` |
+| **Svix**       | Webhook signature verification for Clerk events | `svix`                                              |
+| **PostgreSQL** | Primary database                                | `pg` + `@prisma/adapter-pg`                         |
 
 ---
 

@@ -1,6 +1,6 @@
 # Domain Model
 
-Source of truth: [`prisma/schema.prisma`](../prisma/schema.prisma).
+Source of truth: [`prisma/schema.prisma`](../../prisma/schema.prisma).
 
 ---
 
@@ -41,17 +41,17 @@ Key fields: `name`, `isPublic`, `registrationClosesAt`.
 
 **`TournamentSettings`** — 1:1 with `Tournament`. Holds all configurable options.
 
-| Field | Type | Purpose |
-|---|---|---|
-| `registrationOpensAt` / `registrationClosesAt` | `DateTime?` | Registration window |
-| `teamSizeMin` / `teamSizeMax` | `Int` | Min/max debaters per team (1–10) |
-| `debateFormat` | `DebateFormat` | Currently only `WSDC` |
-| `eventMode` | `EventMode` | `ONLINE` or `IRL` |
-| `pairingSystem` | `PairingSystem` | `SWISS`, `RANDOM`, or `MANUAL` |
-| `showDebaterNames` | `Boolean` | Display individual names instead of team names in standings |
-| `speakerTopN` | `Int?` | Show only top N speakers; `null` = show all |
-| `hideSpeakerPoints` | `Boolean` | Hide numeric scores in speaker standings |
-| `publicTabs` | `String[]` | Which tabs are visible to unauthenticated visitors (`overview`, `rounds`, `teams`, `standings`, `participants`) |
+| Field                                          | Type            | Purpose                                                                                                         |
+| ---------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
+| `registrationOpensAt` / `registrationClosesAt` | `DateTime?`     | Registration window                                                                                             |
+| `teamSizeMin` / `teamSizeMax`                  | `Int`           | Min/max debaters per team (1–10)                                                                                |
+| `debateFormat`                                 | `DebateFormat`  | Currently only `WSDC`                                                                                           |
+| `eventMode`                                    | `EventMode`     | `ONLINE` or `IRL`                                                                                               |
+| `pairingSystem`                                | `PairingSystem` | `SWISS`, `RANDOM`, or `MANUAL`                                                                                  |
+| `showDebaterNames`                             | `Boolean`       | Display individual names instead of team names in standings                                                     |
+| `speakerTopN`                                  | `Int?`          | Show only top N speakers; `null` = show all                                                                     |
+| `hideSpeakerPoints`                            | `Boolean`       | Hide numeric scores in speaker standings                                                                        |
+| `publicTabs`                                   | `String[]`      | Which tabs are visible to unauthenticated visitors (`overview`, `rounds`, `teams`, `standings`, `participants`) |
 
 **`TournamentInstitution`** — Institution registration in a tournament.
 Statuses: `PENDING`, `APPROVED`, `REJECTED`.
@@ -82,6 +82,7 @@ Stores the `motion` (debate topic) and optional `infoSlide`.
 Statuses (lifecycle order): `DRAFT` → `PUBLISHED` → `IN_PROGRESS` → `COMPLETED`
 
 **`TournamentDebate`** — A single debate pairing within a round.
+
 - `propTeamId` / `oppTeamId` — proposition and opposition teams (nullable for BYE debates).
 - `isBye` — true if one team has no opponent.
 - `venueId` — assigned venue (nullable; set by auto-allocator or manually, IRL only).
@@ -106,6 +107,7 @@ A judge can only be assigned to one debate per round (enforced at application le
 **`Ballot`** — One per judge per debate. Tracks the judge's vote and speech scores.
 
 Key fields:
+
 - `vote: Side?` — `PROPOSITION` or `OPPOSITION`
 - `propTotal` / `oppTotal` — computed server-side from speech scores
 - `status` — `DRAFT` or `SUBMITTED`
@@ -120,6 +122,7 @@ One row per `(ballotId, role)`. Roles: `PROP_1`, `OPP_1`, `PROP_2`, `OPP_2`, `PR
 Statuses: `PENDING`, `APPROVED`, `REJECTED`. Organizer resolves with an optional `resolutionNote`.
 
 **`DebateResult`** — Computed once all ballots for a debate are submitted. Stores:
+
 - `winningSide` / `winningTeamId`
 - `voteProp` / `voteOpp` — raw vote counts
 - `propTotalAvg` / `oppTotalAvg` — average speech totals across all ballots
@@ -175,12 +178,12 @@ User
 
 ## ID Conventions
 
-| Model | ID format |
-|---|---|
-| `User` | Clerk user ID (`user_...`) |
-| `Institution` | `inst_<uuid>` |
-| `InstitutionMember` | `imem_<uuid>` |
-| `Tournament` | `tourn_<uuid>` |
-| `InstitutionInvitation` | `inv_<uuid>` |
-| `Notification` | `notif_<uuid>` |
-| Most other models | `cuid()` |
+| Model                   | ID format                  |
+| ----------------------- | -------------------------- |
+| `User`                  | Clerk user ID (`user_...`) |
+| `Institution`           | `inst_<uuid>`              |
+| `InstitutionMember`     | `imem_<uuid>`              |
+| `Tournament`            | `tourn_<uuid>`             |
+| `InstitutionInvitation` | `inv_<uuid>`               |
+| `Notification`          | `notif_<uuid>`             |
+| Most other models       | `cuid()`                   |

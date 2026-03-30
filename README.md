@@ -1,8 +1,8 @@
 # Debatera
 
-Debatera is a full-stack platform for running debate tournaments from one place. It combines tournament administration, institution and team management, pairings, ballots, standings, judge portals, and online debate rooms so organizers do not need to stitch together separate tools for tabbing, calls, and coordination.
+Debatera is a platform for organizing and running debate tournaments in one place. It is built for organizers, institutions, debaters, and judges, and it keeps tournament history, ballots, and results in one system, with account-linked continuity where authenticated identities are used.
 
-> Status: active development. The core tournament loop is implemented and usable, with follow-up improvements tracked in [`docs/`](./docs).
+> Status: active development. The core tournament loop is implemented and usable.
 
 ## Why Debatera
 
@@ -15,14 +15,25 @@ Most debate tournaments still rely on a fragmented workflow:
 
 Debatera aims to make the tournament itself the product, not the integration work around it.
 
-## What the app supports today
+## What Debatera solves
+
+Debate tournaments usually require a stack of separate tools:
+
+- spreadsheets for tabbing and standings
+- chat apps for coordination
+- video tools for online rounds
+- separate timers and ballot collection
+
+Debatera replaces that fragmentation with one system for tournament operations, participant management, judge workflows, and results tracking.
+
+## Main capabilities
 
 - institution-based registration and membership management
 - tournament creation with configurable event mode, registration windows, and pairing system
 - participant registration for debaters and judges
 - team creation and team-member assignment
 - round creation, publishing, and pairings management
-- Swiss and random auto-generation, plus manual pairings editing
+- Swiss and random auto-generation, plus manual pairing mode
 - conflict-aware judge assignment
 - venue management and automatic room allocation for IRL events
 - Stream-powered online debate rooms
@@ -31,7 +42,13 @@ Debatera aims to make the tournament itself the product, not the integration wor
 - public team and speaker standings
 - token-based judge portal links
 - Clerk authentication, profiles, and protected routes
-- rate limiting and baseline security headers
+
+## Who it is for
+
+- **Organizers** — create tournaments, manage rounds, assign judges, publish pairings, and review results.
+- **Judges** — open a portal link or signed-in ballot view, submit ballots, and leave feedback.
+- **Debaters** — join tournaments through their institution, see debates, ballots, and results history.
+- **Institutions** — manage members, participate in tournaments, and keep team history across events.
 
 ## Tournament workflow
 
@@ -43,17 +60,39 @@ Debatera aims to make the tournament itself the product, not the integration wor
 6. Publish rounds, assign judges and venues, and open calls for online debates.
 7. Submit ballots, compute results, and review standings.
 
+## Documentation
+
+Start here if you need the product story:
+
+| Document                                     | Purpose                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------ |
+| [PRODUCT_OVERVIEW.md](./PRODUCT_OVERVIEW.md) | Product vision, audience, and the problem Debatera solves                |
+| [FEATURES.md](./FEATURES.md)                 | Feature map grouped by module with current status                        |
+| [USER_FLOWS.md](./USER_FLOWS.md)             | Real end-to-end flows for organizers, judges, debaters, and institutions |
+| [DOMAIN_MODEL.md](./DOMAIN_MODEL.md)         | Core concepts and business rules in the debate domain                    |
+| [ARCHITECTURE.md](./ARCHITECTURE.md)         | System structure, runtime model, and design decisions                    |
+
+Developer/reference docs:
+
+| Document                                                               | Purpose                                  |
+| ---------------------------------------------------------------------- | ---------------------------------------- |
+| [docs/dev/architecture.md](./docs/dev/architecture.md)                 | Detailed system overview and data flow   |
+| [docs/dev/domain-model.md](./docs/dev/domain-model.md)                 | Prisma entities and relationships        |
+| [docs/dev/tournament-lifecycle.md](./docs/dev/tournament-lifecycle.md) | End-to-end tournament lifecycle          |
+| [docs/dev/ballots-and-results.md](./docs/dev/ballots-and-results.md)   | Ballot submission and result computation |
+| [docs/product/user-guide.md](./docs/product/user-guide.md)             | User-facing guide                        |
+
 ## Tech stack
 
-| Layer | Tools |
-| --- | --- |
-| App framework | Next.js 16, React 19, TypeScript |
-| Styling | Tailwind CSS 4, shadcn/ui, Radix UI |
-| Auth | Clerk |
-| Database | PostgreSQL, Prisma 7 |
-| Video | Stream Video |
-| Validation | Zod |
-| Tests | Vitest |
+| Layer         | Tools                               |
+| ------------- | ----------------------------------- |
+| App framework | Next.js 16, React 19, TypeScript    |
+| Styling       | Tailwind CSS 4, shadcn/ui, Radix UI |
+| Auth          | Clerk                               |
+| Database      | PostgreSQL, Prisma 7                |
+| Video         | Stream Video                        |
+| Validation    | Zod                                 |
+| Tests         | Vitest                              |
 
 ## Getting started
 
@@ -98,20 +137,20 @@ Debatera aims to make the tournament itself the product, not the integration wor
 
 ### Environment variables
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | Yes | PostgreSQL connection string for Prisma |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk client-side key |
-| `CLERK_SECRET_KEY` | Yes | Clerk server-side key |
-| `NEXT_PUBLIC_STREAM_API_KEY` | For online events | Stream client key |
-| `STREAM_API_SECRET` | For online events | Stream server secret |
-| `NEXT_PUBLIC_BASE_URL` | Recommended | Absolute base URL used for stable portal links |
-| `CLERK_WEBHOOK_SECRET` | Optional | Verifies the Clerk webhook endpoint |
-| `PORTAL_TOKEN_TTL_DAYS` | Optional | Judge portal token lifetime, defaults to `14` |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Optional | Overrides the sign-in route |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Optional | Overrides the sign-up route |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Optional | Post sign-in redirect |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Optional | Post sign-up redirect |
+| Variable                              | Required          | Purpose                                        |
+| ------------------------------------- | ----------------- | ---------------------------------------------- |
+| `DATABASE_URL`                        | Yes               | PostgreSQL connection string for Prisma        |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`   | Yes               | Clerk client-side key                          |
+| `CLERK_SECRET_KEY`                    | Yes               | Clerk server-side key                          |
+| `NEXT_PUBLIC_STREAM_API_KEY`          | For online events | Stream client key                              |
+| `STREAM_API_SECRET`                   | For online events | Stream server secret                           |
+| `NEXT_PUBLIC_BASE_URL`                | Recommended       | Absolute base URL used for stable portal links |
+| `CLERK_WEBHOOK_SECRET`                | Optional          | Verifies the Clerk webhook endpoint            |
+| `PORTAL_TOKEN_TTL_DAYS`               | Optional          | Judge portal token lifetime, defaults to `14`  |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`       | Optional          | Overrides the sign-in route                    |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL`       | Optional          | Overrides the sign-up route                    |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Optional          | Post sign-in redirect                          |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Optional          | Post sign-up redirect                          |
 
 ### Local development notes
 
@@ -122,15 +161,15 @@ Debatera aims to make the tournament itself the product, not the integration wor
 
 ## Available scripts
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Start the Next.js dev server with Turbopack |
-| `npm run build` | Apply production migrations and build the app |
-| `npm run start` | Start the production server |
-| `npm run lint` | Run ESLint |
-| `npm run backfill:user-names` | Backfill local user display names from Clerk |
-| `npx vitest run` | Run the test suite |
-| `npx prisma studio` | Open Prisma Studio |
+| Command                       | What it does                                  |
+| ----------------------------- | --------------------------------------------- |
+| `npm run dev`                 | Start the Next.js dev server with Turbopack   |
+| `npm run build`               | Apply production migrations and build the app |
+| `npm run start`               | Start the production server                   |
+| `npm run lint`                | Run ESLint                                    |
+| `npm run backfill:user-names` | Backfill local user display names from Clerk  |
+| `npx vitest run`              | Run the test suite                            |
+| `npx prisma studio`           | Open Prisma Studio                            |
 
 ## Repository map
 
@@ -161,19 +200,19 @@ docs/
 
 Located in [`docs/dev/`](./docs/dev/).
 
-| Document | Purpose |
-| --- | --- |
-| [architecture.md](./docs/dev/architecture.md) | System overview, modules, request/data flow, external services |
-| [setup.md](./docs/dev/setup.md) | Local setup, env vars, migrations, running tests |
-| [domain-model.md](./docs/dev/domain-model.md) | All Prisma entities, fields, and relationships |
-| [roles-and-permissions.md](./docs/dev/roles-and-permissions.md) | Who can do what and where authorization is enforced |
-| [tournament-lifecycle.md](./docs/dev/tournament-lifecycle.md) | End-to-end tournament flow from creation to standings |
-| [ballots-and-results.md](./docs/dev/ballots-and-results.md) | Judging flow, ballot states, result computation, tie-break logic |
-| [integrations.md](./docs/dev/integrations.md) | Clerk, Stream, Prisma, and all external dependencies |
-| [security.md](./docs/dev/security.md) | Auth, permissions, validation, known gaps |
-| [testing.md](./docs/dev/testing.md) | Current tests, coverage gaps, what to test before changing |
-| [deployment.md](./docs/dev/deployment.md) | Production requirements, migrations, hosting notes |
-| [contributing.md](./docs/dev/contributing.md) | Coding expectations, how to add features safely |
+| Document                                                        | Purpose                                                          |
+| --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [architecture.md](./docs/dev/architecture.md)                   | System overview, modules, request/data flow, external services   |
+| [setup.md](./docs/dev/setup.md)                                 | Local setup, env vars, migrations, running tests                 |
+| [domain-model.md](./docs/dev/domain-model.md)                   | All Prisma entities, fields, and relationships                   |
+| [roles-and-permissions.md](./docs/dev/roles-and-permissions.md) | Who can do what and where authorization is enforced              |
+| [tournament-lifecycle.md](./docs/dev/tournament-lifecycle.md)   | End-to-end tournament flow from creation to standings            |
+| [ballots-and-results.md](./docs/dev/ballots-and-results.md)     | Judging flow, ballot states, result computation, tie-break logic |
+| [integrations.md](./docs/dev/integrations.md)                   | Clerk, Stream, Prisma, and all external dependencies             |
+| [security.md](./docs/dev/security.md)                           | Auth, permissions, validation, known gaps                        |
+| [testing.md](./docs/dev/testing.md)                             | Current tests, coverage gaps, what to test before changing       |
+| [deployment.md](./docs/dev/deployment.md)                       | Production requirements, migrations, hosting notes               |
+| [contributing.md](./docs/dev/contributing.md)                   | Coding expectations, how to add features safely                  |
 
 ## Further reading
 
