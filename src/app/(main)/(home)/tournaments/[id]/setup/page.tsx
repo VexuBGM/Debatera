@@ -904,6 +904,7 @@ export default function TournamentSetupPage() {
               description: step.description,
             }))}
             currentStep={currentStep}
+            onStepClick={setCurrentStep}
             className="mb-2"
           />
         </CardContent>
@@ -1219,156 +1220,34 @@ export default function TournamentSetupPage() {
             <>
               <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
                 <div className="flex flex-col gap-2">
-                  <h3 className="font-medium">Choose where these participants belong</h3>
+                  <h3 className="font-medium">Create an institution</h3>
                   <p className="text-sm text-muted-foreground">
-                    Register debater participants under an existing institution, or create a new institution as part of the import.
+                    Create a new institution here, then add participants directly from the institution cards below.
                   </p>
                 </div>
-
-                <Tabs
-                  value={debaterInstitutionMode}
-                  onValueChange={(value) => setDebaterInstitutionMode(value as 'existing' | 'new')}
-                >
-                  <TabsList>
-                    <TabsTrigger value="existing">Existing institution</TabsTrigger>
-                    <TabsTrigger value="new">New institution</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="existing" className="space-y-2 pt-2">
-                    <Label>Institution</Label>
-                    <Select
-                      value={selectedDebaterInstitutionId}
-                      onValueChange={setSelectedDebaterInstitutionId}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose an institution" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {institutionOptions.map((institution) => (
-                          <SelectItem key={institution.id} value={institution.id}>
-                            {institution.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedInstitutionName
-                        ? `${selectedInstitutionName} is selected for the next bulk import.`
-                        : 'No institutions yet - create one here first.'}
-                    </p>
-                  </TabsContent>
-
-                  <TabsContent value="new" className="space-y-2 pt-2">
-                    <Label htmlFor="new-institution-name">Institution name</Label>
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                      <Input
-                        id="new-institution-name"
-                        placeholder="e.g. Eastbridge Academy"
-                        value={newDebaterInstitutionName}
-                        onChange={(event) => setNewDebaterInstitutionName(event.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        variant="brand"
-                        onClick={() => setDebaterBulkOpen(true)}
-                        disabled={!newDebaterInstitutionName.trim()}
-                      >
-                        Create &amp; Add
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      The institution is created automatically when you add the first participants.
-                    </p>
-                  </TabsContent>
-                </Tabs>
-
-                <div className="flex items-center justify-between gap-3 border-t pt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Bulk import works best here - paste one participant per line and we&apos;ll register them under the selected institution.
-                  </p>
-                  <Dialog
-                    open={debaterBulkOpen}
-                    onOpenChange={(open) => {
-                      setDebaterBulkOpen(open);
-                      if (!open) {
-                        setDebaterBulkResults(null);
-                      }
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Input
+                    id="new-institution-name"
+                    placeholder="e.g. Eastbridge Academy"
+                    value={newDebaterInstitutionName}
+                    onChange={(event) => setNewDebaterInstitutionName(event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="brand"
+                    onClick={() => {
+                      setDebaterInstitutionMode('new');
+                      setDebaterBulkResults(null);
+                      setDebaterBulkOpen(true);
                     }}
+                    disabled={!newDebaterInstitutionName.trim()}
                   >
-                    <DialogTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={
-                          debaterInstitutionMode === 'existing'
-                            ? !selectedDebaterInstitutionId
-                            : !newDebaterInstitutionName.trim()
-                        }
-                      >
-                        {debaterInstitutionMode === 'new' ? 'Create & Add' : 'Add Participants'}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-lg">
-                      <DialogHeader>
-                        <DialogTitle>
-                          {debaterInstitutionMode === 'new'
-                            ? `Create ${newDebaterInstitutionName.trim() || 'institution'} & add participants`
-                            : `Add participants to ${selectedInstitutionName || 'institution'}`}
-                        </DialogTitle>
-                        <DialogDescription>
-                          Paste one name per line. These debater participants will be registered under the selected institution. Team assignment happens in the next step.
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="debater-bulk-names">Participant names</Label>
-                          <Textarea
-                            id="debater-bulk-names"
-                            rows={8}
-                            placeholder={'Lina Chen\nMateo Silva\nNoor Hassan'}
-                            value={debaterBulkNames}
-                            onChange={(event) => setDebaterBulkNames(event.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            {debaterBulkNames.split('\n').filter((line) => line.trim()).length} name(s) entered
-                          </p>
-                        </div>
-
-                        {debaterBulkResults && (
-                          <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-3 text-sm">
-                            {debaterBulkResults.map((result) => (
-                              <div
-                                key={result.line}
-                                className={cn(
-                                  'flex justify-between gap-4',
-                                  result.success ? 'text-status-completed' : 'text-destructive'
-                                )}
-                              >
-                                <span>
-                                  {result.line}. {result.name}
-                                </span>
-                                <span>{result.success ? 'Created' : result.error || 'Failed'}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <DialogFooter>
-                        <Button
-                          type="button"
-                          variant="brand"
-                          onClick={() => void handleBulkAddDebaters()}
-                          disabled={addingDebatersBulk || !debaterBulkNames.trim()}
-                        >
-                          {addingDebatersBulk ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          {debaterInstitutionMode === 'new' ? 'Create & Add' : 'Add Participants'}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                    Create Institution
+                  </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  The institution is created automatically when you add the first participants.
+                </p>
               </div>
 
               <div className="space-y-3">
@@ -1402,25 +1281,40 @@ export default function TournamentSetupPage() {
                       >
                         <div className="rounded-xl border bg-card/50">
                           <div className="flex items-center justify-between border-b px-4 py-3">
-                            <CollapsibleTrigger asChild>
-                              <button
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <CollapsibleTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                                >
+                                  <ChevronDown
+                                    className={cn(
+                                      'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                                      !(participantSectionsOpen[group.institution.id] ?? true) && '-rotate-90'
+                                    )}
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="font-medium">{group.institution.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {formatCount(group.debaters.length, 'participant')}
+                                    </p>
+                                  </div>
+                                </button>
+                              </CollapsibleTrigger>
+                              <Button
                                 type="button"
-                                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setDebaterInstitutionMode('existing');
+                                  setSelectedDebaterInstitutionId(group.institution.id);
+                                  setDebaterBulkResults(null);
+                                  setDebaterBulkOpen(true);
+                                }}
                               >
-                                <ChevronDown
-                                  className={cn(
-                                    'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                                    !(participantSectionsOpen[group.institution.id] ?? true) && '-rotate-90'
-                                  )}
-                                />
-                                <div className="min-w-0">
-                                  <p className="font-medium">{group.institution.name}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {formatCount(group.debaters.length, 'participant')}
-                                  </p>
-                                </div>
-                              </button>
-                            </CollapsibleTrigger>
+                                Add Participants
+                              </Button>
+                            </div>
                             <Badge variant="outline">Institution</Badge>
                           </div>
                           <CollapsibleContent>
@@ -1462,6 +1356,76 @@ export default function TournamentSetupPage() {
                   </div>
                 )}
               </div>
+
+              <Dialog
+                open={debaterBulkOpen}
+                onOpenChange={(open) => {
+                  setDebaterBulkOpen(open);
+                  if (!open) {
+                    setDebaterBulkResults(null);
+                  }
+                }}
+              >
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {debaterInstitutionMode === 'new'
+                        ? `Create ${newDebaterInstitutionName.trim() || 'institution'} & add participants`
+                        : `Add participants to ${selectedInstitutionName || 'institution'}`}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Paste one name per line. These debater participants will be registered under the selected institution. Team assignment happens in the next step.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="debater-bulk-names">Participant names</Label>
+                      <Textarea
+                        id="debater-bulk-names"
+                        rows={8}
+                        placeholder={'Lina Chen\nMateo Silva\nNoor Hassan'}
+                        value={debaterBulkNames}
+                        onChange={(event) => setDebaterBulkNames(event.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {debaterBulkNames.split('\n').filter((line) => line.trim()).length} name(s) entered
+                      </p>
+                    </div>
+
+                    {debaterBulkResults && (
+                      <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-3 text-sm">
+                        {debaterBulkResults.map((result) => (
+                          <div
+                            key={result.line}
+                            className={cn(
+                              'flex justify-between gap-4',
+                              result.success ? 'text-status-completed' : 'text-destructive'
+                            )}
+                          >
+                            <span>
+                              {result.line}. {result.name}
+                            </span>
+                            <span>{result.success ? 'Created' : result.error || 'Failed'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="brand"
+                      onClick={() => void handleBulkAddDebaters()}
+                      disabled={addingDebatersBulk || !debaterBulkNames.trim()}
+                    >
+                      {addingDebatersBulk ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {debaterInstitutionMode === 'new' ? 'Create & Add' : 'Add Participants'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </>
           )}
 
