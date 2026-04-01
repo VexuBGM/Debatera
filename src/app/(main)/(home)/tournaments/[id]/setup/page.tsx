@@ -26,7 +26,6 @@ import {
 import { createVenue, deleteVenue, getTournamentVenues, type VenueWithCategories } from '@/actions/venues.actions';
 import {
   assignDebaterToTeam,
-  bulkAddGuestDebatersToInstitution,
   createTeamAsOrganizer,
   deleteTeamAsOrganizer,
   getTeamManagementData,
@@ -75,9 +74,14 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type EventMode = 'ONLINE' | 'IRL';
+type ParticipantRole = 'DEBATER' | 'JUDGE';
 type StepKey = 'venues' | 'judges' | 'debaters' | 'teams';
 type InstitutionOption = { id: string; name: string };
 type GroupedTeamSet = { institution: InstitutionOption; teams: TeamWithMembers[] };
+type InstitutionParticipantGroup = {
+  institution: InstitutionOption;
+  participants: ParticipantWithUser[];
+};
 
 interface TournamentSummary {
   id: string;
@@ -127,7 +131,7 @@ const ALL_STEPS: StepDefinition[] = [
     key: 'debaters',
     label: 'Participants',
     description: 'Add institutions & participants',
-    helper: 'Register debater participants under the right institutions before you build teams.',
+    helper: 'Register people under the right institutions and choose whether each one is a debater or a judge.',
     icon: Building2,
   },
   {
@@ -281,6 +285,7 @@ export default function TournamentSetupPage() {
   const [newDebaterInstitutionName, setNewDebaterInstitutionName] = useState('');
   const [debaterBulkOpen, setDebaterBulkOpen] = useState(false);
   const [debaterBulkNames, setDebaterBulkNames] = useState('');
+  const [participantRole, setParticipantRole] = useState<ParticipantRole>('DEBATER');
   const [addingDebatersBulk, setAddingDebatersBulk] = useState(false);
   const [debaterBulkResults, setDebaterBulkResults] = useState<
     Array<{ line: number; name: string; success: boolean; error?: string }> | null
@@ -304,7 +309,6 @@ export default function TournamentSetupPage() {
   const venueCount = setupData.venues.length;
   const judgeCount = setupData.judges.length;
   const debaterCount = setupData.debaters.length;
-  const institutionCount = setupData.institutions.length;
   const teamCount = getTeamCount(setupData.groupedTeams);
 
   const currentStepDef = visibleSteps[currentStep] ?? visibleSteps[0];
@@ -313,31 +317,38 @@ export default function TournamentSetupPage() {
 
   const institutionOptions = setupData.institutions;
 
-  const debatersByInstitution = useMemo(() => {
-    const groups = new Map<string, { institution: InstitutionOption; debaters: ParticipantWithUser[] }>();
+  const participantsByInstitution = useMemo(() => {
+    const groups = new Map<string, InstitutionParticipantGroup>();
+    const institutionParticipants = [...setupData.debaters, ...setupData.judges].filter(
+      (participant) => participant.institutionId !== null
+    );
 
-    for (const debater of setupData.debaters) {
-      const existing = groups.get(debater.institutionId);
+    for (const participant of institutionParticipants) {
+      const existing = groups.get(participant.institutionId);
       if (existing) {
-        existing.debaters.push(debater);
+        existing.participants.push(participant);
         continue;
       }
 
-      groups.set(debater.institutionId, {
-        institution: debater.institution,
-        debaters: [debater],
+      groups.set(participant.institutionId, {
+        institution: participant.institution,
+        participants: [participant],
       });
     }
 
     return Array.from(groups.values())
       .map((group) => ({
         ...group,
-        debaters: [...group.debaters].sort((left, right) =>
-          displayNameFromDbUser(left.user).localeCompare(displayNameFromDbUser(right.user))
-        ),
+        participants: [...group.participants].sort((left, right) => {
+          if (left.role !== right.role) {
+            return left.role === 'DEBATER' ? -1 : 1;
+          }
+
+          return displayNameFromDbUser(left.user).localeCompare(displayNameFromDbUser(right.user));
+        }),
       }))
       .sort((left, right) => left.institution.name.localeCompare(right.institution.name));
-  }, [setupData.debaters]);
+  }, [setupData.debaters, setupData.judges]);
 
   const assignableTeams = useMemo(() => {
     const map = new Map<string, TeamWithMembers[]>();
@@ -453,21 +464,21 @@ export default function TournamentSetupPage() {
     setParticipantSectionsOpen((current) => {
       const next = { ...current };
 
-      for (const group of debatersByInstitution) {
+      for (const group of participantsByInstitution) {
         if (!(group.institution.id in next)) {
           next[group.institution.id] = true;
         }
       }
 
       for (const institutionId of Object.keys(next)) {
-        if (!debatersByInstitution.some((group) => group.institution.id === institutionId)) {
+        if (!participantsByInstitution.some((group) => group.institution.id === institutionId)) {
           delete next[institutionId];
         }
       }
 
       return next;
     });
-  }, [debatersByInstitution]);
+  }, [participantsByInstitution]);
 
   useEffect(() => {
     if (!institutionOptions.length) {
@@ -663,8 +674,9 @@ export default function TournamentSetupPage() {
     setDebaterBulkResults(null);
 
     try {
-      const result = await bulkAddGuestDebatersToInstitution({
+      const result = await bulkAddGuestParticipants({
         tournamentId,
+        role: participantRole,
         names: debaterBulkNames,
         institutionId:
           debaterInstitutionMode === 'existing' ? selectedDebaterInstitutionId : undefined,
@@ -673,24 +685,44 @@ export default function TournamentSetupPage() {
       });
 
       if (!result.success || !result.data) {
-        toast.error(result.error || 'Failed to add debaters');
+        toast.error(result.error || 'Failed to add participants');
         return;
       }
 
       setDebaterBulkResults(result.data.results);
-      toast.success(`Added ${result.data.totalCreated} debater(s)`);
+      toast.success(
+        `Added ${result.data.totalCreated} ${participantRole === 'JUDGE' ? 'judge' : 'debater'}(s)`
+      );
 
       if (result.data.totalCreated > 0) {
         setDebaterBulkNames('');
         setDebaterBulkOpen(false);
         setDebaterInstitutionMode('existing');
-        setSelectedDebaterInstitutionId(result.data.institution.id);
-        setTeamInstitutionId(result.data.institution.id);
         setNewDebaterInstitutionName('');
-        await handleRefreshStep();
+        const refreshed = await loadSetupData(true);
+        const createdInstitutionName =
+          debaterInstitutionMode === 'new' ? newDebaterInstitutionName.trim() : null;
+
+        if (debaterInstitutionMode === 'existing') {
+          setSelectedDebaterInstitutionId(selectedDebaterInstitutionId);
+          if (participantRole === 'DEBATER') {
+            setTeamInstitutionId(selectedDebaterInstitutionId);
+          }
+        } else if (createdInstitutionName && refreshed?.data) {
+          const matchedInstitution = refreshed.data.institutions.find(
+            (institution) => institution.name === createdInstitutionName
+          );
+
+          if (matchedInstitution) {
+            setSelectedDebaterInstitutionId(matchedInstitution.id);
+            if (participantRole === 'DEBATER') {
+              setTeamInstitutionId(matchedInstitution.id);
+            }
+          }
+        }
       }
     } catch {
-      toast.error('Failed to add debaters');
+      toast.error('Failed to add participants');
     } finally {
       setAddingDebatersBulk(false);
     }
@@ -786,8 +818,8 @@ export default function TournamentSetupPage() {
       case 'judges':
         return judgeCount > 0 ? `${formatCount(judgeCount, 'judge')} added` : 'No judges yet';
       case 'debaters':
-        return debaterCount > 0
-          ? `${formatCount(debaterCount, 'participant')} across ${formatCount(institutionCount, 'institution')}`
+        return participantsByInstitution.length > 0
+          ? `${formatCount(debaterCount + judgeCount, 'participant')} across ${formatCount(participantsByInstitution.length, 'institution')}`
           : 'No participants yet';
       case 'teams':
         return teamCount > 0 ? `${formatCount(teamCount, 'team')} created` : 'No teams yet';
@@ -1254,13 +1286,13 @@ export default function TournamentSetupPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium">Participants by institution</h3>
                   <p className="text-sm text-muted-foreground">
-                    {debaterCount > 0
-                      ? `${formatCount(debaterCount, 'participant')} across ${formatCount(institutionCount, 'institution')}`
+                    {participantsByInstitution.length > 0
+                      ? `${formatCount(debaterCount + judgeCount, 'participant')} across ${formatCount(participantsByInstitution.length, 'institution')}`
                       : 'Add your first institution and roster to unlock team creation.'}
                   </p>
                 </div>
 
-                {debatersByInstitution.length === 0 ? (
+                {participantsByInstitution.length === 0 ? (
                   <EmptyState
                     icon={Building2}
                     title="No participants yet"
@@ -1268,7 +1300,7 @@ export default function TournamentSetupPage() {
                   />
                 ) : (
                   <div className="space-y-4">
-                    {debatersByInstitution.map((group) => (
+                    {participantsByInstitution.map((group) => (
                       <Collapsible
                         key={group.institution.id}
                         open={participantSectionsOpen[group.institution.id] ?? true}
@@ -1296,7 +1328,7 @@ export default function TournamentSetupPage() {
                                   <div className="min-w-0">
                                     <p className="font-medium">{group.institution.name}</p>
                                     <p className="text-sm text-muted-foreground">
-                                      {formatCount(group.debaters.length, 'participant')}
+                                      {formatCount(group.participants.length, 'participant')}
                                     </p>
                                   </div>
                                 </button>
@@ -1319,17 +1351,21 @@ export default function TournamentSetupPage() {
                           </div>
                           <CollapsibleContent>
                             <div className="divide-y">
-                              {group.debaters.map((debater) => (
-                                <div key={debater.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                              {group.participants.map((participant) => (
+                                <div key={participant.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                   <div>
-                                    <p className="font-medium">{displayNameFromDbUser(debater.user)}</p>
+                                    <p className="font-medium">{displayNameFromDbUser(participant.user)}</p>
                                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                      {debater.teamMembership ? (
+                                      <Badge variant={participant.role === 'JUDGE' ? 'secondary' : 'outline'}>
+                                        {participant.role === 'JUDGE' ? 'Judge' : 'Debater'}
+                                      </Badge>
+                                      {participant.role === 'DEBATER' && participant.teamMembership ? (
                                         <Badge variant="secondary">Already in a team</Badge>
-                                      ) : (
+                                      ) : null}
+                                      {participant.role === 'DEBATER' && !participant.teamMembership ? (
                                         <Badge variant="outline">Unassigned</Badge>
-                                      )}
-                                      {debater.user.id.startsWith('guest_') && <Badge variant="outline">Guest</Badge>}
+                                      ) : null}
+                                      {participant.user.id.startsWith('guest_') && <Badge variant="outline">Guest</Badge>}
                                     </div>
                                   </div>
                                   <Button
@@ -1337,10 +1373,15 @@ export default function TournamentSetupPage() {
                                     variant="ghost"
                                     size="icon-sm"
                                     className="text-muted-foreground hover:text-destructive"
-                                    onClick={() => void handleRemoveParticipant(debater.id, 'Debater')}
-                                    disabled={removingParticipantId === debater.id}
+                                    onClick={() =>
+                                      void handleRemoveParticipant(
+                                        participant.id,
+                                        participant.role === 'JUDGE' ? 'Judge' : 'Debater'
+                                      )
+                                    }
+                                    disabled={removingParticipantId === participant.id}
                                   >
-                                    {removingParticipantId === debater.id ? (
+                                    {removingParticipantId === participant.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
                                       <Trash2 className="h-4 w-4" />
@@ -1374,11 +1415,27 @@ export default function TournamentSetupPage() {
                         : `Add participants to ${selectedInstitutionName || 'institution'}`}
                     </DialogTitle>
                     <DialogDescription>
-                      Paste one name per line. These debater participants will be registered under the selected institution. Team assignment happens in the next step.
+                      Paste one name per line, then choose whether they should be added as debaters or judges. Debaters can be assigned to teams in the next step.
                     </DialogDescription>
                   </DialogHeader>
 
                   <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="participant-role">Role</Label>
+                      <Select
+                        value={participantRole}
+                        onValueChange={(value) => setParticipantRole(value as ParticipantRole)}
+                      >
+                        <SelectTrigger id="participant-role">
+                          <SelectValue placeholder="Choose a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DEBATER">Debater</SelectItem>
+                          <SelectItem value="JUDGE">Judge</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="debater-bulk-names">Participant names</Label>
                       <Textarea
@@ -1421,7 +1478,9 @@ export default function TournamentSetupPage() {
                       disabled={addingDebatersBulk || !debaterBulkNames.trim()}
                     >
                       {addingDebatersBulk ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {debaterInstitutionMode === 'new' ? 'Create & Add' : 'Add Participants'}
+                      {debaterInstitutionMode === 'new'
+                        ? `Create & Add ${participantRole === 'JUDGE' ? 'Judges' : 'Debaters'}`
+                        : `Add ${participantRole === 'JUDGE' ? 'Judges' : 'Debaters'}`}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
