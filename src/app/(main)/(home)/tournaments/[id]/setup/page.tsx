@@ -155,6 +155,12 @@ const EMPTY_SETUP_DATA: SetupData = {
   teamSizeMax: 5,
 };
 
+const INDEPENDENT_ADJUDICATORS_NAME = 'Independent Adjudicators';
+
+function isIndependentAdjudicatorsInstitution(institution: InstitutionOption) {
+  return institution.name.trim().replace(/\s+/g, ' ') === INDEPENDENT_ADJUDICATORS_NAME;
+}
+
 function getVisibleSteps(eventMode: EventMode): StepDefinition[] {
   return eventMode === 'ONLINE'
     ? ALL_STEPS.filter((step) => step.key !== 'venues')
@@ -316,6 +322,10 @@ export default function TournamentSetupPage() {
   const currentStepComplete = currentStepKey ? completion[currentStepKey] : false;
 
   const institutionOptions = setupData.institutions;
+  const teamInstitutionOptions = useMemo(
+    () => institutionOptions.filter((institution) => !isIndependentAdjudicatorsInstitution(institution)),
+    [institutionOptions]
+  );
 
   const participantsByInstitution = useMemo(() => {
     const groups = new Map<string, InstitutionParticipantGroup>();
@@ -496,13 +506,13 @@ export default function TournamentSetupPage() {
     });
 
     setTeamInstitutionId((currentValue) => {
-      if (currentValue && institutionOptions.some((institution) => institution.id === currentValue)) {
+      if (currentValue && teamInstitutionOptions.some((institution) => institution.id === currentValue)) {
         return currentValue;
       }
 
-      return institutionOptions[0].id;
+      return teamInstitutionOptions[0]?.id ?? '';
     });
-  }, [institutionOptions]);
+  }, [institutionOptions, teamInstitutionOptions]);
 
   async function handleRefreshStep() {
     await loadSetupData(true);
@@ -674,9 +684,10 @@ export default function TournamentSetupPage() {
     setDebaterBulkResults(null);
 
     try {
+      const roleToCreate: ParticipantRole = selectedInstitutionIsJudgeOnly ? 'JUDGE' : participantRole;
       const result = await bulkAddGuestParticipants({
         tournamentId,
-        role: participantRole,
+        role: roleToCreate,
         names: debaterBulkNames,
         institutionId:
           debaterInstitutionMode === 'existing' ? selectedDebaterInstitutionId : undefined,
@@ -691,7 +702,7 @@ export default function TournamentSetupPage() {
 
       setDebaterBulkResults(result.data.results);
       toast.success(
-        `Added ${result.data.totalCreated} ${participantRole === 'JUDGE' ? 'judge' : 'debater'}(s)`
+        `Added ${result.data.totalCreated} ${roleToCreate === 'JUDGE' ? 'judge' : 'debater'}(s)`
       );
 
       if (result.data.totalCreated > 0) {
@@ -705,7 +716,7 @@ export default function TournamentSetupPage() {
 
         if (debaterInstitutionMode === 'existing') {
           setSelectedDebaterInstitutionId(selectedDebaterInstitutionId);
-          if (participantRole === 'DEBATER') {
+          if (roleToCreate === 'DEBATER') {
             setTeamInstitutionId(selectedDebaterInstitutionId);
           }
         } else if (createdInstitutionName && refreshed?.data) {
@@ -715,7 +726,7 @@ export default function TournamentSetupPage() {
 
           if (matchedInstitution) {
             setSelectedDebaterInstitutionId(matchedInstitution.id);
-            if (participantRole === 'DEBATER') {
+            if (roleToCreate === 'DEBATER') {
               setTeamInstitutionId(matchedInstitution.id);
             }
           }
@@ -879,6 +890,13 @@ export default function TournamentSetupPage() {
   const selectedInstitutionName = institutionOptions.find(
     (institution) => institution.id === selectedDebaterInstitutionId
   )?.name;
+  const selectedExistingInstitution = institutionOptions.find(
+    (institution) => institution.id === selectedDebaterInstitutionId
+  );
+  const selectedInstitutionIsJudgeOnly =
+    debaterInstitutionMode === 'existing'
+    && !!selectedExistingInstitution
+    && isIndependentAdjudicatorsInstitution(selectedExistingInstitution);
 
   return (
     <PageContainer size="lg">
@@ -1340,14 +1358,19 @@ export default function TournamentSetupPage() {
                                 onClick={() => {
                                   setDebaterInstitutionMode('existing');
                                   setSelectedDebaterInstitutionId(group.institution.id);
+                                  setParticipantRole(
+                                    isIndependentAdjudicatorsInstitution(group.institution) ? 'JUDGE' : 'DEBATER'
+                                  );
                                   setDebaterBulkResults(null);
                                   setDebaterBulkOpen(true);
                                 }}
                               >
-                                Add Participants
+                                {isIndependentAdjudicatorsInstitution(group.institution) ? 'Add Judges' : 'Add Participants'}
                               </Button>
                             </div>
-                            <Badge variant="outline">Institution</Badge>
+                            <Badge variant="outline">
+                              {isIndependentAdjudicatorsInstitution(group.institution) ? 'Judges only' : 'Institution'}
+                            </Badge>
                           </div>
                           <CollapsibleContent>
                             <div className="divide-y">
@@ -1412,29 +1435,39 @@ export default function TournamentSetupPage() {
                     <DialogTitle>
                       {debaterInstitutionMode === 'new'
                         ? `Create ${newDebaterInstitutionName.trim() || 'institution'} & add participants`
-                        : `Add participants to ${selectedInstitutionName || 'institution'}`}
+                        : selectedInstitutionIsJudgeOnly
+                          ? `Add judges to ${selectedInstitutionName || 'institution'}`
+                          : `Add participants to ${selectedInstitutionName || 'institution'}`}
                     </DialogTitle>
                     <DialogDescription>
-                      Paste one name per line, then choose whether they should be added as debaters or judges. Debaters can be assigned to teams in the next step.
+                      {selectedInstitutionIsJudgeOnly
+                        ? 'Independent Adjudicators is reserved for judge-only entries. Add judges here, then manage debaters under a school or club institution so they can be placed on teams.'
+                        : 'Paste one name per line, then choose whether they should be added as debaters or judges. Debaters can be assigned to teams in the next step.'}
                     </DialogDescription>
                   </DialogHeader>
 
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="participant-role">Role</Label>
-                      <Select
-                        value={participantRole}
-                        onValueChange={(value) => setParticipantRole(value as ParticipantRole)}
-                      >
-                        <SelectTrigger id="participant-role">
-                          <SelectValue placeholder="Choose a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="DEBATER">Debater</SelectItem>
-                          <SelectItem value="JUDGE">Judge</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {selectedInstitutionIsJudgeOnly ? (
+                      <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                        Role is fixed to <span className="font-medium text-foreground">Judge</span> for Independent Adjudicators.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="participant-role">Role</Label>
+                        <Select
+                          value={participantRole}
+                          onValueChange={(value) => setParticipantRole(value as ParticipantRole)}
+                        >
+                          <SelectTrigger id="participant-role">
+                            <SelectValue placeholder="Choose a role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DEBATER">Debater</SelectItem>
+                            <SelectItem value="JUDGE">Judge</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label htmlFor="debater-bulk-names">Participant names</Label>
@@ -1480,7 +1513,7 @@ export default function TournamentSetupPage() {
                       {addingDebatersBulk ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       {debaterInstitutionMode === 'new'
                         ? `Create & Add ${participantRole === 'JUDGE' ? 'Judges' : 'Debaters'}`
-                        : `Add ${participantRole === 'JUDGE' ? 'Judges' : 'Debaters'}`}
+                        : `Add ${(selectedInstitutionIsJudgeOnly ? 'JUDGE' : participantRole) === 'JUDGE' ? 'Judges' : 'Debaters'}`}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -1499,7 +1532,7 @@ export default function TournamentSetupPage() {
                         <SelectValue placeholder="Choose an institution" />
                       </SelectTrigger>
                       <SelectContent>
-                        {institutionOptions.map((institution) => (
+                        {teamInstitutionOptions.map((institution) => (
                           <SelectItem key={institution.id} value={institution.id}>
                             {institution.name}
                           </SelectItem>
