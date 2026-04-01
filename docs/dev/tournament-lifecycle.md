@@ -16,7 +16,7 @@ This document traces the full lifecycle of a tournament in Debatera, from creati
 
 **Result:** Tournament in a configurable draft state, visible only to the creator.
 
-**Organizer follow-up UI:** After creation, organizers can use the guided setup page at `src/app/(main)/(home)/tournaments/[id]/setup/page.tsx` to work through venues (IRL only), judges, institutions/debaters, and teams in sequence. The page reads live counts from the existing server actions instead of storing separate onboarding state.
+**Organizer follow-up UI:** After creation, the new-tournament flow redirects organizers directly to the guided setup page at `src/app/(main)/(home)/tournaments/[id]/setup/page.tsx` so the operational checklist is part of onboarding rather than a tab they must discover later. The page reads live counts from the existing server actions instead of storing separate onboarding state.
 
 ---
 

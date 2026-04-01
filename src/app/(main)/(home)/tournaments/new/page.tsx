@@ -108,7 +108,7 @@ export default function CreateTournamentPage() {
       }
 
       toast.success('Tournament created');
-      router.push(`/tournaments/${data.id}`);
+      router.push(`/tournaments/${data.id}/setup`);
     } catch (err: unknown) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : 'Failed to create tournament');

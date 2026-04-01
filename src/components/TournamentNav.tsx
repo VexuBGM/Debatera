@@ -16,21 +16,9 @@ function buildTabs(tournamentId: string): Tab[] {
   const base = `/tournaments/${tournamentId}`;
   return [
     {
-      label: 'Setup',
-      href: `${base}/setup`,
-      slug: 'setup',
-      visible: (role) => role === 'ORGANIZER',
-    },
-    {
       label: 'Overview',
       href: base,
       slug: 'overview',
-      visible: () => true,
-    },
-    {
-      label: 'Rounds',
-      href: `${base}/rounds`,
-      slug: 'rounds',
       visible: () => true,
     },
     {
@@ -43,6 +31,24 @@ function buildTabs(tournamentId: string): Tab[] {
       label: 'Teams',
       href: `${base}/register/teams`,
       slug: 'teams',
+      visible: () => true,
+    },
+    {
+      label: 'Participants',
+      href: `${base}/participants`,
+      slug: 'participants',
+      visible: () => true,
+    },
+    {
+      label: 'Venues',
+      href: `${base}/venues`,
+      slug: 'venues',
+      visible: (role, eventMode) => role === 'ORGANIZER' && eventMode !== 'ONLINE',
+    },
+    {
+      label: 'Rounds',
+      href: `${base}/rounds`,
+      slug: 'rounds',
       visible: () => true,
     },
     {
@@ -62,18 +68,6 @@ function buildTabs(tournamentId: string): Tab[] {
       href: `${base}/my-ballots`,
       slug: 'my-ballots',
       visible: (role) => role === 'JUDGE',
-    },
-    {
-      label: 'Participants',
-      href: `${base}/participants`,
-      slug: 'participants',
-      visible: () => true,
-    },
-    {
-      label: 'Venues',
-      href: `${base}/venues`,
-      slug: 'venues',
-      visible: (role, eventMode) => role === 'ORGANIZER' && eventMode !== 'ONLINE',
     },
     {
       label: 'Settings',

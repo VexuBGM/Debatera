@@ -140,15 +140,16 @@ Debatera has several roles that determine what you can do. You can hold differen
 ### Creating a Tournament
 
 1. Click **Create Tournament** in the sidebar or top navigation.
-2. Complete the 3-step form:
+2. Complete the 4-step form:
    - **Step 1 — Basics**: Enter a tournament name (required). Choose the event mode: **Online** (debates happen via video calls) or **IRL** (debates happen in physical venues). Optionally add a description.
    - **Step 2 — Registration**: Set when registration opens and closes. Set the minimum and maximum team size (how many debaters per team).
-   - **Step 3 — Review**: Check your settings and confirm.
+   - **Step 3 — Display & Visibility**: Configure public visibility, standings display, and which public tabs spectators can see.
+   - **Step 4 — Review**: Check your settings and confirm.
 3. Click **Create Tournament**. You are now the organizer.
 
-After creation, you land on the tournament's **Overview** page.
+After creation, you go straight into the guided **Setup** flow so the next operational steps are not easy to miss.
 
-The first organizer tab is now **Setup**, which guides you through the post-creation essentials in order:
+It walks organizers through the post-creation essentials in order:
 
 1. **Venues** (IRL tournaments only)
 2. **Judges**
@@ -159,12 +160,14 @@ The Setup page reads the tournament's real data counts, marks completed steps au
 
 ### Using the Setup Wizard
 
-Open the **Setup** tab any time after creating your tournament if you want a guided checklist instead of jumping between tabs manually.
+The setup wizard opens immediately after tournament creation.
 
 - **IRL tournaments** start with venue setup.
 - **Online tournaments** skip venues automatically and begin with judges.
 - Each step includes quick-add forms and a compact list of what you've already entered.
-- You can return to the main tournament overview at any time, but the wizard is the fastest way to get to a pairings-ready state.
+- Saving changes keeps you on the current step. Use **Next** when you want to move forward.
+- Completing setup returns you to the main tournament overview, where the regular workflow tabs continue with registration, teams, venues, rounds, and standings.
+- Organizers can reopen setup later from a small **Open setup** action on the overview, and dismiss the reminder card if they do not need it.
 
 ### Configuring Tournament Settings
 

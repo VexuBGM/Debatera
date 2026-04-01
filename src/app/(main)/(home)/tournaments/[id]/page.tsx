@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, Users, LayoutList, Building2, Check, X, Loader2 } from 'lucide-react';
+import { Trophy, Users, LayoutList, Building2, Check, X, Loader2, Rocket } from 'lucide-react';
 import { toast } from 'sonner';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { useTournament } from '@/components/TournamentContext';
@@ -47,8 +48,10 @@ export default function TournamentOverviewPage() {
   const [organizerRegistrations, setOrganizerRegistrations] = useState<OrganizerRegistrationListItem[]>([]);
   const [organizerRegistrationsLoading, setOrganizerRegistrationsLoading] = useState(false);
   const [updatingRegistrationId, setUpdatingRegistrationId] = useState<string | null>(null);
+  const [showSetupShortcut, setShowSetupShortcut] = useState(false);
 
   const isOwner = userRole === 'ORGANIZER';
+  const setupShortcutStorageKey = `tournament-setup-shortcut-dismissed:${tournamentId}`;
 
   useEffect(() => {
     void fetchStats();
@@ -57,6 +60,29 @@ export default function TournamentOverviewPage() {
   useEffect(() => {
     if (isOwner) void fetchOrganizerRegistrations();
   }, [tournamentId, isOwner]);
+
+  useEffect(() => {
+    if (!isOwner) {
+      setShowSetupShortcut(false);
+      return;
+    }
+
+    try {
+      setShowSetupShortcut(window.localStorage.getItem(setupShortcutStorageKey) !== 'true');
+    } catch {
+      setShowSetupShortcut(true);
+    }
+  }, [isOwner, setupShortcutStorageKey]);
+
+  function dismissSetupShortcut() {
+    setShowSetupShortcut(false);
+
+    try {
+      window.localStorage.setItem(setupShortcutStorageKey, 'true');
+    } catch {
+      // Ignore storage issues and just hide it for the current session.
+    }
+  }
 
   async function fetchStats() {
     try {
@@ -134,6 +160,33 @@ export default function TournamentOverviewPage() {
 
   return (
     <PageContainer>
+      {isOwner && showSetupShortcut && (
+        <Card className="border-border/70 bg-muted/20">
+          <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                <Rocket className="h-4 w-4" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Need to revisit setup?</p>
+                <p className="text-sm text-muted-foreground">
+                  The guided setup flow is still available whenever you want a quicker organizer checklist.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 self-end sm:self-auto">
+              <Button variant="ghost" size="sm" onClick={dismissSetupShortcut}>
+                Close
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/tournaments/${tournamentId}/setup`}>Open setup</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick Stats */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -206,10 +259,17 @@ export default function TournamentOverviewPage() {
       {/* Tournament Details */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
-            Tournament Details
-          </CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5" />
+              Tournament Details
+            </CardTitle>
+            {isOwner && (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/tournaments/${tournamentId}/setup`}>Open setup</Link>
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-muted-foreground">
