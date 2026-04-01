@@ -6,8 +6,8 @@ import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Loader2, Trophy, ArrowLeft, ArrowRight, Check, CalendarDays, Clock3 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -27,9 +27,18 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+const PUBLIC_TAB_OPTIONS = [
+  { slug: 'overview', label: 'Overview', description: 'Tournament stats and details' },
+  { slug: 'rounds', label: 'Rounds', description: 'Round list and debate pairings' },
+  { slug: 'teams', label: 'Teams', description: 'All registered teams' },
+  { slug: 'standings', label: 'Standings', description: 'Team and speaker standings' },
+  { slug: 'participants', label: 'Participants', description: 'All registered debaters and judges' },
+] as const;
+
 const STEPS = [
-  { label: 'Basics', description: 'Name and mode' },
+  { label: 'Basics', description: 'Name, mode' },
   { label: 'Registration', description: 'Dates and team size' },
+  { label: 'Display & Visibility', description: 'Standings and public access' },
   { label: 'Review', description: 'Confirm and create' },
 ];
 
@@ -42,16 +51,28 @@ export default function CreateTournamentPage() {
   // Step 1 — Basics
   const [name, setName] = useState('');
   const [eventMode, setEventMode] = useState<'IRL' | 'ONLINE'>('IRL');
-  const [description, setDescription] = useState('');
 
   // Step 2 — Registration
   const [registrationOpen, setRegistrationOpen] = useState('');
   const [registrationClose, setRegistrationClose] = useState('');
-  const [teamSizeMin, setTeamSizeMin] = useState('3');
+  const [teamSizeMin, setTeamSizeMin] = useState('2');
   const [teamSizeMax, setTeamSizeMax] = useState('5');
 
+  // Step 3 — Display & Visibility
+  const [isPublic, setIsPublic] = useState(false);
+  const [showDebaterNames, setShowDebaterNames] = useState(false);
+  const [speakerTopNEnabled, setSpeakerTopNEnabled] = useState(false);
+  const [speakerTopN, setSpeakerTopN] = useState('5');
+  const [hideSpeakerPoints, setHideSpeakerPoints] = useState(false);
+  const [publicTabs, setPublicTabs] = useState<string[]>(['overview', 'rounds', 'teams', 'standings']);
+
   const canProceedStep0 = name.trim().length > 0;
-  const canProceedStep1 = true; // Registration settings are optional
+  const canProceedStep1 = (() => {
+    const min = parseInt(teamSizeMin);
+    const max = parseInt(teamSizeMax);
+    if (Number.isFinite(min) && Number.isFinite(max) && max < min) return false;
+    return true;
+  })();
 
   const handleSubmit = async () => {
     if (!userId) {
@@ -61,18 +82,24 @@ export default function CreateTournamentPage() {
 
     setIsLoading(true);
     try {
+      const body: Record<string, unknown> = {
+        name: name.trim(),
+        eventMode,
+        isPublic,
+        registrationOpen: registrationOpen || undefined,
+        registrationClose: registrationClose || undefined,
+        teamSizeMin: teamSizeMin ? parseInt(teamSizeMin) : undefined,
+        teamSizeMax: teamSizeMax ? parseInt(teamSizeMax) : undefined,
+        showDebaterNames,
+        speakerTopN: speakerTopNEnabled ? (speakerTopN ? parseInt(speakerTopN) : null) : null,
+        hideSpeakerPoints,
+        publicTabs,
+      };
+
       const res = await fetch('/api/tournaments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          eventMode,
-          description: description.trim() || undefined,
-          registrationOpen: registrationOpen || undefined,
-          registrationClose: registrationClose || undefined,
-          teamSizeMin: teamSizeMin ? parseInt(teamSizeMin) : undefined,
-          teamSizeMax: teamSizeMax ? parseInt(teamSizeMax) : undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -102,7 +129,7 @@ export default function CreateTournamentPage() {
       <PageHeader
         icon={<Trophy className="h-7 w-7 text-brand" />}
         title="Create Tournament"
-        description="Set up a new debate tournament in a few steps."
+        description="Configure all tournament settings before creation."
       />
 
       <HelpTopics
@@ -119,6 +146,7 @@ export default function CreateTournamentPage() {
         <Card>
           <CardHeader>
             <CardTitle>Tournament Basics</CardTitle>
+            <CardDescription>Set the name and event mode for your tournament.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -135,27 +163,16 @@ export default function CreateTournamentPage() {
 
             <div className="space-y-2">
               <Label htmlFor="eventMode">Event Mode <span className="text-destructive">*</span></Label>
-              <select
-                id="eventMode"
-                value={eventMode}
-                onChange={(e) => setEventMode(e.target.value as 'IRL' | 'ONLINE')}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="IRL">In Real Life (IRL)</option>
-                <option value="ONLINE">Online</option>
-              </select>
+              <Select value={eventMode} onValueChange={(v) => setEventMode(v as 'IRL' | 'ONLINE')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IRL">In Real Life (IRL)</SelectItem>
+                  <SelectItem value="ONLINE">Online</SelectItem>
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">Cannot be changed after creation.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of your tournament..."
-                rows={3}
-              />
             </div>
 
             <div className="flex justify-end">
@@ -171,54 +188,62 @@ export default function CreateTournamentPage() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Registration Settings</CardTitle>
+            <CardTitle>Registration & Teams</CardTitle>
+            <CardDescription>Set registration windows and team size limits.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <DateTimePickerField
-                id="regOpen"
-                label="Registration Opens"
-                value={registrationOpen}
-                onChange={setRegistrationOpen}
-                placeholder="Pick date and time"
-              />
-              <DateTimePickerField
-                id="regClose"
-                label="Registration Closes"
-                value={registrationClose}
-                onChange={setRegistrationClose}
-                placeholder="Pick date and time"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="teamMin">Min Team Size</Label>
-                <Input
-                  id="teamMin"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={teamSizeMin}
-                  onChange={(e) => setTeamSizeMin(e.target.value)}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium leading-none">Registration Window</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DateTimePickerField
+                  id="regOpen"
+                  label="Registration Opens"
+                  value={registrationOpen}
+                  onChange={setRegistrationOpen}
+                  placeholder="Pick date and time"
+                />
+                <DateTimePickerField
+                  id="regClose"
+                  label="Registration Closes"
+                  value={registrationClose}
+                  onChange={setRegistrationClose}
+                  placeholder="Pick date and time"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="teamMax">Max Team Size</Label>
-                <Input
-                  id="teamMax"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={teamSizeMax}
-                  onChange={(e) => setTeamSizeMax(e.target.value)}
-                />
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave blank to keep registration always open.
+              </p>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              These settings can also be configured later from the tournament Settings page.
-            </p>
+            <div className="border-t" />
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium leading-none">Team Size Limits</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="teamMin">Min Team Size</Label>
+                  <Input
+                    id="teamMin"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={teamSizeMin}
+                    onChange={(e) => setTeamSizeMin(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="teamMax">Max Team Size</Label>
+                  <Input
+                    id="teamMax"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={teamSizeMax}
+                    onChange={(e) => setTeamSizeMax(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(0)}>
@@ -232,11 +257,153 @@ export default function CreateTournamentPage() {
         </Card>
       )}
 
-      {/* Step 3: Review */}
+      {/* Step 3: Display & Visibility */}
       {step === 2 && (
         <Card>
           <CardHeader>
+            <CardTitle>Display & Visibility</CardTitle>
+            <CardDescription>Configure standings display and public access settings.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Visibility */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium leading-none">Tournament Visibility</h3>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="isPublic">Public tournament</Label>
+                  <p className="text-xs text-muted-foreground">
+                    When enabled, this tournament will appear in the public listing for all users.
+                  </p>
+                </div>
+                <Switch
+                  id="isPublic"
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                />
+              </div>
+            </div>
+
+            <div className="border-t" />
+
+            {/* Display Options */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium leading-none">Display Options</h3>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="showDebaterNames">Show debater names instead of team names</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Teams are displayed using debater names (e.g. &quot;Alice &amp; Bob&quot;) instead of team name.
+                  </p>
+                </div>
+                <Switch
+                  id="showDebaterNames"
+                  checked={showDebaterNames}
+                  onCheckedChange={setShowDebaterNames}
+                />
+              </div>
+            </div>
+
+            <div className="border-t" />
+
+            {/* Speaker Standings */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium leading-none">Speaker Standings</h3>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="speakerTopN">Show top speakers only</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Limit the speaker standings to the top N speakers.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {speakerTopNEnabled && (
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={speakerTopN}
+                      onChange={(e) => setSpeakerTopN(e.target.value)}
+                      className="w-16 h-9"
+                      aria-label="Number of top speakers"
+                    />
+                  )}
+                  <Switch
+                    id="speakerTopN"
+                    checked={speakerTopNEnabled}
+                    onCheckedChange={(checked) => {
+                      setSpeakerTopNEnabled(checked);
+                      if (!checked) setSpeakerTopN('5');
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="hideSpeakerPoints">Hide speaker points (show rank only)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Standings show only rank without numeric point values.
+                  </p>
+                </div>
+                <Switch
+                  id="hideSpeakerPoints"
+                  checked={hideSpeakerPoints}
+                  onCheckedChange={setHideSpeakerPoints}
+                />
+              </div>
+            </div>
+
+            {/* Public Tabs */}
+            {isPublic && (
+              <>
+                <div className="border-t" />
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium leading-none">Public Access</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which tabs visitors without an account can see.
+                  </p>
+                  {PUBLIC_TAB_OPTIONS.map((tab) => (
+                    <div key={tab.slug} className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor={`publicTab-${tab.slug}`}>{tab.label}</Label>
+                        <p className="text-xs text-muted-foreground">{tab.description}</p>
+                      </div>
+                      <Switch
+                        id={`publicTab-${tab.slug}`}
+                        checked={publicTabs.includes(tab.slug)}
+                        onCheckedChange={(checked) => {
+                          setPublicTabs(prev =>
+                            checked
+                              ? [...prev, tab.slug]
+                              : prev.filter(t => t !== tab.slug)
+                          );
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(1)}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+              </Button>
+              <Button variant="brand" onClick={() => setStep(3)}>
+                Next <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 4: Review */}
+      {step === 3 && (
+        <Card>
+          <CardHeader>
             <CardTitle>Review & Create</CardTitle>
+            <CardDescription>Confirm your tournament settings before creation.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg border p-4 space-y-3">
@@ -247,12 +414,8 @@ export default function CreateTournamentPage() {
                 <span className="text-muted-foreground">Event Mode</span>
                 <span className="font-medium">{eventMode === 'IRL' ? 'In Real Life' : 'Online'}</span>
 
-                {description && (
-                  <>
-                    <span className="text-muted-foreground">Description</span>
-                    <span className="font-medium">{description}</span>
-                  </>
-                )}
+                <span className="text-muted-foreground">Visibility</span>
+                <span className="font-medium">{isPublic ? 'Public' : 'Private'}</span>
 
                 {registrationOpen && (
                   <>
@@ -270,11 +433,27 @@ export default function CreateTournamentPage() {
 
                 <span className="text-muted-foreground">Team Size</span>
                 <span className="font-medium">{teamSizeMin} - {teamSizeMax} members</span>
+
+                <span className="text-muted-foreground">Show Debater Names</span>
+                <span className="font-medium">{showDebaterNames ? 'Yes' : 'No'}</span>
+
+                <span className="text-muted-foreground">Speaker Top N</span>
+                <span className="font-medium">{speakerTopNEnabled ? `Top ${speakerTopN}` : 'All'}</span>
+
+                <span className="text-muted-foreground">Hide Speaker Points</span>
+                <span className="font-medium">{hideSpeakerPoints ? 'Yes' : 'No'}</span>
+
+                {isPublic && publicTabs.length > 0 && (
+                  <>
+                    <span className="text-muted-foreground">Public Tabs</span>
+                    <span className="font-medium">{publicTabs.join(', ')}</span>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>
+              <Button variant="outline" onClick={() => setStep(2)}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
               <Button variant="brand" onClick={handleSubmit} disabled={isLoading}>

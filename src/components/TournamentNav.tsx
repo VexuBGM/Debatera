@@ -16,6 +16,12 @@ function buildTabs(tournamentId: string): Tab[] {
   const base = `/tournaments/${tournamentId}`;
   return [
     {
+      label: 'Setup',
+      href: `${base}/setup`,
+      slug: 'setup',
+      visible: (role) => role === 'ORGANIZER',
+    },
+    {
       label: 'Overview',
       href: base,
       slug: 'overview',

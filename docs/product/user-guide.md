@@ -148,6 +148,24 @@ Debatera has several roles that determine what you can do. You can hold differen
 
 After creation, you land on the tournament's **Overview** page.
 
+The first organizer tab is now **Setup**, which guides you through the post-creation essentials in order:
+
+1. **Venues** (IRL tournaments only)
+2. **Judges**
+3. **Institutions & Debaters**
+4. **Teams**
+
+The Setup page reads the tournament's real data counts, marks completed steps automatically, and shows **Complete Setup** once each required area has at least some data.
+
+### Using the Setup Wizard
+
+Open the **Setup** tab any time after creating your tournament if you want a guided checklist instead of jumping between tabs manually.
+
+- **IRL tournaments** start with venue setup.
+- **Online tournaments** skip venues automatically and begin with judges.
+- Each step includes quick-add forms and a compact list of what you've already entered.
+- You can return to the main tournament overview at any time, but the wizard is the fastest way to get to a pairings-ready state.
+
 ### Configuring Tournament Settings
 
 Go to your tournament and click the **Settings** tab. You can change:
