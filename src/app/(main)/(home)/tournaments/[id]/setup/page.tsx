@@ -977,7 +977,7 @@ export default function TournamentSetupPage() {
       />
 
       <Card className="overflow-hidden">
-        <CardContent className="space-y-6 pt-6">
+        <CardContent className="space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1000,18 +1000,6 @@ export default function TournamentSetupPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {visibleSteps.map((step) => (
-                <Badge
-                  key={step.key}
-                  variant={completion[step.key] ? 'completed' : 'outline'}
-                  className="gap-1.5"
-                >
-                  {completion[step.key] && <CheckCircle2 className="h-3 w-3" />}
-                  {step.label}
-                </Badge>
-              ))}
-            </div>
           </div>
 
           <StepIndicator
@@ -1020,6 +1008,7 @@ export default function TournamentSetupPage() {
               description: step.description,
             }))}
             currentStep={currentStep}
+            completedSteps={visibleSteps.map((step) => completion[step.key])}
             onStepClick={setCurrentStep}
             className="mb-2"
           />

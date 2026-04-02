@@ -13,15 +13,17 @@ interface StepIndicatorProps {
   currentStep: number;
   className?: string;
   onStepClick?: (stepIndex: number) => void;
+  completedSteps?: boolean[];
 }
 
-export function StepIndicator({ steps, currentStep, className, onStepClick }: StepIndicatorProps) {
+export function StepIndicator({ steps, currentStep, className, onStepClick, completedSteps }: StepIndicatorProps) {
   return (
     <nav aria-label="Progress" className={cn('w-full', className)}>
       <ol className="flex items-center">
         {steps.map((step, index) => {
-          const isCompleted = index < currentStep;
+          const isCompleted = completedSteps?.[index] ?? index < currentStep;
           const isCurrent = index === currentStep;
+          const isVisited = index < currentStep;
           const isClickable = typeof onStepClick === 'function';
 
           return (
@@ -55,7 +57,7 @@ export function StepIndicator({ steps, currentStep, className, onStepClick }: St
               {index < steps.length - 1 && (
                 <div className={cn(
                   'mx-3 h-0.5 flex-1',
-                  isCompleted ? 'bg-brand' : 'bg-muted'
+                  isVisited ? 'bg-brand' : 'bg-muted'
                 )} />
               )}
             </li>
