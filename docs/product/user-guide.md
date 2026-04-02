@@ -164,9 +164,11 @@ The setup wizard opens immediately after tournament creation.
 
 - **IRL tournaments** start with venue setup.
 - **Online tournaments** skip venues automatically and begin with judges.
+- In the **Venues** step, you can create room categories inline and assign them while adding each venue.
 - Each step includes quick-add forms and a compact list of what you've already entered.
 - In the **Participants** step, you can add institution members as either **Debaters** or **Judges** before moving on to team creation.
 - Saving changes keeps you on the current step. Use **Next** when you want to move forward.
+- Use **Skip for now** if you want to move past the current setup step and come back to it later.
 - Completing setup returns you to the main tournament overview, where the regular workflow tabs continue with registration, teams, venues, rounds, and standings.
 - Organizers can reopen setup later from a small **Open setup** action on the overview, and dismiss the reminder card if they do not need it.
 

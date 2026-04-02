@@ -23,7 +23,14 @@ import {
   getTournamentParticipants,
   removeParticipant,
 } from '@/actions/participants.actions';
-import { createVenue, deleteVenue, getTournamentVenues, type VenueWithCategories } from '@/actions/venues.actions';
+import {
+  createVenue,
+  createVenueCategory,
+  deleteVenue,
+  getTournamentVenueCategories,
+  getTournamentVenues,
+  type VenueWithCategories,
+} from '@/actions/venues.actions';
 import {
   assignDebaterToTeam,
   createTeamAsOrganizer,
@@ -77,6 +84,7 @@ type EventMode = 'ONLINE' | 'IRL';
 type ParticipantRole = 'DEBATER' | 'JUDGE';
 type StepKey = 'venues' | 'judges' | 'debaters' | 'teams';
 type InstitutionOption = { id: string; name: string };
+type VenueCategoryOption = { id: string; name: string; description: string | null };
 type GroupedTeamSet = { institution: InstitutionOption; teams: TeamWithMembers[] };
 type InstitutionParticipantGroup = {
   institution: InstitutionOption;
@@ -268,7 +276,11 @@ export default function TournamentSetupPage() {
 
   const [venueName, setVenueName] = useState('');
   const [venuePriority, setVenuePriority] = useState('100');
+  const [venueCategories, setVenueCategories] = useState<VenueCategoryOption[]>([]);
+  const [selectedVenueCategoryIds, setSelectedVenueCategoryIds] = useState<string[]>([]);
+  const [newVenueCategoryName, setNewVenueCategoryName] = useState('');
   const [addingVenue, setAddingVenue] = useState(false);
+  const [addingVenueCategory, setAddingVenueCategory] = useState(false);
   const [deletingVenueId, setDeletingVenueId] = useState<string | null>(null);
 
   const [judgeName, setJudgeName] = useState('');
@@ -402,8 +414,9 @@ export default function TournamentSetupPage() {
 
         const tournamentData = (await tournamentResponse.json()) as TournamentSummary;
 
-        const [venuesResult, participantsResult, teamsResult, teamManagementResult] = await Promise.all([
+        const [venuesResult, venueCategoriesResult, participantsResult, teamsResult, teamManagementResult] = await Promise.all([
           getTournamentVenues(tournamentId),
+          getTournamentVenueCategories(tournamentId),
           getTournamentParticipants(tournamentId),
           getTournamentTeamsPageData(tournamentId),
           getTeamManagementData(tournamentId),
@@ -411,6 +424,10 @@ export default function TournamentSetupPage() {
 
         if (!venuesResult.success || !venuesResult.data) {
           throw new Error(venuesResult.error || 'Failed to load venues');
+        }
+
+        if (!venueCategoriesResult.success || !venueCategoriesResult.data) {
+          throw new Error(venueCategoriesResult.error || 'Failed to load venue categories');
         }
 
         if (!participantsResult.success || !participantsResult.data) {
@@ -441,6 +458,7 @@ export default function TournamentSetupPage() {
 
         setTournament(tournamentData);
         setSetupData(nextData);
+        setVenueCategories(venueCategoriesResult.data);
 
         if (!preserveStep) {
           setCurrentStep(getRecommendedStep(nextData, tournamentData.settings?.eventMode ?? contextEventMode));
@@ -533,6 +551,7 @@ export default function TournamentSetupPage() {
         tournamentId,
         name: trimmedName,
         priority: Number.isFinite(priority) ? priority : 100,
+        categoryIds: selectedVenueCategoryIds.length > 0 ? selectedVenueCategoryIds : undefined,
       });
 
       if (!result.success) {
@@ -543,11 +562,44 @@ export default function TournamentSetupPage() {
       toast.success(`Added venue "${trimmedName}"`);
       setVenueName('');
       setVenuePriority('100');
+      setSelectedVenueCategoryIds([]);
       await handleRefreshStep();
     } catch {
       toast.error('Failed to add venue');
     } finally {
       setAddingVenue(false);
+    }
+  }
+
+  function toggleVenueCategory(categoryId: string) {
+    setSelectedVenueCategoryIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId]
+    );
+  }
+
+  async function handleCreateVenueCategory() {
+    const trimmedName = newVenueCategoryName.trim();
+    if (!trimmedName) return;
+
+    setAddingVenueCategory(true);
+
+    try {
+      const result = await createVenueCategory(tournamentId, trimmedName);
+      if (!result.success || !result.data) {
+        toast.error(result.error || 'Failed to create category');
+        return;
+      }
+
+      toast.success(`Category "${result.data.name}" created`);
+      setVenueCategories((current) => [...current, result.data!].sort((left, right) => left.name.localeCompare(right.name)));
+      setSelectedVenueCategoryIds((current) => [...new Set([...current, result.data!.id])]);
+      setNewVenueCategoryName('');
+    } catch {
+      toast.error('Failed to create category');
+    } finally {
+      setAddingVenueCategory(false);
     }
   }
 
@@ -818,6 +870,15 @@ export default function TournamentSetupPage() {
     setCurrentStep((step) => Math.min(step + 1, visibleSteps.length - 1));
   }
 
+  function handleSkipStep() {
+    if (currentStep < visibleSteps.length - 1) {
+      goToNextStep();
+      return;
+    }
+
+    router.push(`/tournaments/${tournamentId}`);
+  }
+
   function getStepStatusLabel(stepKey: StepKey) {
     switch (stepKey) {
       case 'venues':
@@ -908,6 +969,11 @@ export default function TournamentSetupPage() {
         }
         title="Tournament setup"
         description={`Guide ${tournament.name} through the essentials. A few quick additions here will make the rest of the tournament flow much smoother.`}
+        actions={(
+          <Button variant="outline" onClick={handleSkipStep}>
+            Skip for now
+          </Button>
+        )}
       />
 
       <Card className="overflow-hidden">
@@ -983,30 +1049,89 @@ export default function TournamentSetupPage() {
           {currentStepDef.key === 'venues' && (
             <>
               <form onSubmit={handleAddVenue} className="rounded-xl border bg-muted/20 p-4">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_160px_auto] lg:items-end">
-                  <div className="space-y-2">
-                    <Label htmlFor="venue-name">Venue name</Label>
-                    <Input
-                      id="venue-name"
-                      placeholder="e.g. Room A201"
-                      value={venueName}
-                      onChange={(event) => setVenueName(event.target.value)}
-                    />
+                <div className="space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_160px_auto] lg:items-end">
+                    <div className="space-y-2">
+                      <Label htmlFor="venue-name">Venue name</Label>
+                      <Input
+                        id="venue-name"
+                        placeholder="e.g. Room A201"
+                        value={venueName}
+                        onChange={(event) => setVenueName(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="venue-priority">Priority</Label>
+                      <Input
+                        id="venue-priority"
+                        type="number"
+                        min={0}
+                        value={venuePriority}
+                        onChange={(event) => setVenuePriority(event.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" variant="brand" disabled={addingVenue || !venueName.trim()}>
+                      {addingVenue ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Add Venue
+                    </Button>
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="venue-priority">Priority</Label>
-                    <Input
-                      id="venue-priority"
-                      type="number"
-                      min={0}
-                      value={venuePriority}
-                      onChange={(event) => setVenuePriority(event.target.value)}
-                    />
+                    <div className="flex items-center justify-between gap-3">
+                      <Label>Categories</Label>
+                      <p className="text-xs text-muted-foreground">Optional, but helpful for room planning.</p>
+                    </div>
+
+                    {venueCategories.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {venueCategories.map((category) => {
+                          const selected = selectedVenueCategoryIds.includes(category.id);
+
+                          return (
+                            <Badge
+                              key={category.id}
+                              variant={selected ? 'default' : 'outline'}
+                              className="cursor-pointer select-none"
+                              onClick={() => toggleVenueCategory(category.id)}
+                            >
+                              {category.name}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No categories yet. Create one below and it will be selected automatically.
+                      </p>
+                    )}
                   </div>
-                  <Button type="submit" variant="brand" disabled={addingVenue || !venueName.trim()}>
-                    {addingVenue ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Add Venue
-                  </Button>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new-venue-category">Create a category</Label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="new-venue-category"
+                        placeholder="e.g. Finals rooms, Accessible, Main building"
+                        value={newVenueCategoryName}
+                        onChange={(event) => setNewVenueCategoryName(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void handleCreateVenueCategory();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleCreateVenueCategory()}
+                        disabled={addingVenueCategory || !newVenueCategoryName.trim()}
+                      >
+                        {addingVenueCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Add Category
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </form>
 
@@ -1035,6 +1160,11 @@ export default function TournamentSetupPage() {
                           <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                             <Badge variant="outline">Priority {venue.priority}</Badge>
                             {!venue.isActive && <Badge variant="outline">Inactive</Badge>}
+                            {venue.categories.map((category) => (
+                              <Badge key={category.id} variant="secondary">
+                                {category.name}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
                         <Button
@@ -1675,6 +1805,10 @@ export default function TournamentSetupPage() {
             </div>
 
             <div className="flex gap-2 self-end sm:self-auto">
+              <Button type="button" variant="ghost" onClick={handleSkipStep}>
+                Skip for now
+              </Button>
+
               <Button type="button" variant="outline" onClick={goToPreviousStep} disabled={currentStep === 0}>
                 <ArrowLeft className="h-4 w-4" />
                 Previous
