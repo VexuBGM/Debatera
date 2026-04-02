@@ -218,6 +218,7 @@ model TournamentTeam {
   tournamentId    String   @db.VarChar(128)
   institutionId   String   @db.VarChar(128)
   name            String // Auto-generated: "${Institution.name} 1", "${Institution.name} 2", etc.
+  feedbackCode    String   @db.VarChar(6)
   createdByUserId String   @db.VarChar(128)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -233,6 +234,7 @@ model TournamentTeam {
 
   // Team name must be unique within an institution for a given tournament
   @@unique([tournamentId, institutionId, name])
+  @@unique([tournamentId, feedbackCode])
   @@index([tournamentId])
   @@index([institutionId])
   @@index([createdByUserId])

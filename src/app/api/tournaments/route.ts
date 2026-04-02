@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
 import { createTournament, listTournaments } from '@/lib/services/mvp';
 import { ensureUserInDB } from '@/lib/ensureUser';
-import { EventModeEnum } from '@/lib/validations/tournamentSettings';
+import { EventModeEnum, PublicTabEnum } from '@/lib/validations/tournamentSettings';
 import { parsePaginationParams } from '@/lib/pagination';
 
 // Prisma requires Node.js runtime, not Edge:
@@ -12,10 +12,15 @@ export const runtime = 'nodejs';
 const CreateTournamentSchema = z.object({
   name: z.string().min(1, 'Name is required').max(120),
   eventMode: EventModeEnum.default('IRL'),
+  isPublic: z.boolean().optional(),
   registrationOpen: z.string().optional(),
   registrationClose: z.string().optional(),
   teamSizeMin: z.number().int().min(1).max(10).optional(),
   teamSizeMax: z.number().int().min(1).max(10).optional(),
+  showDebaterNames: z.boolean().optional(),
+  speakerTopN: z.number().int().min(1).nullable().optional(),
+  hideSpeakerPoints: z.boolean().optional(),
+  publicTabs: z.array(PublicTabEnum).optional(),
 }).superRefine((data, ctx) => {
   if (
     data.teamSizeMin !== undefined &&
@@ -74,10 +79,15 @@ export async function POST(req: Request) {
     const parsed = CreateTournamentSchema.parse(json);
 
     const tournament = await createTournament(parsed.name, userId, parsed.eventMode, {
+      isPublic: parsed.isPublic,
       registrationOpensAt: parsed.registrationOpen ? new Date(parsed.registrationOpen) : null,
       registrationClosesAt: parsed.registrationClose ? new Date(parsed.registrationClose) : null,
       teamSizeMin: parsed.teamSizeMin,
       teamSizeMax: parsed.teamSizeMax,
+      showDebaterNames: parsed.showDebaterNames,
+      speakerTopN: parsed.speakerTopN,
+      hideSpeakerPoints: parsed.hideSpeakerPoints,
+      publicTabs: parsed.publicTabs,
     });
     return NextResponse.json(tournament, { status: 201 });
   } catch (err: unknown) {

@@ -16,10 +16,15 @@ import {
 } from '@/lib/pagination';
 
 type CreateTournamentSettingsInput = {
+  isPublic?: boolean;
   registrationOpensAt?: Date | null;
   registrationClosesAt?: Date | null;
   teamSizeMin?: number;
   teamSizeMax?: number;
+  showDebaterNames?: boolean;
+  speakerTopN?: number | null;
+  hideSpeakerPoints?: boolean;
+  publicTabs?: string[];
 };
 
 // ============================================================================
@@ -173,6 +178,7 @@ export async function createTournament(
   return prisma.tournament.create({
     data: {
       name,
+      isPublic: settingsInput?.isPublic ?? false,
       createdByUserId: userId,
       registrationClosesAt: settingsInput?.registrationClosesAt ?? null,
       teamMinSize: teamSizeMin,
@@ -184,6 +190,10 @@ export async function createTournament(
           registrationClosesAt: settingsInput?.registrationClosesAt ?? null,
           teamSizeMin,
           teamSizeMax,
+          showDebaterNames: settingsInput?.showDebaterNames ?? false,
+          speakerTopN: settingsInput?.speakerTopN ?? null,
+          hideSpeakerPoints: settingsInput?.hideSpeakerPoints ?? false,
+          publicTabs: settingsInput?.publicTabs ?? ['overview', 'rounds', 'teams', 'standings'],
         },
       },
     },

@@ -53,6 +53,34 @@ interface ActionResponse<T = any> {
     error?: string;
 }
 
+const TEAM_FEEDBACK_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const TEAM_FEEDBACK_CODE_LENGTH = 6;
+
+function generateTeamFeedbackCodeCandidate() {
+    let code = '';
+    for (let i = 0; i < TEAM_FEEDBACK_CODE_LENGTH; i++) {
+        const index = Math.floor(Math.random() * TEAM_FEEDBACK_CODE_ALPHABET.length);
+        code += TEAM_FEEDBACK_CODE_ALPHABET[index];
+    }
+    return code;
+}
+
+async function generateUniqueTeamFeedbackCode(tournamentId: string) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+        const feedbackCode = generateTeamFeedbackCodeCandidate();
+        const existingTeam = await prisma.tournamentTeam.findFirst({
+            where: { tournamentId, feedbackCode },
+            select: { id: true },
+        });
+
+        if (!existingTeam) {
+            return feedbackCode;
+        }
+    }
+
+    throw new Error('Unable to generate a unique feedback code');
+}
+
 export async function getTournamentTeamsPageData(
     tournamentId: string
 ): Promise<ActionResponse<{
@@ -348,11 +376,14 @@ export async function createTeam({
             potentialName = `${institution.name} ${nextNum}`;
         }
 
+        const feedbackCode = await generateUniqueTeamFeedbackCode(tournamentId);
+
         const team = await prisma.tournamentTeam.create({
             data: {
                 tournamentId,
                 institutionId,
                 name: potentialName,
+                feedbackCode,
                 createdByUserId: userId,
             },
             include: {
@@ -829,11 +860,14 @@ export async function createTeamAsOrganizer({
             }
         }
 
+        const feedbackCode = await generateUniqueTeamFeedbackCode(tournamentId);
+
         const team = await prisma.tournamentTeam.create({
             data: {
                 tournamentId,
                 institutionId: resolvedInstId,
                 name: teamName,
+                feedbackCode,
                 createdByUserId: userId,
             },
             include: {

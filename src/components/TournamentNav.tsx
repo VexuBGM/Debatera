@@ -22,21 +22,33 @@ function buildTabs(tournamentId: string): Tab[] {
       visible: () => true,
     },
     {
-      label: 'Rounds',
-      href: `${base}/rounds`,
-      slug: 'rounds',
-      visible: () => true,
-    },
-    {
       label: 'Register',
       href: `${base}/register/members`,
       slug: 'register',
       visible: () => true,
     },
     {
+      label: 'Participants',
+      href: `${base}/participants`,
+      slug: 'participants',
+      visible: () => true,
+    },
+    {
       label: 'Teams',
       href: `${base}/register/teams`,
       slug: 'teams',
+      visible: () => true,
+    },
+    {
+      label: 'Venues',
+      href: `${base}/venues`,
+      slug: 'venues',
+      visible: (role, eventMode) => role === 'ORGANIZER' && eventMode !== 'ONLINE',
+    },
+    {
+      label: 'Rounds',
+      href: `${base}/rounds`,
+      slug: 'rounds',
       visible: () => true,
     },
     {
@@ -56,18 +68,6 @@ function buildTabs(tournamentId: string): Tab[] {
       href: `${base}/my-ballots`,
       slug: 'my-ballots',
       visible: (role) => role === 'JUDGE',
-    },
-    {
-      label: 'Participants',
-      href: `${base}/participants`,
-      slug: 'participants',
-      visible: () => true,
-    },
-    {
-      label: 'Venues',
-      href: `${base}/venues`,
-      slug: 'venues',
-      visible: (role, eventMode) => role === 'ORGANIZER' && eventMode !== 'ONLINE',
     },
     {
       label: 'Settings',
