@@ -75,7 +75,9 @@ import { StepIndicator } from '@/components/ui/step-indicator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { PaginationControls } from '@/components/ui/pagination';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
+import { buildPaginationMeta } from '@/lib/pagination';
 import type { ParticipantWithUser } from '@/lib/validations/participants';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -116,37 +118,34 @@ interface StepDefinition {
   key: StepKey;
   label: string;
   description: string;
-  helper: string;
   icon: typeof MapPin;
 }
+
+const PAGE_SIZE = 10;
 
 const ALL_STEPS: StepDefinition[] = [
   {
     key: 'venues',
     label: 'Venues',
-    description: 'Add rooms for debates',
-    helper: 'Add the rooms where in-person debates will happen. One solid venue is enough to get rolling.',
+    description: 'Higher-priority rooms are allocated to rounds first.',
     icon: MapPin,
   },
   {
     key: 'judges',
     label: 'Judges',
-    description: 'Register adjudicators',
-    helper: 'Start with a core judging pool so rounds have people ready to evaluate debates.',
+    description: 'Judges not affiliated with a school go under Independent Adjudicators.',
     icon: Gavel,
   },
   {
     key: 'debaters',
     label: 'Participants',
-    description: 'Add institutions & participants',
-    helper: 'Register people under the right institutions and choose whether each one is a debater or a judge.',
+    description: 'Participants belong to institutions — create the institution first, then add people to it.',
     icon: Building2,
   },
   {
     key: 'teams',
     label: 'Teams',
-    description: 'Create teams',
-    helper: 'Create teams from your participant roster and assign any unassigned debaters.',
+    description: 'Teams are auto-named. Assign debaters to teams using the unassigned list below.',
     icon: Users,
   },
 ];
@@ -291,6 +290,7 @@ export default function TournamentSetupPage() {
   const [judgeBulkNames, setJudgeBulkNames] = useState('');
   const [judgeBulkInstitutionId, setJudgeBulkInstitutionId] = useState('__default__');
   const [judgeBulkInstitutionName, setJudgeBulkInstitutionName] = useState('');
+  const [newJudgeInstitutionName, setNewJudgeInstitutionName] = useState('');
   const [addingJudgesBulk, setAddingJudgesBulk] = useState(false);
   const [judgeBulkResults, setJudgeBulkResults] = useState<
     Array<{ line: number; name: string; success: boolean; error?: string }> | null
@@ -314,6 +314,12 @@ export default function TournamentSetupPage() {
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
   const [assigningParticipantId, setAssigningParticipantId] = useState<string | null>(null);
+
+  const [venuesPage, setVenuesPage] = useState(1);
+  const [judgesPage, setJudgesPage] = useState(1);
+  const [institutionsPage, setInstitutionsPage] = useState(1);
+  const [teamsPage, setTeamsPage] = useState(1);
+  const [unassignedPage, setUnassignedPage] = useState(1);
 
   const effectiveEventMode: EventMode = tournament?.settings?.eventMode ?? contextEventMode;
   const visibleSteps = useMemo(() => getVisibleSteps(effectiveEventMode), [effectiveEventMode]);
@@ -391,6 +397,36 @@ export default function TournamentSetupPage() {
   const institutionNameById = useMemo(
     () => new Map(institutionOptions.map((institution) => [institution.id, institution.name])),
     [institutionOptions]
+  );
+
+  function paginate<T>(items: T[], page: number) {
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    const clampedPage = Math.min(Math.max(1, page), totalPages);
+    return {
+      meta: buildPaginationMeta(items.length, { page: clampedPage, pageSize: PAGE_SIZE }),
+      items: items.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE),
+    };
+  }
+
+  const venuesPaginated = useMemo(
+    () => paginate(setupData.venues, venuesPage),
+    [setupData.venues, venuesPage]
+  );
+  const judgesPaginated = useMemo(
+    () => paginate(setupData.judges, judgesPage),
+    [setupData.judges, judgesPage]
+  );
+  const institutionsPaginated = useMemo(
+    () => paginate(participantsByInstitution, institutionsPage),
+    [participantsByInstitution, institutionsPage]
+  );
+  const teamsPaginated = useMemo(
+    () => paginate(setupData.teams, teamsPage),
+    [setupData.teams, teamsPage]
+  );
+  const unassignedPaginated = useMemo(
+    () => paginate(setupData.unassignedDebaters, unassignedPage),
+    [setupData.unassignedDebaters, unassignedPage]
   );
 
   const loadSetupData = useCallback(
@@ -507,6 +543,14 @@ export default function TournamentSetupPage() {
       return next;
     });
   }, [participantsByInstitution]);
+
+  useEffect(() => {
+    setVenuesPage(1);
+    setJudgesPage(1);
+    setInstitutionsPage(1);
+    setTeamsPage(1);
+    setUnassignedPage(1);
+  }, [currentStep]);
 
   useEffect(() => {
     if (!institutionOptions.length) {
@@ -692,6 +736,7 @@ export default function TournamentSetupPage() {
       if (result.data.totalCreated > 0) {
         await handleRefreshStep();
         setJudgeBulkNames('');
+        setNewJudgeInstitutionName('');
       }
     } catch {
       toast.error('Failed to bulk add judges');
@@ -968,7 +1013,7 @@ export default function TournamentSetupPage() {
           </div>
         }
         title="Tournament setup"
-        description={`Guide ${tournament.name} through the essentials. A few quick additions here will make the rest of the tournament flow much smoother.`}
+        description={tournament.name}
         actions={(
           <Button variant="outline" onClick={handleSkipStep}>
             Skip for now
@@ -978,28 +1023,11 @@ export default function TournamentSetupPage() {
 
       <Card className="overflow-hidden">
         <CardContent className="space-y-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Sparkles className="h-4 w-4 text-brand" />
-                <span>
-                  Step {currentStep + 1} of {visibleSteps.length}
-                </span>
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">You&apos;re making great progress</h2>
-                <p className="text-sm text-muted-foreground">
-                  {allStepsComplete
-                    ? 'Everything essential is in place. Give the last step a quick review, then head back to the tournament overview.'
-                    : `${completedStepCount} of ${visibleSteps.length} setup steps are complete.${
-                        effectiveEventMode === 'ONLINE'
-                          ? ' Online tournaments skip venue setup automatically.'
-                          : ''
-                      }`}
-                </p>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Sparkles className="h-4 w-4 text-brand" />
+            <span>
+              {completedStepCount} of {visibleSteps.length} steps complete
+            </span>
           </div>
 
           <StepIndicator
@@ -1024,7 +1052,6 @@ export default function TournamentSetupPage() {
             <div className="space-y-1">
               <CardTitle className="text-xl">{currentStepDef.label}</CardTitle>
               <CardDescription>{currentStepDef.description}</CardDescription>
-              <p className="text-sm text-muted-foreground">{currentStepDef.helper}</p>
             </div>
           </div>
 
@@ -1141,38 +1168,41 @@ export default function TournamentSetupPage() {
                     description="Start with your main debate rooms. You can always add more later."
                   />
                 ) : (
-                  <div className="divide-y rounded-xl border bg-card/50">
-                    {setupData.venues.map((venue) => (
-                      <div key={venue.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="font-medium">{venue.name}</p>
-                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline">Priority {venue.priority}</Badge>
-                            {!venue.isActive && <Badge variant="outline">Inactive</Badge>}
-                            {venue.categories.map((category) => (
-                              <Badge key={category.id} variant="secondary">
-                                {category.name}
-                              </Badge>
-                            ))}
+                  <>
+                    <div className="divide-y rounded-xl border bg-card/50">
+                      {venuesPaginated.items.map((venue) => (
+                        <div key={venue.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-medium">{venue.name}</p>
+                            <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              <Badge variant="outline">Priority {venue.priority}</Badge>
+                              {!venue.isActive && <Badge variant="outline">Inactive</Badge>}
+                              {venue.categories.map((category) => (
+                                <Badge key={category.id} variant="secondary">
+                                  {category.name}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => void handleDeleteVenue(venue.id)}
+                            disabled={deletingVenueId === venue.id}
+                          >
+                            {deletingVenueId === venue.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => void handleDeleteVenue(venue.id)}
-                          disabled={deletingVenueId === venue.id}
-                        >
-                          {deletingVenueId === venue.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                    <PaginationControls pagination={venuesPaginated.meta} onPageChange={setVenuesPage} />
+                  </>
                 )}
               </div>
             </>
@@ -1180,9 +1210,34 @@ export default function TournamentSetupPage() {
 
           {currentStepDef.key === 'judges' && (
             <>
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
+                <h3 className="font-medium">Create an institution</h3>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Input
+                    id="new-judge-institution-name"
+                    placeholder="e.g. Riverdale College"
+                    value={newJudgeInstitutionName}
+                    onChange={(event) => setNewJudgeInstitutionName(event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="brand"
+                    onClick={() => {
+                      setJudgeBulkInstitutionId('__new__');
+                      setJudgeBulkInstitutionName(newJudgeInstitutionName);
+                      setJudgeBulkResults(null);
+                      setJudgeBulkOpen(true);
+                    }}
+                    disabled={!newJudgeInstitutionName.trim()}
+                  >
+                    Create Institution
+                  </Button>
+                </div>
+              </div>
+
               <form onSubmit={handleAddJudge} className="rounded-xl border bg-muted/20 p-4">
                 <div className="flex flex-col gap-4">
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px_auto] lg:items-end">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px_auto] lg:items-center">
                     <div className="space-y-2">
                       <Label htmlFor="judge-name">Judge name</Label>
                       <Input
@@ -1227,10 +1282,7 @@ export default function TournamentSetupPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between gap-3 border-t pt-4">
-                    <p className="text-sm text-muted-foreground">
-                      Adding one judge at a time is great for quick edits. Use bulk add when you already have a list ready.
-                    </p>
+                  <div className="flex items-center justify-end gap-3 border-t pt-4">
                     <Dialog
                       open={judgeBulkOpen}
                       onOpenChange={(open) => {
@@ -1353,33 +1405,36 @@ export default function TournamentSetupPage() {
                     description="Add chair judges, panels, or independent adjudicators now and refine the list later."
                   />
                 ) : (
-                  <div className="divide-y rounded-xl border bg-card/50">
-                    {setupData.judges.map((judge) => (
-                      <div key={judge.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="font-medium">{displayNameFromDbUser(judge.user)}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span>{judge.institution.name}</span>
-                            {judge.user.id.startsWith('guest_') && <Badge variant="outline">Guest</Badge>}
+                  <>
+                    <div className="divide-y rounded-xl border bg-card/50">
+                      {judgesPaginated.items.map((judge) => (
+                        <div key={judge.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-medium">{displayNameFromDbUser(judge.user)}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span>{judge.institution.name}</span>
+                              {judge.user.id.startsWith('guest_') && <Badge variant="outline">Guest</Badge>}
+                            </div>
                           </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => void handleRemoveParticipant(judge.id, 'Judge')}
+                            disabled={removingParticipantId === judge.id}
+                          >
+                            {removingParticipantId === judge.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => void handleRemoveParticipant(judge.id, 'Judge')}
-                          disabled={removingParticipantId === judge.id}
-                        >
-                          {removingParticipantId === judge.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                    <PaginationControls pagination={judgesPaginated.meta} onPageChange={setJudgesPage} />
+                  </>
                 )}
               </div>
             </>
@@ -1388,12 +1443,7 @@ export default function TournamentSetupPage() {
           {currentStepDef.key === 'debaters' && (
             <>
               <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
-                <div className="flex flex-col gap-2">
-                  <h3 className="font-medium">Create an institution</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Create a new institution here, then add participants directly from the institution cards below.
-                  </p>
-                </div>
+                <h3 className="font-medium">Create an institution</h3>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Input
                     id="new-institution-name"
@@ -1414,9 +1464,6 @@ export default function TournamentSetupPage() {
                     Create Institution
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  The institution is created automatically when you add the first participants.
-                </p>
               </div>
 
               <div className="space-y-3">
@@ -1436,8 +1483,9 @@ export default function TournamentSetupPage() {
                     description="Create an institution and register a few participants. Even a small starter roster is enough to keep moving."
                   />
                 ) : (
+                  <>
                   <div className="space-y-4">
-                    {participantsByInstitution.map((group) => (
+                    {institutionsPaginated.items.map((group) => (
                       <Collapsible
                         key={group.institution.id}
                         open={participantSectionsOpen[group.institution.id] ?? true}
@@ -1537,6 +1585,8 @@ export default function TournamentSetupPage() {
                       </Collapsible>
                     ))}
                   </div>
+                  <PaginationControls pagination={institutionsPaginated.meta} onPageChange={setInstitutionsPage} />
+                  </>
                 )}
               </div>
 
@@ -1669,10 +1719,6 @@ export default function TournamentSetupPage() {
                     Create Team
                   </Button>
                 </div>
-
-                <p className="text-sm text-muted-foreground">
-                  Teams are auto-named for you, so you can move quickly and tidy names later if needed.
-                </p>
               </div>
 
               <div className="space-y-3">
