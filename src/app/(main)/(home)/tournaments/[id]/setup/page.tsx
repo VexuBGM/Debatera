@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Gavel,
+  Info,
   Loader2,
   MapPin,
   Rocket,
@@ -1210,6 +1211,14 @@ export default function TournamentSetupPage() {
 
           {currentStepDef.key === 'judges' && (
             <>
+              <div className="flex items-start gap-2.5 rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>
+                  Judges added here are <span className="font-medium text-foreground">guest entries</span> — they don&apos;t need a Debatera account.
+                  They can claim their profile later by joining the tournament with the participant link.
+                </p>
+              </div>
+
               <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
                 <h3 className="font-medium">Create an institution</h3>
                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -1299,7 +1308,7 @@ export default function TournamentSetupPage() {
                         <DialogHeader>
                           <DialogTitle>Bulk add judges</DialogTitle>
                           <DialogDescription>
-                            Paste one name per line and we&apos;ll create the judge roster in one pass.
+                            Paste one name per line and we&apos;ll create the judge roster in one pass. These are added as guests — no account required.
                           </DialogDescription>
                         </DialogHeader>
 
@@ -1442,6 +1451,14 @@ export default function TournamentSetupPage() {
 
           {currentStepDef.key === 'debaters' && (
             <>
+              <div className="flex items-start gap-2.5 rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>
+                  Participants added here are <span className="font-medium text-foreground">guest entries</span> — they don&apos;t need a Debatera account.
+                  They can claim their profile later by joining the tournament with the participant link.
+                </p>
+              </div>
+
               <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
                 <h3 className="font-medium">Create an institution</h3>
                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -1611,7 +1628,7 @@ export default function TournamentSetupPage() {
                     <DialogDescription>
                       {selectedInstitutionIsJudgeOnly
                         ? 'Independent Adjudicators is reserved for judge-only entries. Add judges here, then manage debaters under a school or club institution so they can be placed on teams.'
-                        : 'Paste one name per line, then choose whether they should be added as debaters or judges. Debaters can be assigned to teams in the next step.'}
+                        : 'Paste one name per line, then choose whether they should be added as debaters or judges. These are added as guests — no account required. Debaters can be assigned to teams in the next step.'}
                     </DialogDescription>
                   </DialogHeader>
 

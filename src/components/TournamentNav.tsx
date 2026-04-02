@@ -28,15 +28,15 @@ function buildTabs(tournamentId: string): Tab[] {
       visible: () => true,
     },
     {
-      label: 'Teams',
-      href: `${base}/register/teams`,
-      slug: 'teams',
-      visible: () => true,
-    },
-    {
       label: 'Participants',
       href: `${base}/participants`,
       slug: 'participants',
+      visible: () => true,
+    },
+    {
+      label: 'Teams',
+      href: `${base}/register/teams`,
+      slug: 'teams',
       visible: () => true,
     },
     {
