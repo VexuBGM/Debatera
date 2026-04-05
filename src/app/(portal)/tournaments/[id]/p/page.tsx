@@ -19,6 +19,10 @@ import {
   AlertTriangle,
   Trophy,
   MapPin,
+  Star,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { PageContainer } from '@/components/PageContainer';
@@ -52,6 +56,19 @@ interface PortalRound {
   debates: PortalDebate[];
 }
 
+interface FeedbackEntry {
+  debateJudgeId: string;
+  roundId: string;
+  roundName: string;
+  roundNumber: number;
+  propTeamName: string | null;
+  oppTeamName: string | null;
+  feedbackCount: number;
+  avgClarity: number | null;
+  avgFairness: number | null;
+  comments: { comment: string; submittedAt: string }[];
+}
+
 interface PortalContext {
   tournament: {
     id: string;
@@ -72,8 +89,23 @@ export default function JudgePortalPage() {
   const { token, ready, clearToken } = usePortalToken(tournamentId);
 
   const [context, setContext] = useState<PortalContext | null>(null);
+  const [feedbacks, setFeedbacks] = useState<FeedbackEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchFeedback = useCallback(async () => {
+    if (!tournamentId || !token) return;
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/portal/feedback`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return; // Non-critical; silent fail
+      const data = await res.json();
+      setFeedbacks(data.feedback ?? []);
+    } catch {
+      // Silent fail — feedback is supplementary
+    }
+  }, [token, tournamentId]);
 
   const fetchContext = useCallback(async () => {
     if (!tournamentId || !token) {
@@ -111,7 +143,8 @@ export default function JudgePortalPage() {
     }
 
     void fetchContext();
-  }, [fetchContext, ready, token]);
+    void fetchFeedback();
+  }, [fetchContext, fetchFeedback, ready, token]);
 
   if (loading || !ready) {
     return (
@@ -142,6 +175,14 @@ export default function JudgePortalPage() {
   }
 
   const { tournament, judge, rounds } = context;
+
+  // Group feedback by roundId for fast lookup
+  const feedbackByRound = new Map<string, FeedbackEntry[]>();
+  for (const fb of feedbacks) {
+    const arr = feedbackByRound.get(fb.roundId) ?? [];
+    arr.push(fb);
+    feedbackByRound.set(fb.roundId, arr);
+  }
 
   return (
     <PageContainer>
@@ -229,12 +270,85 @@ export default function JudgePortalPage() {
                     roundStatus={round.status}
                   />
                 ))}
+                {round.status === 'COMPLETED' && (() => {
+                  const roundFeedbacks = feedbackByRound.get(round.id) ?? [];
+                  if (roundFeedbacks.length === 0) return null;
+                  return (
+                    <div className="mt-3 border-t border-border pt-3 space-y-2">
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                        <MessageSquare className="h-4 w-4" />
+                        Feedback from debaters
+                      </p>
+                      {roundFeedbacks.map((fb) => (
+                        <FeedbackSummaryCard key={fb.debateJudgeId} fb={fb} />
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           ))
         )}
       </div>
     </PageContainer>
+  );
+}
+
+function StarDisplay({ value, max = 5 }: { value: number | null; max?: number }) {
+  if (value === null) return <span className="text-muted-foreground text-xs">—</span>;
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {Array.from({ length: max }, (_, i) => (
+        <Star
+          key={i}
+          className={`h-3.5 w-3.5 ${i < Math.round(value) ? 'fill-amber-400 stroke-amber-400' : 'fill-transparent stroke-muted-foreground'}`}
+        />
+      ))}
+      <span className="ml-1 text-xs text-muted-foreground">{value.toFixed(1)}</span>
+    </span>
+  );
+}
+
+function FeedbackSummaryCard({ fb }: { fb: FeedbackEntry }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
+      <p className="text-xs text-muted-foreground mb-2">
+        {fb.propTeamName ?? '—'} vs {fb.oppTeamName ?? '—'} &middot; {fb.feedbackCount}{' '}
+        {fb.feedbackCount === 1 ? 'submission' : 'submissions'}
+      </p>
+      <div className="flex flex-wrap gap-x-6 gap-y-1">
+        <span className="flex items-center gap-1.5">
+          <span className="text-muted-foreground">Clarity</span>
+          <StarDisplay value={fb.avgClarity} />
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-muted-foreground">Fairness</span>
+          <StarDisplay value={fb.avgFairness} />
+        </span>
+      </div>
+      {fb.comments.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {open ? 'Hide' : 'Show'} {fb.comments.length}{' '}
+          {fb.comments.length === 1 ? 'comment' : 'comments'}
+        </button>
+      )}
+      {open && (
+        <ul className="mt-2 space-y-1.5">
+          {fb.comments.map((c, i) => (
+            <li key={i} className="rounded bg-muted/30 px-2.5 py-1.5 text-xs">
+              {c.comment}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

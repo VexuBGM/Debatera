@@ -42,6 +42,16 @@ export function getCanonicalBaseUrl(): string {
   );
 }
 
+export function buildRoundFeedbackLink(
+  tournamentId: string,
+  roundId: string
+): string {
+  const baseUrl = getCanonicalBaseUrl();
+  return `${baseUrl}/tournaments/${encodeURIComponent(
+    tournamentId
+  )}/feedback/${encodeURIComponent(roundId)}`;
+}
+
 export function buildJudgePortalLink(
   tournamentId: string,
   token: string

@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RoundEditor } from './RoundEditor';
+import { FeedbackLinksPanel } from './FeedbackLinksPanel';
 import { autoAllocateVenuesAction } from '@/actions/venues.actions';
 import { useSetBreadcrumbOverride } from '@/components/BreadcrumbOverrides';
 import { HelpTopics, HelpLink } from '@/components/docs/HelpLink';
@@ -843,6 +844,11 @@ export default function RoundEditorPage() {
         userCallEligibility={userCallEligibility}
         showDebaterNames={showDebaterNames}
       />
+
+      {/* Feedback links — only show once the round has been published */}
+      {round.status !== 'DRAFT' && tournamentId && roundId && (
+        <FeedbackLinksPanel tournamentId={tournamentId} roundId={roundId} />
+      )}
 
       {/* Generate Confirmation Dialog */}
       <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>

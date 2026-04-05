@@ -336,6 +336,7 @@ model TournamentDebateJudge {
   debate      TournamentDebate      @relation(fields: [debateId], references: [id], onDelete: Cascade)
   participant TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   ballot      Ballot?
+  feedbacks   JudgeFeedback[]
 
   // A judge can only be assigned to ONE debate per round (enforced via unique constraint)
   // The roundId is derived from debate.roundId in application logic
@@ -343,6 +344,23 @@ model TournamentDebateJudge {
   @@index([debateId])
   @@index([participantId])
   @@index([role])
+}
+
+// Anonymous feedback submitted by debaters for a judge in a specific debate.
+// No submitter identity is stored — future account linkage is possible via:
+// debateJudgeId → TournamentDebateJudge → TournamentDebate → propTeamId/oppTeamId → team members → users
+model JudgeFeedback {
+  id             String   @id @default(cuid())
+  debateJudgeId  String   // FK to TournamentDebateJudge (debate + judge combination)
+  clarityRating  Int      // 1–5: How clearly did the judge explain their decision?
+  fairnessRating Int      // 1–5: Did the judge treat both teams fairly?
+  comment        String?  @db.Text
+  submittedAt    DateTime @default(now())
+
+  debateJudge TournamentDebateJudge @relation(fields: [debateJudgeId], references: [id], onDelete: Cascade)
+
+  @@index([debateJudgeId])
+  @@index([submittedAt])
 }
 
 // ============================================================================
