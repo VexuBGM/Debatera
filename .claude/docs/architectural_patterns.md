@@ -112,3 +112,19 @@ Debate: SPECTATOR < JUDGE (PANELIST < CHAIR) < DEBATER
 ```
 
 Checks are manual (no middleware RBAC library) — each action/route does its own `if (role !== 'ADMIN') return error`.
+
+## 12. Onboarding Tour System
+
+First-time tooltips shown per page, role-aware, skippable, replayable, persisted to DB.
+
+**The only file to edit for step content:** `src/lib/tours/config.ts`
+
+Quick checklist to add a tour to a new page:
+1. Add entry to `TOURS` in `src/lib/tours/config.ts`
+2. Add `data-tour="<value>"` attributes to target DOM elements
+3. Call `useTourTrigger('tour-id')` in the page client component
+4. Optionally add a replay button via `useTour().resetTour` + `startTour`
+
+Persistence: localStorage (instant) + `User.seenTutorials` in DB (cross-device sync via `PATCH /api/me/tutorials`).
+
+See `.claude/docs/tours.md` for the full reference.

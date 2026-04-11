@@ -82,3 +82,4 @@ Documentation must be maintained whenever functionality, behavior, permissions, 
 |---|---|
 | `.claude/docs/architectural_patterns.md` | Server actions, API routes, auth guards, data fetching conventions |
 | `.claude/docs/conventions.md` | Before working on API routes |
+| `.claude/docs/tours.md` | Adding, editing, or removing onboarding tour steps |
