@@ -262,6 +262,7 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
                 asChild
                 size="sm"
                 className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 text-xs sm:text-sm"
+                data-tour="navbar-create"
               >
                 <Link href="/tournaments/new">
                   <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -280,6 +281,7 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
                     variant="ghost"
                     className="relative rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
                     aria-label="Notifications"
+                    data-tour="navbar-notifications"
                   >
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (

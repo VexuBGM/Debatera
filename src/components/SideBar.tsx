@@ -21,9 +21,10 @@ type Item = {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: { label: string; variant: 'organizer' | 'judge' | 'debater' };
+  dataTour?: string;
 };
 
-type Section = { title: string; items: Item[] };
+type Section = { title: string; items: Item[]; dataTour?: string };
 
 function buildSidebarSections(userContext: UserContextWithAuth): Section[] {
   // Unauthenticated users get a minimal sidebar
@@ -49,7 +50,7 @@ function buildSidebarSections(userContext: UserContextWithAuth): Section[] {
     {
       title: 'Overview',
       items: [
-        { label: 'Home', href: '/', icon: Home },
+        { label: 'Home', href: '/', icon: Home, dataTour: 'sidebar-home' },
         { label: 'My Profile', href: '/me', icon: UserCircle },
         { label: 'Institutions', href: '/institutions', icon: Building2 },
         { label: 'Help Center', href: '/docs', icon: BookOpen },
@@ -57,6 +58,7 @@ function buildSidebarSections(userContext: UserContextWithAuth): Section[] {
     },
     {
       title: 'Tournaments',
+      dataTour: 'sidebar-tournaments',
       items: [
         { label: 'Browse', href: '/tournaments', icon: Compass },
         { label: 'Create Tournament', href: '/tournaments/new', icon: PlusCircle },
@@ -74,6 +76,7 @@ function buildSidebarSections(userContext: UserContextWithAuth): Section[] {
 
     sections.push({
       title: 'My Tournaments',
+      dataTour: 'sidebar-my-tournaments',
       items: userContext.activeTournaments.map((t) => ({
         label: t.name,
         href: `/tournaments/${t.id}`,
@@ -142,7 +145,7 @@ export default function Sidebar({
   const sidebarContent = (
     <nav className="flex flex-col gap-4 lg:gap-6">
       {sections.map((section) => (
-        <div key={section.title}>
+        <div key={section.title} data-tour={section.dataTour}>
           <p className="px-1.5 lg:px-2 pb-1.5 lg:pb-2 text-[10px] lg:text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
             {section.title}
           </p>
@@ -154,6 +157,7 @@ export default function Sidebar({
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    data-tour={item.dataTour}
                     className={cn(
                       'group flex items-center justify-between rounded-lg lg:rounded-xl px-1.5 lg:px-2 py-1.5 lg:py-2 text-xs lg:text-sm transition',
                       active

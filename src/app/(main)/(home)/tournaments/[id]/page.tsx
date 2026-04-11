@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { useTournament } from '@/components/TournamentContext';
 import { PageContainer } from '@/components/PageContainer';
+import { useTour, useTourTrigger } from '@/hooks/useTour';
 
 type TournamentInstitutionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -42,6 +43,13 @@ interface TournamentStats {
 export default function TournamentOverviewPage() {
   const { tournamentId, userRole } = useTournament();
   const { userId } = useAuth();
+  const { resetTour, startTour } = useTour();
+
+  const tourId =
+    userRole === 'ORGANIZER'
+      ? 'tournament-overview-organizer'
+      : 'tournament-overview-participant';
+  useTourTrigger(tourId);
 
   const [stats, setStats] = useState<TournamentStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -160,6 +168,15 @@ export default function TournamentOverviewPage() {
 
   return (
     <PageContainer>
+      <div className="flex justify-end">
+        <button
+          onClick={() => { resetTour(tourId); startTour(tourId); }}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Replay tour
+        </button>
+      </div>
+
       {isOwner && showSetupShortcut && (
         <Card className="border-border/70 bg-muted/20">
           <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -189,7 +206,7 @@ export default function TournamentOverviewPage() {
 
       {/* Quick Stats */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-tour="tournament-overview-stats">
           <StatCard icon={<Users className="h-5 w-5 text-brand" />} label="Teams" value={stats.teamsCount} />
           <StatCard icon={<LayoutList className="h-5 w-5 text-brand" />} label="Rounds" value={stats.roundsCount} />
           <StatCard icon={<Building2 className="h-5 w-5 text-brand" />} label="Institutions" value={stats.institutionsCount} />
@@ -199,7 +216,7 @@ export default function TournamentOverviewPage() {
 
       {/* Pending Registrations (Organizer only) */}
       {isOwner && (
-        <Card>
+        <Card data-tour="tournament-overview-registrations">
           <CardHeader>
             <CardTitle className="text-lg">Pending Registrations</CardTitle>
           </CardHeader>
@@ -257,7 +274,7 @@ export default function TournamentOverviewPage() {
       )}
 
       {/* Tournament Details */}
-      <Card>
+      <Card data-tour="tournament-overview-my-debates">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
