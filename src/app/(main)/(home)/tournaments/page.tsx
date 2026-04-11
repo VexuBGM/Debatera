@@ -67,7 +67,7 @@ const Tournaments = async ({ searchParams }: TournamentsPageProps) => {
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-3 sm:space-y-5 sm:p-4 md:p-6">
       <TournamentListTour />
-      <div className="flex items-center justify-between gap-3" data-tour="tournaments-list-search">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-semibold">Tournaments</h1>
         {userId && (
           <Link href="/tournaments/new">

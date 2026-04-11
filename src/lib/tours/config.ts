@@ -85,22 +85,14 @@ export const TOURS = {
         id: 'welcome',
         title: 'Browse Tournaments',
         description:
-          'This page lists all public tournaments on Debatera. You can search by name and filter by status.',
+          'This page lists public tournaments on Debatera, along with events you organize or participate in.',
         position: 'center',
-      },
-      {
-        id: 'tournaments-list-search',
-        title: 'Search & Filter',
-        description:
-          'Type a tournament name to search, or use the status tabs to show only open, in-progress, or completed events.',
-        target: 'tournaments-list-search',
-        position: 'bottom',
       },
       {
         id: 'tournaments-list-card',
         title: 'Tournament Cards',
         description:
-          'Each card shows the tournament name, format, registration status, and team count. Click a card to view details and register.',
+          'Each card shows the tournament name, institution count, and creation date. Click a card to view details and register.',
         target: 'tournaments-list-card',
         position: 'bottom',
       },
