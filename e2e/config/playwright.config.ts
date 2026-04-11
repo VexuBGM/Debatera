@@ -1,6 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
+import { loadEnvConfig } from '@next/env';
 
-const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000';
+loadEnvConfig(process.cwd());
+
+if (process.env.E2E_SEED === '1' && !process.env.E2E_BASE_URL && !process.env.E2E_START_SERVER) {
+  process.env.E2E_START_SERVER = '1';
+}
+
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 const shouldStartServer = process.env.E2E_START_SERVER === '1';
 
 export default defineConfig({
@@ -14,6 +21,7 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
   },
+  globalSetup: './global-setup.ts',
   projects: [
     {
       name: 'setup',

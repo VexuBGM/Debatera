@@ -35,6 +35,16 @@ Integration tests currently cover:
 - Portal token lifecycle for active, expired, revoked, wrong-tournament, and non-judge participants.
 - Public standings API output from completed rounds.
 - Institution invitation server action authorization and notification creation.
+- Institution API creation, validation, public/member-scoped listing, and creator-admin membership.
+- Tournament API creation/listing/detail visibility and creator-only visibility updates.
+- Tournament settings API reads, creator-only updates, and invalid payload rejection.
+- Participant server actions for guest judge creation/removal, missing debater institutions, institution-admin scoping, and public/private reads.
+- Team server actions for approved institution-admin team creation, debater assignment, unapproved institution rejection, and bulk-add team-size enforcement.
+- Round API creation, invalid publish validation, and publish -> in-progress -> completed status updates.
+- Pairing API manual saves, draft visibility restrictions, random pairing generation, persisted judge assignments, and draft ballot creation.
+- Portal ballot API token-authenticated read, draft save, submit, result computation, and wrong-tournament rejection.
+- Notification API unread filtering/counts and ownership-safe read updates.
+- Stream token API eligibility for online debate judges and rejection for unassigned users.
 
 Security tests currently cover:
 
@@ -43,17 +53,20 @@ Security tests currently cover:
 - Tournament settings organizer authorization.
 - Malformed ballot submission rejection.
 - Portal ballot token scoping and revoked token rejection.
+- Clerk webhook Svix verification success and invalid/missing signature rejection.
 
 ## E2E and Accessibility
 
 Playwright tests live under `e2e/tests/` and are intentionally environment-gated until Clerk test accounts and seeded URLs are available:
 
+- Playwright loads the standard Next.js env files before reading these values, so local `.env` or `.env.local` entries work.
 - `E2E_BASE_URL` or `E2E_START_SERVER=1` enables the public accessibility smoke test.
-- `E2E_CLERK_EMAIL` and `E2E_CLERK_PASSWORD` enable authenticated smoke tests after auth storage state is recorded.
+- `E2E_SEED=1` seeds deterministic portal/ballot smoke-test data into the configured database and derives missing `E2E_PORTAL_URL` and `E2E_BALLOT_URL`. When no `E2E_BASE_URL` or `E2E_START_SERVER` is set, seeding also makes Playwright start the local dev server.
+- `E2E_CLERK_EMAIL` and `E2E_CLERK_PASSWORD` enable authenticated smoke tests after auth storage state is recorded. Clerk treats emails ending in `+clerk_test@gmail.com` as test accounts; the Playwright auth setup automatically uses verification code `424242` for those accounts, or `E2E_CLERK_VERIFICATION_CODE` when overridden.
 - `E2E_PORTAL_URL` enables the judge portal smoke test.
 - `E2E_BALLOT_URL` enables the seeded ballot smoke test.
 
-The accessibility smoke test uses `@axe-core/playwright`. More complete authenticated browser coverage should be added once a stable E2E seed strategy and Clerk test account are available.
+The accessibility smoke test uses `@axe-core/playwright`. More complete authenticated browser coverage should be added once a stable E2E seed strategy is available.
 
 ## CI
 
@@ -73,4 +86,4 @@ Before modifying these areas, run or extend the matching tests:
 
 ## Remaining Gaps
 
-The suite still needs broader integration coverage for participant/team actions, round publishing and pairing persistence, webhook signature verification, Stream behavior, notifications, and full browser flows with real Clerk test accounts.
+The suite still needs venue/profile action integration coverage, broader participant/team/round edge-case matrices, more exhaustive rate-limit and IDOR matrices, Stream call creation behavior beyond token eligibility, and full browser flows backed by stable seeded URLs/data.

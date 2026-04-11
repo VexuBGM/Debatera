@@ -9,7 +9,7 @@ test.describe('accessibility smoke scans', () => {
 
   test('public landing page has no automatically detectable axe violations', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('body')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /organize/i })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations).toEqual([]);

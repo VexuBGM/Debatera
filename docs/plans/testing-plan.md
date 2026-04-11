@@ -2,7 +2,9 @@
 
 **Version:** 1.0
 **Date:** 2026-04-11
-**Status:** Plan only — no implementation code
+**Status:** Partially implemented - unit, integration, security, CI, and gated E2E scaffolding exist
+
+> Implementation note (2026-04-11): the original audit below is preserved for planning context, but it is no longer a snapshot of the current suite. See `docs/dev/testing.md` for the current coverage summary and remaining gaps.
 
 ---
 

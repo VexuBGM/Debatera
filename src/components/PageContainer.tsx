@@ -14,8 +14,8 @@ const sizeClasses = {
 
 export function PageContainer({ children, className, size = 'md' }: PageContainerProps) {
   return (
-    <main className={cn(sizeClasses[size], 'mx-auto px-4 sm:px-6 py-6 space-y-6', className)}>
+    <div className={cn(sizeClasses[size], 'mx-auto px-4 sm:px-6 py-6 space-y-6', className)}>
       {children}
-    </main>
+    </div>
   );
 }

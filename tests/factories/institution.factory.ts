@@ -1,6 +1,14 @@
-import type { Institution, InstitutionMember, InstitutionRole, PrismaClient } from '@prisma/client';
+import type {
+  Institution,
+  InstitutionMember,
+  InstitutionRole,
+  PrismaClient,
+  TournamentInstitution,
+  TournamentInstitutionStatus,
+} from '@prisma/client';
 import { testPrisma } from '@tests/setup/prisma-test-client';
 import { createUser } from './user.factory';
+import { createTournament } from './tournament.factory';
 
 let institutionCounter = 0;
 
@@ -37,6 +45,31 @@ export async function createInstitutionMember(
       institutionId,
       userId,
       role: overrides.role ?? 'MEMBER',
+      createdAt: overrides.createdAt,
+    },
+  });
+}
+
+export async function createTournamentInstitution(
+  overrides: Partial<TournamentInstitution> & {
+    tournamentId?: string;
+    institutionId?: string;
+    requestedByUserId?: string;
+    status?: TournamentInstitutionStatus;
+  } = {},
+  prisma: PrismaClient = testPrisma
+) {
+  const tournamentId = overrides.tournamentId ?? (await createTournament({}, prisma)).id;
+  const institutionId = overrides.institutionId ?? (await createInstitution({}, prisma)).id;
+  const requestedByUserId = overrides.requestedByUserId ?? (await createUser({}, prisma)).id;
+
+  return prisma.tournamentInstitution.create({
+    data: {
+      id: overrides.id,
+      tournamentId,
+      institutionId,
+      requestedByUserId,
+      status: overrides.status ?? 'APPROVED',
       createdAt: overrides.createdAt,
     },
   });
