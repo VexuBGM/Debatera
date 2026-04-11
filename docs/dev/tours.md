@@ -65,6 +65,8 @@ src/app/api/me/tutorials/
 |---|---|---|
 | `dashboard` | `/` | All authenticated users |
 | `tournaments-list` | `/tournaments` | All authenticated users |
+| `institution-detail-admin` | `/institutions/[id]` | Institution admins |
+| `institution-detail-member` | `/institutions/[id]` | Institution members |
 | `tournament-overview-organizer` | `/tournaments/[id]` | ORGANIZER role only |
 | `tournament-overview-participant` | `/tournaments/[id]` | DEBATER / JUDGE roles |
 

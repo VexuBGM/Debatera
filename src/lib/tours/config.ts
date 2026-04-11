@@ -99,6 +99,97 @@ export const TOURS = {
     ],
   },
 
+  // Institution Detail
+  'institution-detail-admin': {
+    id: 'institution-detail-admin',
+    steps: [
+      {
+        id: 'welcome',
+        title: 'Institution Workspace',
+        description:
+          'This is the shared home for your institution. Admins can manage visibility, invitations, and members from here.',
+        position: 'center',
+      },
+      {
+        id: 'institution-detail-header',
+        title: 'Institution Header',
+        description:
+          'Use the header to confirm your role and access institution-level actions like leaving or deleting the institution.',
+        target: 'institution-detail-header',
+        position: 'bottom',
+      },
+      {
+        id: 'institution-detail-stats',
+        title: 'Quick Stats',
+        description:
+          'These numbers summarize the member count and how many tournament registrations are connected to this institution.',
+        target: 'institution-detail-stats',
+        position: 'bottom',
+      },
+      {
+        id: 'institution-detail-visibility',
+        title: 'Visibility',
+        description:
+          'Control whether this institution appears in the public institution list or stays visible only to members.',
+        target: 'institution-detail-visibility',
+        position: 'bottom',
+      },
+      {
+        id: 'institution-detail-invites',
+        title: 'Invite Members',
+        description:
+          'Send email invitations and choose whether the new person should join as a member or an admin.',
+        target: 'institution-detail-invites',
+        position: 'bottom',
+      },
+      {
+        id: 'institution-detail-members',
+        title: 'Members',
+        description:
+          'Review everyone in the institution. Admins can promote members, remove members, and page through larger member lists here.',
+        target: 'institution-detail-members',
+        position: 'top',
+      },
+    ],
+  },
+
+  'institution-detail-member': {
+    id: 'institution-detail-member',
+    steps: [
+      {
+        id: 'welcome',
+        title: 'Institution Workspace',
+        description:
+          'This is the shared home for your institution, with a quick overview and the current member list.',
+        position: 'center',
+      },
+      {
+        id: 'institution-detail-header',
+        title: 'Institution Header',
+        description:
+          'Use the header to confirm your role or leave the institution if you no longer need access.',
+        target: 'institution-detail-header',
+        position: 'bottom',
+      },
+      {
+        id: 'institution-detail-stats',
+        title: 'Quick Stats',
+        description:
+          'These numbers summarize the member count and how many tournament registrations are connected to this institution.',
+        target: 'institution-detail-stats',
+        position: 'bottom',
+      },
+      {
+        id: 'institution-detail-members',
+        title: 'Members',
+        description:
+          'The members section lists the people in this institution, their roles, and when they joined.',
+        target: 'institution-detail-members',
+        position: 'top',
+      },
+    ],
+  },
+
   // ─── Tournament Overview — Organizer ──────────────────────────────────────────
   'tournament-overview-organizer': {
     id: 'tournament-overview-organizer',
