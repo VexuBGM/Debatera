@@ -50,7 +50,7 @@ src/hooks/
   useTour.ts         — useTour() context hook + useTourTrigger(id) auto-start hook
 
 src/app/api/me/tutorials/
-  route.ts           — PATCH (mark seen), DELETE (reset a tour)
+  route.ts           — PATCH (mark seen), DELETE (reset one tour or all tours)
 ```
 
 ---
@@ -60,15 +60,7 @@ src/app/api/me/tutorials/
 1. **Define steps** — add a new entry to `TOURS` in `src/lib/tours/config.ts`.
 2. **Mark DOM elements** — add `data-tour="<value>"` attributes to target elements on the page. Each value must match a step's `target` field.
 3. **Trigger on first visit** — call `useTourTrigger('your-tour-id')` inside the page client component. It auto-starts the tour once, after a short paint delay, only if the user hasn't seen it.
-4. **Replay button (optional)** — add this pattern anywhere in the page:
-
-```tsx
-const { resetTour, startTour } = useTour();
-// ...
-<button onClick={() => { resetTour('your-tour-id'); startTour('your-tour-id'); }}>
-  Replay tour
-</button>
-```
+4. **Replay support** — do not add page-level replay buttons. Users can open **Help** in the top navigation and choose **Reset all tours**. This clears tour history and lets the current page's `useTourTrigger` restart automatically if that page has a tour.
 
 That's all. No changes to `TourProvider`, `TourTooltip`, or the API route are needed.
 
@@ -77,7 +69,7 @@ That's all. No changes to `TourProvider`, `TourTooltip`, or the API route are ne
 ## How to Remove a Tour
 
 1. Delete the entry from `TOURS` in `config.ts`.
-2. Remove the `useTourTrigger(...)` call and replay button from the page.
+2. Remove the `useTourTrigger(...)` call from the page.
 3. Remove `data-tour` attributes from the affected elements.
 
 The tour ID will remain in users' `seenTutorials` DB column harmlessly — it just won't ever be shown again.
@@ -114,7 +106,8 @@ Progress is stored in two places, checked in this order:
 
 API endpoints:
 - `PATCH /api/me/tutorials` — body `{ tourId }` — appends to `seenTutorials` (idempotent)
-- `DELETE /api/me/tutorials?tourId=xxx` — removes from `seenTutorials`
+- `DELETE /api/me/tutorials?tourId=xxx` — removes one tour ID from `seenTutorials`
+- `DELETE /api/me/tutorials?all=true` — clears `seenTutorials`
 
 ---
 

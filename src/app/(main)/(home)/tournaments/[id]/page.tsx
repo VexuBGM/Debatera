@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { useTournament } from '@/components/TournamentContext';
 import { PageContainer } from '@/components/PageContainer';
-import { useTour, useTourTrigger } from '@/hooks/useTour';
+import { useTourTrigger } from '@/hooks/useTour';
 
 type TournamentInstitutionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -43,8 +43,6 @@ interface TournamentStats {
 export default function TournamentOverviewPage() {
   const { tournamentId, userRole } = useTournament();
   const { userId } = useAuth();
-  const { resetTour, startTour } = useTour();
-
   const tourId =
     userRole === 'ORGANIZER'
       ? 'tournament-overview-organizer'
@@ -168,15 +166,6 @@ export default function TournamentOverviewPage() {
 
   return (
     <PageContainer>
-      <div className="flex justify-end">
-        <button
-          onClick={() => { resetTour(tourId); startTour(tourId); }}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Replay tour
-        </button>
-      </div>
-
       {isOwner && showSetupShortcut && (
         <Card className="border-border/70 bg-muted/20">
           <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">

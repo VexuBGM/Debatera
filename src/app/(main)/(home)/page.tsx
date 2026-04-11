@@ -25,7 +25,7 @@ import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import LandingPage from '@/components/landing/LandingPage';
 import { HelpTopics } from '@/components/docs/HelpLink';
-import { useTour, useTourTrigger } from '@/hooks/useTour';
+import { useTourTrigger } from '@/hooks/useTour';
 
 type TournamentRole = 'ORGANIZER' | 'DEBATER' | 'JUDGE' | 'INSTITUTION';
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -201,7 +201,6 @@ const HomePage = () => {
   const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const { resetTour, startTour } = useTour();
   useTourTrigger('dashboard');
 
   useEffect(() => {
@@ -267,18 +266,10 @@ const HomePage = () => {
 
   return (
     <PageContainer size="lg">
-      <div className="flex items-start justify-between gap-4">
-        <PageHeader
-          title={`Welcome back, ${user?.firstName || 'Debater'}!`}
-          description="Here's what's happening with your debates today"
-        />
-        <button
-          onClick={() => { resetTour('dashboard'); startTour('dashboard'); }}
-          className="shrink-0 mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Replay tour
-        </button>
-      </div>
+      <PageHeader
+        title={`Welcome back, ${user?.firstName || 'Debater'}!`}
+        description="Here's what's happening with your debates today"
+      />
 
       {isNewUser && (
         <Card className="border-brand/20 bg-linear-to-r from-brand/10 via-brand/5 to-transparent">

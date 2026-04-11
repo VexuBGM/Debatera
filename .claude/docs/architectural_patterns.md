@@ -123,7 +123,7 @@ Quick checklist to add a tour to a new page:
 1. Add entry to `TOURS` in `src/lib/tours/config.ts`
 2. Add `data-tour="<value>"` attributes to target DOM elements
 3. Call `useTourTrigger('tour-id')` in the page client component
-4. Optionally add a replay button via `useTour().resetTour` + `startTour`
+4. Let users replay tours from the top-nav Help menu's **Reset all tours** action
 
 Persistence: localStorage (instant) + `User.seenTutorials` in DB (cross-device sync via `PATCH /api/me/tutorials`).
 

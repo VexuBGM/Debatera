@@ -22,8 +22,12 @@ export interface TourContextValue {
   startTour: (id: TourId) => void;
   /** Whether the user has completed or skipped this tour. */
   hasSeen: (id: TourId) => boolean;
-  /** Remove from seen list so the tour will show again, and call startTour. */
+  /** Remove from seen list so the tour can show again. */
   resetTour: (id: TourId) => void;
+  /** Clear every seen tour so page-level triggers can run again. */
+  resetAllTours: () => void;
+  /** Incremented whenever all tours are reset. */
+  resetVersion: number;
   /** True when a tour is currently active. */
   isActive: boolean;
 }
@@ -32,6 +36,8 @@ export const TourContext = React.createContext<TourContextValue>({
   startTour: () => {},
   hasSeen: () => false,
   resetTour: () => {},
+  resetAllTours: () => {},
+  resetVersion: 0,
   isActive: false,
 });
 
@@ -61,6 +67,12 @@ function removeSeenFromStorage(id: string) {
   } catch {}
 }
 
+function clearSeenFromStorage() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify([]));
+  } catch {}
+}
+
 function markSeenInDB(tourId: string) {
   fetch('/api/me/tutorials', {
     method: 'PATCH',
@@ -71,6 +83,12 @@ function markSeenInDB(tourId: string) {
 
 function resetSeenInDB(tourId: string) {
   fetch(`/api/me/tutorials?tourId=${encodeURIComponent(tourId)}`, {
+    method: 'DELETE',
+  }).catch(() => {});
+}
+
+function resetAllSeenInDB() {
+  fetch('/api/me/tutorials?all=true', {
     method: 'DELETE',
   }).catch(() => {});
 }
@@ -147,6 +165,7 @@ export function TourProvider({ children, initialSeenTutorials }: TourProviderPro
     left: 0,
     arrowSide: 'none',
   });
+  const [resetVersion, setResetVersion] = React.useState(0);
   const [seenInDB] = React.useState<Set<string>>(new Set(initialSeenTutorials));
   const highlightedElRef = React.useRef<Element | null>(null);
 
@@ -242,6 +261,16 @@ export function TourProvider({ children, initialSeenTutorials }: TourProviderPro
     seenInDB.delete(id);
   }, [seenInDB]);
 
+  const resetAllTours = React.useCallback(() => {
+    clearHighlight();
+    clearSeenFromStorage();
+    resetAllSeenInDB();
+    seenInDB.clear();
+    setActiveTourId(null);
+    setCurrentStep(0);
+    setResetVersion((version) => version + 1);
+  }, [clearHighlight, seenInDB]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const activeTour = activeTourId ? TOURS[activeTourId] : null;
@@ -253,6 +282,8 @@ export function TourProvider({ children, initialSeenTutorials }: TourProviderPro
         startTour,
         hasSeen,
         resetTour,
+        resetAllTours,
+        resetVersion,
         isActive: activeTourId !== null,
       }}
     >

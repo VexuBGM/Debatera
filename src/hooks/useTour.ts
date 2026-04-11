@@ -15,12 +15,12 @@ export function useTour() {
  * Has no effect if the user has already seen the tour.
  */
 export function useTourTrigger(tourId: TourId) {
-  const { startTour, hasSeen } = useTour();
+  const { startTour, hasSeen, resetVersion } = useTour();
 
   React.useEffect(() => {
     if (hasSeen(tourId)) return;
     const t = setTimeout(() => startTour(tourId), 400);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tourId]);
+  }, [tourId, resetVersion]);
 }

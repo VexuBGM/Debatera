@@ -33,7 +33,8 @@ export async function PATCH(req: Request) {
 
 /**
  * DELETE /api/me/tutorials?tourId=xxx
- * Removes tourId from the user's seenTutorials array.
+ * DELETE /api/me/tutorials?all=true
+ * Removes a tourId from the user's seenTutorials array, or clears all tour IDs.
  */
 export async function DELETE(req: Request) {
   const { userId } = await auth();
@@ -42,9 +43,19 @@ export async function DELETE(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
+  const shouldResetAll = searchParams.get('all') === 'true';
   const tourId = searchParams.get('tourId');
+  if (shouldResetAll) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { seenTutorials: [] },
+    });
+
+    return NextResponse.json({ ok: true });
+  }
+
   if (!tourId) {
-    return NextResponse.json({ error: 'tourId query param is required' }, { status: 400 });
+    return NextResponse.json({ error: 'tourId query param or all=true is required' }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({

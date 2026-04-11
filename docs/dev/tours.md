@@ -54,7 +54,7 @@ src/hooks/
   useTour.ts                 — useTour() context accessor + useTourTrigger(id) auto-start hook
 
 src/app/api/me/tutorials/
-  route.ts                   — PATCH (mark seen), DELETE (reset a tour ID)
+  route.ts                   — PATCH (mark seen), DELETE (reset one tour ID or all tour IDs)
 ```
 
 ---
@@ -125,18 +125,9 @@ export default function MyPage() {
 
 If the page is a **Server Component**, create a thin client wrapper component alongside it (see `src/app/(main)/(home)/tournaments/_TournamentListTour.tsx` for the pattern).
 
-### 4. Add a replay button (optional but recommended)
+### 4. Replay support
 
-```tsx
-const { resetTour, startTour } = useTour();
-
-<button
-  onClick={() => { resetTour('my-new-tour'); startTour('my-new-tour'); }}
-  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
->
-  Replay tour
-</button>
-```
+Do not add page-level replay buttons. Users can open **Help** in the top navigation and choose **Reset all tours**. This clears the stored tour history and the current page's `useTourTrigger` hook restarts its tour automatically if that page has one.
 
 ---
 
@@ -149,7 +140,7 @@ Open `src/lib/tours/config.ts` and update the `title`, `description`, `target`, 
 ## How to Remove a Tour
 
 1. Delete the entry from `TOURS` in `src/lib/tours/config.ts`.
-2. Remove the `useTourTrigger(...)` call and any replay button from the page.
+2. Remove the `useTourTrigger(...)` call from the page.
 3. Remove `data-tour` attributes from the affected elements.
 
 Existing `seenTutorials` values in the DB that reference the deleted ID are harmless — the ID will simply never be shown again.
@@ -194,6 +185,7 @@ When a tour is completed or skipped:
 |---|---|---|---|
 | `PATCH` | `/api/me/tutorials` | `{ tourId: string }` | Appends `tourId` to `User.seenTutorials` (idempotent) |
 | `DELETE` | `/api/me/tutorials?tourId=xxx` | — | Removes `tourId` from `User.seenTutorials` |
+| `DELETE` | `/api/me/tutorials?all=true` | — | Clears `User.seenTutorials` |
 
 Both require an authenticated Clerk session. Return `{ ok: true }` on success.
 

@@ -63,7 +63,7 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { HelpTopics } from '@/components/docs/HelpLink';
-import { useTour, useTourTrigger } from '@/hooks/useTour';
+import { useTourTrigger } from '@/hooks/useTour';
 import {
   createInstitutionInvitation,
   getInstitutionPendingInvitations,
@@ -122,7 +122,6 @@ export default function InstitutionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { userId } = useAuth();
-  const { resetTour, startTour } = useTour();
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -339,20 +338,9 @@ export default function InstitutionDetailPage() {
     return null;
   }
 
-  const tourId = isAdmin ? 'institution-detail-admin' : 'institution-detail-member';
-
   return (
     <PageContainer size="md">
       <InstitutionDetailTour isAdmin={Boolean(isAdmin)} />
-
-      <div className="flex justify-end">
-        <button
-          onClick={() => { resetTour(tourId); startTour(tourId); }}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Replay tour
-        </button>
-      </div>
 
       {/* Back link */}
       <Link href="/institutions">
