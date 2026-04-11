@@ -1,105 +1,76 @@
 # Testing
 
-## Test Runner
+## Test Runners
 
-**Vitest** v4 is the test runner. Configuration is inferred from `package.json` (no separate `vitest.config.ts` is present).
+Debatera uses Vitest for unit, integration, and security tests, and Playwright for browser smoke and accessibility tests.
 
 ```bash
-npx vitest run          # Run all tests once
-npx vitest              # Watch mode
-npx vitest run --reporter=verbose   # Verbose output
+npm test                  # Unit tests only
+npm run test:watch        # Unit tests in watch mode
+npm run test:integration  # PGlite-backed integration tests
+npm run test:security     # Security-focused route/token tests
+npm run test:e2e          # Playwright smoke tests
+npm run typecheck         # TypeScript no-emit check
+npm run lint              # ESLint
 ```
 
----
+`vitest.config.ts` intentionally excludes `tests/integration/**`, `tests/security/**`, and `e2e/**` from the fast unit-test command. Integration and security tests use their own configs.
 
-## Current Test Coverage
+## Test Database
 
-All existing tests cover **pure business logic with no database calls**. There are no integration tests, API route tests, or end-to-end tests.
+Integration and security tests run against PGlite through `tests/setup/prisma-test-client.ts`.
 
-### Test Files
+The setup generates SQL from `prisma/schema.prisma` with `prisma migrate diff --from-empty --to-schema ... --script`, applies it directly to an in-memory PGlite instance, and connects Prisma Client through the `pg` adapter with a single-connection pool. This avoids Docker or a local PostgreSQL service while still exercising Prisma queries and database constraints.
 
-| File | What it tests |
-|---|---|
-| `src/lib/domains/reporting/computeStandings.test.ts` | Standings ranking algorithm — wins, tie-breaking by points and name |
-| `src/lib/domains/reporting/filterTopSpeakers.test.ts` | Speaker ranking by average points, top-N filtering |
-| `src/lib/domains/participants/participants.test.ts` | Participant domain logic |
-| `src/lib/domains/participants/guestParticipants.test.ts` | Guest user ID generation and name parsing |
-| `src/lib/domains/teams/teamManagementScope.test.ts` | Who can manage a given team (scope resolution) |
-| `src/lib/pairings/swissPairing.test.ts` | Swiss pairing algorithm correctness |
-| `src/lib/ballots/modificationRequests.test.ts` | Ballot modification request logic |
-| `src/lib/users/displayName.test.ts` | Display name fallback logic |
-| `src/lib/security/url.test.ts` | URL sanitization and open-redirect prevention |
+The app Prisma singleton (`@/lib/prisma`) is mocked in `tests/setup/vitest.integration.setup.ts` so API routes and server actions use the test client without changing production code. Clerk auth, `next/cache`, and Stream call creation are also mocked at module boundaries.
 
----
+## Current Coverage
 
-## What Is Not Tested
+Unit tests cover pure business logic such as pairings, standings, participant parsing, ballot modification request state, URL handling, display names, ballot validation, settings guards, rate limiting, and portal token crypto.
 
-The following areas have no automated test coverage:
+Integration tests currently cover:
 
-- **All API routes** (`src/app/api/`) — no tests exist for any route handler
-- **Server Actions** (`src/actions/`) — no tests
-- **Database queries** — all Prisma queries are untested
-- **Auth flows** — Clerk integration is untested
-- **Ballot submission end-to-end** — the submission + result computation pipeline is not tested as a whole
-- **Portal token generation/validation** — `src/lib/portal/` has no tests
-- **Stream integration** — `src/lib/stream/` has no tests
-- **Venue auto-allocation** — `src/lib/venues/autoAllocate.ts` has no tests
-- **Round publishing** — ballot creation on publish is untested
+- Ballot submission through the API route, including persisted speech scores and result computation.
+- `computeDebateResult()` for incomplete panels, 3-judge 2-1 results, even-panel chair ties, and the intentional completed-round chair-only fallback.
+- Portal token lifecycle for active, expired, revoked, wrong-tournament, and non-judge participants.
+- Public standings API output from completed rounds.
+- Institution invitation server action authorization and notification creation.
 
----
+Security tests currently cover:
+
+- Unauthenticated rejection for key protected API mutation/detail routes.
+- Ballot IDOR protection for judges.
+- Tournament settings organizer authorization.
+- Malformed ballot submission rejection.
+- Portal ballot token scoping and revoked token rejection.
+
+## E2E and Accessibility
+
+Playwright tests live under `e2e/tests/` and are intentionally environment-gated until Clerk test accounts and seeded URLs are available:
+
+- `E2E_BASE_URL` or `E2E_START_SERVER=1` enables the public accessibility smoke test.
+- `E2E_CLERK_EMAIL` and `E2E_CLERK_PASSWORD` enable authenticated smoke tests after auth storage state is recorded.
+- `E2E_PORTAL_URL` enables the judge portal smoke test.
+- `E2E_BALLOT_URL` enables the seeded ballot smoke test.
+
+The accessibility smoke test uses `@axe-core/playwright`. More complete authenticated browser coverage should be added once a stable E2E seed strategy and Clerk test account are available.
+
+## CI
+
+`.github/workflows/ci.yml` runs lint, typecheck, unit tests, integration tests, and security tests for pull requests and pushes to `main`. On pushes to `main`, it also runs the production build and gated Playwright smoke tests against configured E2E secrets.
 
 ## Safe Change Checklist
 
-Before modifying any of these areas, add or verify tests:
+Before modifying these areas, run or extend the matching tests:
 
-### High-risk, low coverage
-
-| Area | Risk | Test needed |
-|---|---|---|
-| `src/lib/ballots/computeResult.ts` | Incorrect result computation produces wrong standings | Unit test for all vote combinations, tie scenarios, chair fallback |
-| `src/lib/pairings/` | Pairing bugs affect the entire tournament | ✅ Has tests — verify edge cases (BYE, institution conflicts) |
-| `src/lib/domains/reporting/computeStandings.ts` | Wrong tie-break order distorts standings | ✅ Has tests — verify before any change |
-| `src/lib/tournamentRounds/savePairings.ts` | Transaction failure leaves partial data | Integration test with DB transaction rollback |
-| `src/lib/portal/auth.ts` | Token validation bypass = unauthorized ballot access | Unit test for expired, revoked, and invalid tokens |
-| `src/lib/guards/tournamentSettingsGuards.ts` | Wrong guard logic = registration data corruption | Unit tests for boundary conditions |
-
-### Medium-risk
-
-| Area | Risk |
+| Area | Command |
 |---|---|
-| `src/lib/ballots/createBallots.ts` | Ballots not created or duplicated on round publish |
-| `src/lib/ballots/authorization.ts` | Judges accessing each other's ballots |
-| `src/lib/domains/teams/teamManagementScope.ts` | Wrong scope allows unauthorized team edits |
+| Pairings | `npx vitest run src/lib/pairings/` |
+| Standings | `npx vitest run src/lib/domains/reporting/computeStandings.test.ts && npm run test:integration -- --run tests/integration/api/standings.api.test.ts` |
+| Ballot validation/submission/results | `npx vitest run src/lib/ballots/ && npm run test:integration -- --run tests/integration/api/ballot-submit.api.test.ts tests/integration/domain/ballot-result-computation.test.ts` |
+| Portal tokens | `npx vitest run src/lib/portal/ && npm run test:security -- --run tests/security/portal-token.security.test.ts` |
+| Auth-sensitive API routes | `npm run test:security` |
 
----
+## Remaining Gaps
 
-## Testing Philosophy
-
-From `.claude/docs/conventions.md`:
-> Business rules must not live only in the UI. Critical rules must exist in server logic and database constraints.
-
-This means the most important things to test are:
-1. Pure domain logic (already has good coverage in `src/lib/domains/`)
-2. Authorization checks in API routes and actions
-3. Database constraint behavior (integration tests)
-4. Guard functions for edge cases
-
----
-
-## Recommended Next Tests to Write
-
-In priority order:
-
-1. **`computeDebateResult()` unit tests** — cover 1-judge, 3-judge, tie scenarios, chair fallback for 2-judge rounds.
-2. **Portal auth tests** — expired token, revoked token, wrong tournament, valid token.
-3. **Guard boundary tests** — `assertRegistrationOpen()` with dates at the exact boundary.
-4. **`createBallots()` tests** — correct number of ballots created per judge assignment.
-5. **`autoAllocate()` tests** — all debates assigned, priority respected, active venues only.
-
----
-
-## No Mocking Policy
-
-Current tests are pure functions and require no mocking. For future tests that involve DB or Clerk:
-- Prefer real test database over mocking Prisma (avoids mock/prod divergence).
-- If mocking is necessary, mock at the module boundary, not inside the function under test.
+The suite still needs broader integration coverage for participant/team actions, round publishing and pairing persistence, webhook signature verification, Stream behavior, notifications, and full browser flows with real Clerk test accounts.

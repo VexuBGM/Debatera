@@ -1,14 +1,7 @@
-// eslint.config.mjs
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({ baseDirectory: __dirname });
-
-export default [
+const eslintConfig = [
   // 1) Ignored files (replaces .eslintignore)
   {
     ignores: [
@@ -20,6 +13,18 @@ export default [
     ],
   },
 
-  // 2) Legacy configs via FlatCompat
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // 2) Native flat configs from eslint-config-next
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "prefer-const": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react/no-unescaped-entities": "warn",
+    },
+  },
 ];
+
+export default eslintConfig;

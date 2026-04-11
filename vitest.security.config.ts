@@ -8,8 +8,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./tests/setup/vitest.setup.ts'],
-    exclude: ['node_modules/**', 'tests/integration/**', 'tests/security/**', 'e2e/**'],
+    setupFiles: ['./tests/setup/vitest.integration.setup.ts'],
+    include: ['tests/security/**/*.test.ts'],
+    fileParallelism: false,
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
   },
   resolve: {
     alias: {
