@@ -59,7 +59,7 @@ src/app/api/me/tutorials/
 
 1. **Define steps** — add a new entry to `TOURS` in `src/lib/tours/config.ts`.
 2. **Mark DOM elements** — add `data-tour="<value>"` attributes to target elements on the page. Each value must match a step's `target` field.
-3. **Trigger on first visit** — call `useTourTrigger('your-tour-id')` inside the page client component. It auto-starts the tour once, after a short paint delay, only if the user hasn't seen it.
+3. **Trigger on first visit** — call `useTourTrigger('your-tour-id')` inside the page client component. It auto-starts the tour once, after a short paint delay, only if the user hasn't seen it. For pages that load data before rendering the target UI, pass an enabled guard such as `useTourTrigger('your-tour-id', !loading)`.
 4. **Replay support** — do not add page-level replay buttons. Users can open **Help** in the top navigation and choose **Reset all tours**. This clears tour history and lets the current page's `useTourTrigger` restart automatically if that page has a tour.
 
 That's all. No changes to `TourProvider`, `TourTooltip`, or the API route are needed.
@@ -82,16 +82,28 @@ Open `src/lib/tours/config.ts` and change the `title`, `description`, `target`, 
 
 ---
 
-## Tour IDs (v1)
+## Tour IDs
 
 | ID | Page | Audience |
 |---|---|---|
 | `dashboard` | `/` | All authenticated users |
 | `tournaments-list` | `/tournaments` | All authenticated users |
+| `create-tournament` | `/tournaments/new` | Tournament creators |
+| `institutions-list` | `/institutions` | All authenticated users |
 | `institution-detail-admin` | `/institutions/[id]` | Institution admins |
 | `institution-detail-member` | `/institutions/[id]` | Institution members |
 | `tournament-overview-organizer` | `/tournaments/[id]` | ORGANIZER role only |
 | `tournament-overview-participant` | `/tournaments/[id]` | DEBATER / JUDGE roles |
+| `tournament-overview-spectator` | `/tournaments/[id]` | Signed-in spectators |
+| `tournament-setup-organizer` | `/tournaments/[id]/setup` | ORGANIZER role only |
+| `tournament-registration-institution` | `/tournaments/[id]/register/members` | Institution admins |
+| `tournament-participants` | `/tournaments/[id]/participants` | Organizers and roster viewers |
+| `tournament-teams-management` | `/tournaments/[id]/register/teams` | Organizers and institution admins with team access |
+| `tournament-rounds-organizer` | `/tournaments/[id]/rounds` | ORGANIZER role only |
+| `tournament-rounds-participant` | `/tournaments/[id]/rounds` | Non-organizer viewers |
+| `tournament-my-ballots` | `/tournaments/[id]/my-ballots` | JUDGE role only |
+| `ballot-entry` | `/ballots/[ballotId]` | Judges with ballot access |
+| `tournament-my-debates` | `/tournaments/[id]/my-debates` | DEBATER role only |
 
 ---
 

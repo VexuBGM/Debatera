@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
+import { useTourTrigger } from '@/hooks/useTour';
 import { DebaterCard } from './DebaterCard';
 import { TeamColumn } from './TeamColumn';
 
@@ -81,6 +82,7 @@ export function ManageTeamsBoard({
 }: ManageTeamsBoardProps) {
     const router = useRouter();
     const [isRefreshing, startRefreshTransition] = useTransition();
+    useTourTrigger('tournament-teams-management');
 
     const [institutions, setInstitutions] = useState(sortInstitutions(manageableInstitutions));
     const [selectedInstitutionId, setSelectedInstitutionId] = useState(
@@ -500,7 +502,7 @@ export function ManageTeamsBoard({
                             )}
                         </div>
 
-                        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end" data-tour="team-management-controls">
                             {institutions.length > 0 ? (
                                 <Select value={selectedInstitutionId} onValueChange={(value) => void handleInstitutionChange(value)}>
                                     <SelectTrigger className="min-w-56 border-white/20 bg-white/10 text-white">
@@ -522,6 +524,7 @@ export function ManageTeamsBoard({
                             )}
 
                             <Button
+                                data-tour="team-management-create-team"
                                 onClick={() => openCreateDialog()}
                                 disabled={isLocked}
                                 className="bg-brand text-brand-foreground hover:bg-brand/90"
@@ -533,7 +536,7 @@ export function ManageTeamsBoard({
                     </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4 p-4 sm:p-5">
+                <CardContent className="space-y-4 p-4 sm:p-5" data-tour="team-management-board">
                     {!selectedInstitution ? (
                         <div className="rounded-2xl border border-dashed border-white/20 bg-gradient-to-br from-white/5 to-transparent p-6 text-center">
                             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">

@@ -14,13 +14,14 @@ export function useTour() {
  * The tour triggers once after mount (after a short paint delay).
  * Has no effect if the user has already seen the tour.
  */
-export function useTourTrigger(tourId: TourId) {
+export function useTourTrigger(tourId: TourId, enabled = true) {
   const { startTour, hasSeen, resetVersion } = useTour();
 
   React.useEffect(() => {
+    if (!enabled) return;
     if (hasSeen(tourId)) return;
     const t = setTimeout(() => startTour(tourId), 400);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tourId, resetVersion]);
+  }, [tourId, enabled, resetVersion]);
 }

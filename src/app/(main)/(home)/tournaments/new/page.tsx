@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useTourTrigger } from '@/hooks/useTour';
 
 const PUBLIC_TAB_OPTIONS = [
   { slug: 'overview', label: 'Overview', description: 'Tournament stats and details' },
@@ -45,6 +46,7 @@ const STEPS = [
 export default function CreateTournamentPage() {
   const router = useRouter();
   const { userId } = useAuth();
+  useTourTrigger('create-tournament');
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -139,11 +141,13 @@ export default function CreateTournamentPage() {
         ]}
       />
 
-      <StepIndicator steps={STEPS} currentStep={step} className="mb-2" />
+      <div data-tour="create-tournament-steps">
+        <StepIndicator steps={STEPS} currentStep={step} className="mb-2" />
+      </div>
 
       {/* Step 1: Basics */}
       {step === 0 && (
-        <Card>
+        <Card data-tour="create-tournament-current-step">
           <CardHeader>
             <CardTitle>Tournament Basics</CardTitle>
             <CardDescription>Set the name and event mode for your tournament.</CardDescription>
@@ -186,7 +190,7 @@ export default function CreateTournamentPage() {
 
       {/* Step 2: Registration */}
       {step === 1 && (
-        <Card>
+        <Card data-tour="create-tournament-current-step">
           <CardHeader>
             <CardTitle>Registration & Teams</CardTitle>
             <CardDescription>Set registration windows and team size limits.</CardDescription>
@@ -259,7 +263,7 @@ export default function CreateTournamentPage() {
 
       {/* Step 3: Display & Visibility */}
       {step === 2 && (
-        <Card>
+        <Card data-tour="create-tournament-current-step">
           <CardHeader>
             <CardTitle>Display & Visibility</CardTitle>
             <CardDescription>Configure standings display and public access settings.</CardDescription>
@@ -400,7 +404,7 @@ export default function CreateTournamentPage() {
 
       {/* Step 4: Review */}
       {step === 3 && (
-        <Card>
+        <Card data-tour="create-tournament-current-step">
           <CardHeader>
             <CardTitle>Review & Create</CardTitle>
             <CardDescription>Confirm your tournament settings before creation.</CardDescription>

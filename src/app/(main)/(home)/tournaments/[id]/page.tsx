@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,15 +41,16 @@ interface TournamentStats {
 
 export default function TournamentOverviewPage() {
   const { tournamentId, userRole } = useTournament();
-  const { userId } = useAuth();
   const tourId =
     userRole === 'ORGANIZER'
       ? 'tournament-overview-organizer'
-      : 'tournament-overview-participant';
-  useTourTrigger(tourId);
+      : userRole === 'DEBATER' || userRole === 'JUDGE'
+        ? 'tournament-overview-participant'
+        : 'tournament-overview-spectator';
 
   const [stats, setStats] = useState<TournamentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  useTourTrigger(tourId, !loading);
   const [organizerRegistrations, setOrganizerRegistrations] = useState<OrganizerRegistrationListItem[]>([]);
   const [organizerRegistrationsLoading, setOrganizerRegistrationsLoading] = useState(false);
   const [updatingRegistrationId, setUpdatingRegistrationId] = useState<string | null>(null);

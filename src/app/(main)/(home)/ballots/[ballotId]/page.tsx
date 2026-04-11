@@ -15,6 +15,7 @@ import {
 } from '@/components/ballot/model';
 import { PageContainer } from '@/components/PageContainer';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTourTrigger } from '@/hooks/useTour';
 
 export default function BallotEntryPage() {
   const params = useParams<{ ballotId: string }>();
@@ -28,6 +29,7 @@ export default function BallotEntryPage() {
   const [vote, setVote] = useState<'PROPOSITION' | 'OPPOSITION' | ''>('');
   const [speeches, setSpeeches] = useState<BallotSpeechFormState>({});
   const [privateNotes, setPrivateNotes] = useState('');
+  useTourTrigger('ballot-entry', !loading && !!ballot);
 
   const fetchBallot = useCallback(async () => {
     if (!ballotId) return;

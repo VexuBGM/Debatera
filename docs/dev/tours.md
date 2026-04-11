@@ -59,16 +59,28 @@ src/app/api/me/tutorials/
 
 ---
 
-## Tour IDs (v1)
+## Tour IDs
 
 | Tour ID | Page | Audience |
 |---|---|---|
 | `dashboard` | `/` | All authenticated users |
 | `tournaments-list` | `/tournaments` | All authenticated users |
+| `create-tournament` | `/tournaments/new` | Tournament creators |
+| `institutions-list` | `/institutions` | All authenticated users |
 | `institution-detail-admin` | `/institutions/[id]` | Institution admins |
 | `institution-detail-member` | `/institutions/[id]` | Institution members |
 | `tournament-overview-organizer` | `/tournaments/[id]` | ORGANIZER role only |
 | `tournament-overview-participant` | `/tournaments/[id]` | DEBATER / JUDGE roles |
+| `tournament-overview-spectator` | `/tournaments/[id]` | Signed-in spectators |
+| `tournament-setup-organizer` | `/tournaments/[id]/setup` | ORGANIZER role only |
+| `tournament-registration-institution` | `/tournaments/[id]/register/members` | Institution admins |
+| `tournament-participants` | `/tournaments/[id]/participants` | Organizers and roster viewers |
+| `tournament-teams-management` | `/tournaments/[id]/register/teams` | Organizers and institution admins with team access |
+| `tournament-rounds-organizer` | `/tournaments/[id]/rounds` | ORGANIZER role only |
+| `tournament-rounds-participant` | `/tournaments/[id]/rounds` | Non-organizer viewers |
+| `tournament-my-ballots` | `/tournaments/[id]/my-ballots` | JUDGE role only |
+| `ballot-entry` | `/ballots/[ballotId]` | Judges with ballot access |
+| `tournament-my-debates` | `/tournaments/[id]/my-debates` | DEBATER role only |
 
 ---
 
@@ -121,6 +133,12 @@ export default function MyPage() {
   useTourTrigger('my-new-tour');
   // ...
 }
+```
+
+For pages that fetch data before rendering the target elements, pass an enabled guard so the tour starts after the real UI replaces the loading skeleton:
+
+```tsx
+useTourTrigger('my-new-tour', !loading);
 ```
 
 If the page is a **Server Component**, create a thin client wrapper component alongside it (see `src/app/(main)/(home)/tournaments/_TournamentListTour.tsx` for the pattern).

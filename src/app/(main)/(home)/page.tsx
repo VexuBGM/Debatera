@@ -201,7 +201,7 @@ const HomePage = () => {
   const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  useTourTrigger('dashboard');
+  useTourTrigger('dashboard', !loading);
 
   useEffect(() => {
     if (isLoaded && user) {

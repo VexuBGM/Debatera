@@ -40,6 +40,7 @@ import {
   removeParticipant,
 } from '@/actions/participants.actions';
 import type { ParticipantWithUser } from '@/lib/validations/participants';
+import { useTourTrigger } from '@/hooks/useTour';
 
 function getDisplayName(user: ParticipantWithUser['user']): string {
   if (user.displayName) return user.displayName;
@@ -66,6 +67,7 @@ export default function ParticipantsPage() {
   const [institutions, setInstitutions] = useState<Array<{ id: string; name: string }>>([]);
   const [tournament, setTournament] = useState<{ id: string; name: string; createdByUserId: string } | null>(null);
   const [isOrganizer, setIsOrganizer] = useState(false);
+  useTourTrigger('tournament-participants', !loading && !!tournament);
 
   // Single add state (judges only from this page)
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -411,7 +413,7 @@ export default function ParticipantsPage() {
   return (
     <main className="max-w-5xl mx-auto p-4 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="participants-summary">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <Users className="h-6 w-6" />
@@ -423,7 +425,7 @@ export default function ParticipantsPage() {
         </div>
 
         {canManage && (
-          <div className="flex gap-2">
+          <div className="flex gap-2" data-tour="participants-actions">
             {/* Single Add Judge Dialog */}
             <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
               <DialogTrigger asChild>
@@ -571,12 +573,14 @@ export default function ParticipantsPage() {
         )}
       </div>
 
-      <HelpTopics
-        topics={[
-          { section: 'Managing Participants' },
-          { section: 'Judge Portal Links' },
-        ]}
-      />
+      <div data-tour="participants-help">
+        <HelpTopics
+          topics={[
+            { section: 'Managing Participants' },
+            { section: 'Judge Portal Links' },
+          ]}
+        />
+      </div>
 
       {/* Portal Link Dialog (View / Generate / Regenerate) */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
@@ -695,7 +699,7 @@ export default function ParticipantsPage() {
       </Dialog>
 
       {/* Tabs: Judges / Debaters */}
-      <Tabs defaultValue="judges">
+      <Tabs defaultValue="judges" data-tour="participants-tabs">
         <TabsList>
           <TabsTrigger value="judges">
             Judges ({judges.length})
@@ -707,7 +711,7 @@ export default function ParticipantsPage() {
 
         <TabsContent value="judges">
           {canManage && judges.length > 0 && (
-            <div className="mb-3 flex justify-end">
+            <div className="mb-3 flex justify-end" data-tour="participants-portal-links">
               <Button
                 size="sm"
                 variant="outline"
@@ -719,7 +723,7 @@ export default function ParticipantsPage() {
               </Button>
             </div>
           )}
-          <Card>
+          <Card data-tour="participants-judges-list">
             <CardContent className="pt-4">
               {renderParticipantList(judges, 'JUDGE')}
             </CardContent>
@@ -728,11 +732,11 @@ export default function ParticipantsPage() {
 
         <TabsContent value="debaters">
           {canManage && (
-            <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
+            <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300" data-tour="participants-debaters-note">
               To add debaters, go to the <strong>Teams</strong> page and use &quot;Add Debaters&quot; on each team. Debaters inherit the team&apos;s institution automatically.
             </div>
           )}
-          <Card>
+          <Card data-tour="participants-debaters-list">
             <CardContent className="pt-4">
               {renderParticipantList(debaters, 'DEBATER')}
             </CardContent>

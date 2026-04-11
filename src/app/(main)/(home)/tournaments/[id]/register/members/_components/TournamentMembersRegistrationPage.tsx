@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
+import { useTourTrigger } from '@/hooks/useTour';
 
 type AdminInstitution = {
   id: string;
@@ -122,6 +123,7 @@ function displayUser(u: InstitutionMember['user'] | TournamentParticipant['user'
 export function TournamentMembersRegistrationPage({ tournamentId }: { tournamentId: string }) {
   const [institutions, setInstitutions] = useState<AdminInstitution[]>([]);
   const [institutionsLoading, setInstitutionsLoading] = useState(true);
+  useTourTrigger('tournament-registration-institution', !institutionsLoading);
 
   const [institutionOpen, setInstitutionOpen] = useState(false);
   const [selectedInstitutionId, setSelectedInstitutionId] = useState<string | null>(null);
@@ -332,7 +334,7 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card data-tour="registration-institution-selector">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -393,7 +395,7 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
       </Card>
 
       {selectedInstitution && (
-        <Card>
+        <Card data-tour="registration-status">
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
               <span>Institution registration</span>
@@ -450,7 +452,7 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
 
       {selectedInstitution && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
+          <Card data-tour="registration-members">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -552,7 +554,7 @@ export function TournamentMembersRegistrationPage({ tournamentId }: { tournament
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-tour="registration-participants">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Participants (this institution)</span>

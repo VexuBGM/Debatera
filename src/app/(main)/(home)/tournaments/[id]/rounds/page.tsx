@@ -43,6 +43,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { HelpTopics } from '@/components/docs/HelpLink';
 import { RoundStatusBadge } from '@/components/rounds/RoundStatusBadge';
+import { useTourTrigger } from '@/hooks/useTour';
 
 // =============================================================================
 // Types
@@ -101,6 +102,10 @@ export default function TournamentRoundsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = tournament?.createdByUserId === userId;
+  useTourTrigger(
+    isOwner ? 'tournament-rounds-organizer' : 'tournament-rounds-participant',
+    !loading && !!tournament,
+  );
 
   // Fetch tournament details and rounds
   const fetchRounds = useCallback(async (page: number) => {
@@ -303,17 +308,19 @@ export default function TournamentRoundsPage() {
           icon={<Trophy className="h-6 w-6 text-brand" />}
           title={`${tournament.name} - Rounds`}
         />
-        <HelpTopics
-          topics={[
-            { section: 'Creating Rounds' },
-            { section: 'Generating Pairings' },
-            { section: 'Publishing and Running a Round' },
-          ]}
-          className="mt-4"
-        />
+        <div data-tour="rounds-help">
+          <HelpTopics
+            topics={[
+              { section: 'Creating Rounds' },
+              { section: 'Generating Pairings' },
+              { section: 'Publishing and Running a Round' },
+            ]}
+            className="mt-4"
+          />
+        </div>
 
         {rounds.length === 0 ? (
-          <Card>
+          <Card data-tour="rounds-list">
             <CardContent>
               <EmptyState
                 icon={<Lock className="h-12 w-12" />}
@@ -323,7 +330,7 @@ export default function TournamentRoundsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3" data-tour="rounds-list">
             {rounds.map((round) => (
               <Link key={round.id} href={`/tournaments/${tournamentId}/rounds/${round.id}`}>
                 <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
@@ -359,7 +366,7 @@ export default function TournamentRoundsPage() {
         actions={
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button data-tour="rounds-create">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Round
               </Button>
@@ -399,16 +406,18 @@ export default function TournamentRoundsPage() {
         }
       />
 
-      <HelpTopics
-        topics={[
-          { section: 'Creating Rounds' },
-          { section: 'Generating Pairings' },
-          { section: 'Publishing and Running a Round' },
-        ]}
-      />
+      <div data-tour="rounds-help">
+        <HelpTopics
+          topics={[
+            { section: 'Creating Rounds' },
+            { section: 'Generating Pairings' },
+            { section: 'Publishing and Running a Round' },
+          ]}
+        />
+      </div>
 
       {rounds.length === 0 ? (
-        <Card>
+        <Card data-tour="rounds-list">
           <CardContent>
             <EmptyState
               icon={<Trophy className="h-12 w-12" />}
@@ -419,7 +428,7 @@ export default function TournamentRoundsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" data-tour="rounds-list">
           {rounds.map((round) => (
             <Card key={round.id} className="hover:bg-accent/50 transition-colors">
               <CardContent className="py-4 flex items-center justify-between">

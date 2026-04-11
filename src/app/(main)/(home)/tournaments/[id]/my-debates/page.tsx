@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useTourTrigger } from '@/hooks/useTour';
 
 // ============================================================================
 // Types
@@ -126,6 +127,7 @@ export default function MyDebatesPage() {
   const [debates, setDebates] = useState<DebateListItem[]>([]);
   const [eventMode, setEventMode] = useState<'IRL' | 'ONLINE'>('IRL');
   const [loading, setLoading] = useState(true);
+  useTourTrigger('tournament-my-debates', !loading);
 
   useEffect(() => {
     if (!tournamentId || !userId) return;
@@ -171,7 +173,7 @@ export default function MyDebatesPage() {
           icon={<Swords className="h-6 w-6" />}
           title="My Debates"
         />
-        <Card>
+        <Card data-tour="my-debates-list">
           <CardContent>
             <EmptyState
               icon={<Swords className="h-12 w-12" />}
@@ -191,7 +193,7 @@ export default function MyDebatesPage() {
         title="My Debates"
       />
 
-      <div className="space-y-3">
+      <div className="space-y-3" data-tour="my-debates-list">
         {debates.map((debate) => (
           <DebateCard
             key={debate.id}
@@ -322,6 +324,7 @@ function DebateCard({
         {canJoinCall && (
           <div className="pt-3 border-t flex justify-end">
             <Link
+              data-tour="my-debates-call"
               href={`/tournaments/${tournamentId}/rounds/${debate.round.id}/debates/${debate.id}/call`}
             >
               <Button size="sm" className="gap-2">
