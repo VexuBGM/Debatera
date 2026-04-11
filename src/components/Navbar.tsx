@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield, BookOpen } from 'lucide-react';
+import { Bell, Plus, Search, Check, X, Loader2, Menu, Shield, BookOpen, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import Image from 'next/image';
@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -20,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { acceptInstitutionInvite, declineInstitutionInvite } from '@/actions/invitation.actions';
+import { useTour } from '@/hooks/useTour';
 
 interface BaseNotification {
   id: string;
@@ -71,6 +73,7 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { resetAllTours } = useTour();
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
@@ -182,6 +185,11 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
     [fetchNotifications, markNotificationAsRead, router]
   );
 
+  const handleResetTours = useCallback(() => {
+    resetAllTours();
+    toast.success('Tours reset. The guide will restart on pages with a tour.');
+  }, [resetAllTours]);
+
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-surface-1/70 backdrop-blur-xl">
       <div className="mx-auto max-w-350 px-2 sm:px-4 md:px-6">
@@ -245,23 +253,41 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
               </Button>
             )}
 
-            <Button
-              asChild
-              size="sm"
-              variant="ghost"
-              className="hidden md:flex gap-1 rounded-lg text-white/80 hover:bg-white/10 hover:text-white text-xs sm:text-sm"
-            >
-              <Link href="/docs">
-                <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>Help</span>
-              </Link>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="hidden md:flex gap-1 rounded-lg text-white/80 hover:bg-white/10 hover:text-white text-xs sm:text-sm"
+                >
+                  <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>Help</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-semibold text-sm">Help</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/docs" className="cursor-pointer">
+                    <BookOpen className="h-4 w-4" />
+                    Documentation
+                  </Link>
+                </DropdownMenuItem>
+                <SignedIn>
+                  <DropdownMenuItem onClick={handleResetTours} className="cursor-pointer">
+                    <RotateCcw className="h-4 w-4" />
+                    Reset all tours
+                  </DropdownMenuItem>
+                </SignedIn>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             <SignedIn>
               <Button
                 asChild
                 size="sm"
                 className="hidden md:flex gap-1 sm:gap-2 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 text-xs sm:text-sm"
+                data-tour="navbar-create"
               >
                 <Link href="/tournaments/new">
                   <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -280,6 +306,7 @@ export default function TopNav({ onMenuClick, isAdmin = false }: TopNavProps) {
                     variant="ghost"
                     className="relative rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
                     aria-label="Notifications"
+                    data-tour="navbar-notifications"
                   >
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (

@@ -110,7 +110,8 @@ Other users can see your public profile when they click your name in a tournamen
   - **Create Tournament** — start a new tournament
   - **My Tournaments** — tournaments you participate in, organized by your role (organizer, judge, debater)
   - **My Assignments** — your judging assignments (visible if you are a judge in any tournament)
-- **Top navigation bar** — includes a search bar, a **Create Tournament** button, a notifications bell, and your user menu.
+- **Top navigation bar** — includes a search bar, a **Help** menu, a **Create Tournament** button, a notifications bell, and your user menu.
+- **Help** — open the top navigation **Help** menu to visit the documentation or reset all guided tours so they appear again on pages that have one.
 - **Notifications** — the bell icon shows unread notifications, including institution invitations that you can accept or decline directly.
 - **Keyboard shortcut** — press **Ctrl+K** (or **Cmd+K** on Mac) to open the command palette for quick navigation.
 

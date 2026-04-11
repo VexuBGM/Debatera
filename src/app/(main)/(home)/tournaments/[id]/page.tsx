@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,6 +10,7 @@ import { toast } from 'sonner';
 import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { useTournament } from '@/components/TournamentContext';
 import { PageContainer } from '@/components/PageContainer';
+import { useTourTrigger } from '@/hooks/useTour';
 
 type TournamentInstitutionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -41,10 +41,16 @@ interface TournamentStats {
 
 export default function TournamentOverviewPage() {
   const { tournamentId, userRole } = useTournament();
-  const { userId } = useAuth();
+  const tourId =
+    userRole === 'ORGANIZER'
+      ? 'tournament-overview-organizer'
+      : userRole === 'DEBATER' || userRole === 'JUDGE'
+        ? 'tournament-overview-participant'
+        : 'tournament-overview-spectator';
 
   const [stats, setStats] = useState<TournamentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  useTourTrigger(tourId, !loading);
   const [organizerRegistrations, setOrganizerRegistrations] = useState<OrganizerRegistrationListItem[]>([]);
   const [organizerRegistrationsLoading, setOrganizerRegistrationsLoading] = useState(false);
   const [updatingRegistrationId, setUpdatingRegistrationId] = useState<string | null>(null);
@@ -189,7 +195,7 @@ export default function TournamentOverviewPage() {
 
       {/* Quick Stats */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-tour="tournament-overview-stats">
           <StatCard icon={<Users className="h-5 w-5 text-brand" />} label="Teams" value={stats.teamsCount} />
           <StatCard icon={<LayoutList className="h-5 w-5 text-brand" />} label="Rounds" value={stats.roundsCount} />
           <StatCard icon={<Building2 className="h-5 w-5 text-brand" />} label="Institutions" value={stats.institutionsCount} />
@@ -199,7 +205,7 @@ export default function TournamentOverviewPage() {
 
       {/* Pending Registrations (Organizer only) */}
       {isOwner && (
-        <Card>
+        <Card data-tour="tournament-overview-registrations">
           <CardHeader>
             <CardTitle className="text-lg">Pending Registrations</CardTitle>
           </CardHeader>
@@ -257,7 +263,7 @@ export default function TournamentOverviewPage() {
       )}
 
       {/* Tournament Details */}
-      <Card>
+      <Card data-tour="tournament-overview-my-debates">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2">

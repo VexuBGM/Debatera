@@ -16,6 +16,7 @@ import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import type { BallotModificationRequestSummary } from '@/components/ballot/model';
+import { useTourTrigger } from '@/hooks/useTour';
 
 // ============================================================================
 // Types
@@ -61,6 +62,7 @@ export default function MyBallotsPage() {
   const [ballotsPage, setBallotsPage] = useState(1);
   const [ballotsPaginationMeta, setBallotsPaginationMeta] = useState<PaginationMeta | null>(null);
   const BALLOTS_PAGE_SIZE = 10;
+  useTourTrigger('tournament-my-ballots', !loading);
 
   const fetchBallots = useCallback(async (page: number) => {
     setLoading(true);
@@ -107,7 +109,7 @@ export default function MyBallotsPage() {
           icon={<Scale className="h-6 w-6" />}
           title="My Ballots"
         />
-        <Card>
+        <Card data-tour="my-ballots-list">
           <CardContent>
             <EmptyState
               icon={<FileText className="h-12 w-12" />}
@@ -127,7 +129,7 @@ export default function MyBallotsPage() {
         title="My Ballots"
       />
 
-      <div className="space-y-3">
+      <div className="space-y-3" data-tour="my-ballots-list">
         {ballots.map((ballot) => (
           <BallotCard key={ballot.id} ballot={ballot} eventMode={eventMode} />
         ))}
@@ -207,7 +209,7 @@ function BallotCard({ ballot, eventMode }: { ballot: BallotListItem; eventMode: 
             )}
           </div>
 
-          <Link href={`/ballots/${ballot.id}`}>
+          <Link href={`/ballots/${ballot.id}`} data-tour="my-ballots-action">
             <Button variant={isSubmitted ? 'outline' : 'default'} size="sm">
               {isSubmitted ? (
                 <>

@@ -2,6 +2,10 @@
 
 A full-stack debate tournament management platform. Handles tournament creation, team registration, real-time video debates (via Stream SDK), judging/ballots, and standings.
 
+## Collaboration
+
+**Always ask clarifying questions before making assumptions.** If a request is ambiguous, the scope is unclear, or there are multiple reasonable approaches, stop and ask — do not guess. This applies even for seemingly small tasks. Never assume intent; ask.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -78,3 +82,4 @@ Documentation must be maintained whenever functionality, behavior, permissions, 
 |---|---|
 | `.claude/docs/architectural_patterns.md` | Server actions, API routes, auth guards, data fetching conventions |
 | `.claude/docs/conventions.md` | Before working on API routes |
+| `.claude/docs/tours.md` | Adding, editing, or removing onboarding tour steps |

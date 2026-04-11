@@ -63,6 +63,7 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { HelpTopics } from '@/components/docs/HelpLink';
+import { useTourTrigger } from '@/hooks/useTour';
 import {
   createInstitutionInvitation,
   getInstitutionPendingInvitations,
@@ -339,6 +340,8 @@ export default function InstitutionDetailPage() {
 
   return (
     <PageContainer size="md">
+      <InstitutionDetailTour isAdmin={Boolean(isAdmin)} />
+
       {/* Back link */}
       <Link href="/institutions">
         <Button variant="ghost" size="sm" className="-ml-2 sm:-ml-3 h-8 sm:h-9 text-sm">
@@ -348,118 +351,120 @@ export default function InstitutionDetailPage() {
       </Link>
 
       {/* Header */}
-      <PageHeader
-        icon={<Building2 className="h-7 w-7 text-brand" />}
-        title={institution.name}
-        actions={
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {isMember && (
-              <Badge variant="outline" className="text-xs sm:text-sm">
-                {isAdmin ? (
-                  <>
-                    <Shield className="mr-1 h-3 w-3" /> Admin
-                  </>
-                ) : (
-                  <>
-                    <User className="mr-1 h-3 w-3" /> Member
-                  </>
-                )}
-              </Badge>
-            )}
-            {isMember && (
-              <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
-                    <LogOut className="mr-1 h-3 w-3" />
-                    Leave
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Leave Institution</DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to leave {institution.name}? You will need to be
-                      invited again to rejoin.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
-                      Cancel
+      <div data-tour="institution-detail-header">
+        <PageHeader
+          icon={<Building2 className="h-7 w-7 text-brand" />}
+          title={institution.name}
+          actions={
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {isMember && (
+                <Badge variant="outline" className="text-xs sm:text-sm">
+                  {isAdmin ? (
+                    <>
+                      <Shield className="mr-1 h-3 w-3" /> Admin
+                    </>
+                  ) : (
+                    <>
+                      <User className="mr-1 h-3 w-3" /> Member
+                    </>
+                  )}
+                </Badge>
+              )}
+              {isMember && (
+                <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
+                      <LogOut className="mr-1 h-3 w-3" />
+                      Leave
                     </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={handleLeave}
-                      disabled={isLeaving}
-                    >
-                      {isLeaving ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <LogOut className="mr-2 h-4 w-4" />
-                      )}
-                      Leave Institution
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Leave Institution</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to leave {institution.name}? You will need to be
+                        invited again to rejoin.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleLeave}
+                        disabled={isLeaving}
+                      >
+                        {isLeaving ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <LogOut className="mr-2 h-4 w-4" />
+                        )}
+                        Leave Institution
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+              {isAdmin && (
+                <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+                  setShowDeleteDialog(open);
+                  if (!open) setDeleteConfirmName('');
+                }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-500/10">
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Delete
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-            {isAdmin && (
-              <Dialog open={showDeleteDialog} onOpenChange={(open) => {
-                setShowDeleteDialog(open);
-                if (!open) setDeleteConfirmName('');
-              }}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-500/10">
-                    <Trash2 className="mr-1 h-3 w-3" />
-                    Delete
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Delete Institution</DialogTitle>
-                    <DialogDescription>
-                      This action cannot be undone. This will permanently delete the institution,
-                      all memberships, and pending invitations.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <Label htmlFor="confirmName" className="text-sm font-medium">
-                      Type <span className="font-bold text-foreground">{institution.name}</span> to confirm:
-                    </Label>
-                    <Input
-                      id="confirmName"
-                      value={deleteConfirmName}
-                      onChange={(e) => setDeleteConfirmName(e.target.value)}
-                      placeholder="Enter institution name"
-                      className="mt-2"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => {
-                      setShowDeleteDialog(false);
-                      setDeleteConfirmName('');
-                    }}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={handleDeleteInstitution}
-                      disabled={isDeleting || deleteConfirmName.trim().toLowerCase() !== institution.name.toLowerCase()}
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
-                      )}
-                      Delete Institution
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
-        }
-      />
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Institution</DialogTitle>
+                      <DialogDescription>
+                        This action cannot be undone. This will permanently delete the institution,
+                        all memberships, and pending invitations.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Label htmlFor="confirmName" className="text-sm font-medium">
+                        Type <span className="font-bold text-foreground">{institution.name}</span> to confirm:
+                      </Label>
+                      <Input
+                        id="confirmName"
+                        value={deleteConfirmName}
+                        onChange={(e) => setDeleteConfirmName(e.target.value)}
+                        placeholder="Enter institution name"
+                        className="mt-2"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => {
+                        setShowDeleteDialog(false);
+                        setDeleteConfirmName('');
+                      }}>
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteInstitution}
+                        disabled={isDeleting || deleteConfirmName.trim().toLowerCase() !== institution.name.toLowerCase()}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete Institution
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+          }
+        />
+      </div>
 
       <HelpTopics
         topics={[
@@ -469,7 +474,7 @@ export default function InstitutionDetailPage() {
       />
 
       {/* Stats */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 mb-6 sm:mb-8">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 mb-6 sm:mb-8" data-tour="institution-detail-stats">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs sm:text-sm">Members</CardDescription>
@@ -491,7 +496,7 @@ export default function InstitutionDetailPage() {
 
       {/* Admin Section: Visibility */}
       {isAdmin && (
-        <Card className="mb-6 sm:mb-8">
+        <Card className="mb-6 sm:mb-8" data-tour="institution-detail-visibility">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">Visibility</CardTitle>
             <CardDescription>Control who can discover this institution in the listings.</CardDescription>
@@ -518,7 +523,7 @@ export default function InstitutionDetailPage() {
 
       {/* Admin Section: Invite Members */}
       {isAdmin && (
-        <Card className="mb-6 sm:mb-8">
+        <Card className="mb-6 sm:mb-8" data-tour="institution-detail-invites">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-brand" />
@@ -627,7 +632,7 @@ export default function InstitutionDetailPage() {
       )}
 
       {/* Members Table */}
-      <Card>
+      <Card data-tour="institution-detail-members">
         <CardHeader>
           <CardTitle className="text-lg sm:text-xl">Members</CardTitle>
           <CardDescription>
@@ -750,4 +755,9 @@ export default function InstitutionDetailPage() {
       </Card>
     </PageContainer>
   );
+}
+
+function InstitutionDetailTour({ isAdmin }: { isAdmin: boolean }) {
+  useTourTrigger(isAdmin ? 'institution-detail-admin' : 'institution-detail-member');
+  return null;
 }

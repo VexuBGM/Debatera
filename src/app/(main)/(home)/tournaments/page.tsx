@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
 import { parsePaginationParams, paginationToSkipTake, buildPaginationMeta } from '@/lib/pagination';
 import { UrlPaginationControls } from '@/components/ui/url-pagination-controls';
+import { TournamentListTour } from './_TournamentListTour';
 
 interface TournamentsPageProps {
   searchParams: Promise<{ page?: string; pageSize?: string }>;
@@ -65,6 +66,7 @@ const Tournaments = async ({ searchParams }: TournamentsPageProps) => {
   
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-3 sm:space-y-5 sm:p-4 md:p-6">
+      <TournamentListTour />
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-semibold">Tournaments</h1>
         {userId && (
@@ -80,8 +82,8 @@ const Tournaments = async ({ searchParams }: TournamentsPageProps) => {
       ) : (
         <>
           <ul className="space-y-3 sm:space-y-4">
-            {tournaments.map((t) => (
-              <li key={t.id}>
+            {tournaments.map((t, index) => (
+              <li key={t.id} data-tour={index === 0 ? 'tournaments-list-card' : undefined}>
                 <Link
                   href={`/tournaments/${t.id}`}
                   className="block rounded-lg border bg-card p-4 transition-colors hover:border-brand/50"

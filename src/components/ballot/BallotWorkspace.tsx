@@ -238,7 +238,7 @@ export function BallotWorkspace({
         </div>
       </div>
 
-      <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-muted/30 shadow-sm">
+      <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-muted/30 shadow-sm" data-tour="ballot-entry-overview">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_320px]">
           <CardContent className="p-6 sm:p-8">
             <div className="space-y-6">
@@ -358,7 +358,7 @@ export function BallotWorkspace({
       </Card>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="border-border/60 shadow-sm">
+        <Card className="border-border/60 shadow-sm" data-tour="ballot-entry-scores">
           <CardHeader className="pb-4">
             <CardTitle>Speaker Scores</CardTitle>
             <CardDescription>
@@ -425,7 +425,7 @@ export function BallotWorkspace({
             </Card>
           )}
 
-          <Card className="border-border/60 shadow-sm">
+          <Card className="border-border/60 shadow-sm" data-tour="ballot-entry-decision">
             <CardHeader>
               <CardTitle>Decision</CardTitle>
               <CardDescription>Select the winning side for this ballot.</CardDescription>
@@ -511,7 +511,7 @@ export function BallotWorkspace({
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 shadow-sm">
+          <Card className="border-border/60 shadow-sm" data-tour="ballot-entry-actions">
             <CardHeader>
               <CardTitle>{isSubmitted ? 'Submitted' : 'Actions'}</CardTitle>
               <CardDescription>
