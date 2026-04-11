@@ -102,7 +102,7 @@ export default function TournamentNav() {
   }
 
   return (
-    <nav className="border-b border-border overflow-x-auto scrollbar-none">
+    <nav className="border-b border-border overflow-x-auto scrollbar-none" data-tour="tournament-overview-tabs">
       <div className="flex gap-0 min-w-max">
         {visibleTabs.map((tab) => {
           const active = isActive(tab);

@@ -81,6 +81,7 @@ import { displayNameFromDbUser } from '@/lib/users/displayName';
 import { buildPaginationMeta } from '@/lib/pagination';
 import type { ParticipantWithUser } from '@/lib/validations/participants';
 import { cn } from '@/lib/utils';
+import { useTourTrigger } from '@/hooks/useTour';
 import { toast } from 'sonner';
 
 type EventMode = 'ONLINE' | 'IRL';
@@ -273,6 +274,7 @@ export default function TournamentSetupPage() {
   const [tournament, setTournament] = useState<TournamentSummary | null>(null);
   const [setupData, setSetupData] = useState<SetupData>(EMPTY_SETUP_DATA);
   const [currentStep, setCurrentStep] = useState(0);
+  useTourTrigger('tournament-setup-organizer', !loading && !!tournament);
 
   const [venueName, setVenueName] = useState('');
   const [venuePriority, setVenuePriority] = useState('100');
@@ -1022,7 +1024,7 @@ export default function TournamentSetupPage() {
         )}
       />
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" data-tour="tournament-setup-progress">
         <CardContent className="space-y-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Sparkles className="h-4 w-4 text-brand" />
@@ -1031,20 +1033,22 @@ export default function TournamentSetupPage() {
             </span>
           </div>
 
-          <StepIndicator
-            steps={visibleSteps.map((step) => ({
-              label: step.label,
-              description: step.description,
-            }))}
-            currentStep={currentStep}
-            completedSteps={visibleSteps.map((step) => completion[step.key])}
-            onStepClick={setCurrentStep}
-            className="mb-2"
-          />
+          <div data-tour="tournament-setup-stepper">
+            <StepIndicator
+              steps={visibleSteps.map((step) => ({
+                label: step.label,
+                description: step.description,
+              }))}
+              currentStep={currentStep}
+              completedSteps={visibleSteps.map((step) => completion[step.key])}
+              onStepClick={setCurrentStep}
+              className="mb-2"
+            />
+          </div>
         </CardContent>
       </Card>
 
-      <Card className="border-border/80">
+      <Card className="border-border/80" data-tour="tournament-setup-current-step">
         <CardHeader className="gap-4 sm:flex sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
@@ -1856,7 +1860,7 @@ export default function TournamentSetupPage() {
                 : `Add at least one ${currentStepDef.label.toLowerCase().slice(0, -1) || currentStepDef.label.toLowerCase()} to continue.`}
             </div>
 
-            <div className="flex gap-2 self-end sm:self-auto">
+            <div className="flex gap-2 self-end sm:self-auto" data-tour="tournament-setup-actions">
               <Button type="button" variant="ghost" onClick={handleSkipStep}>
                 Skip for now
               </Button>

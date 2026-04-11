@@ -13,6 +13,7 @@ import type { PaginationMeta } from '@/lib/pagination';
 import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useTourTrigger } from '@/hooks/useTour';
 
 interface Institution {
   id: string;
@@ -38,6 +39,7 @@ export default function InstitutionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
+  useTourTrigger('institutions-list', !isLoading);
 
   const fetchInstitutions = useCallback(async (currentPage: number) => {
     setIsLoading(true);
@@ -77,7 +79,7 @@ export default function InstitutionsPage() {
         title="Institutions"
         description="Browse institutions or create your own to join tournaments."
         actions={
-          <Link href="/institutions/new" className="w-full sm:w-auto">
+          <Link href="/institutions/new" className="w-full sm:w-auto" data-tour="institutions-create">
             <Button className="bg-brand hover:bg-brand/90 w-full sm:w-auto text-sm">
               <Plus className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Create Institution
@@ -86,7 +88,7 @@ export default function InstitutionsPage() {
         }
       />
 
-      <div className="relative max-w-md">
+      <div className="relative max-w-md" data-tour="institutions-search">
         <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
         <Input
           placeholder="Search institutions..."
@@ -111,7 +113,7 @@ export default function InstitutionsPage() {
           ))}
         </div>
       ) : filteredInstitutions.length === 0 ? (
-        <Card className="p-6 sm:p-8 lg:p-12">
+        <Card className="p-6 sm:p-8 lg:p-12" data-tour="institutions-list">
           <EmptyState
             icon={<Building2 className="h-12 w-12" />}
             title={searchQuery ? 'No institutions found' : 'No institutions yet'}
@@ -123,7 +125,7 @@ export default function InstitutionsPage() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3" data-tour="institutions-list">
             {filteredInstitutions.map((institution) => (
               <Link key={institution.id} href={`/institutions/${institution.id}`}>
                 <Card className="h-full hover:border-brand/50 transition-colors cursor-pointer">

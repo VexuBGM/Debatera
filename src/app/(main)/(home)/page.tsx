@@ -25,6 +25,7 @@ import { PageContainer } from '@/components/PageContainer';
 import { PageHeader } from '@/components/PageHeader';
 import LandingPage from '@/components/landing/LandingPage';
 import { HelpTopics } from '@/components/docs/HelpLink';
+import { useTourTrigger } from '@/hooks/useTour';
 
 type TournamentRole = 'ORGANIZER' | 'DEBATER' | 'JUDGE' | 'INSTITUTION';
 type RoundStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -200,6 +201,7 @@ const HomePage = () => {
   const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  useTourTrigger('dashboard', !loading);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -290,7 +292,7 @@ const HomePage = () => {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-tour="dashboard-stats">
         <Card className="bg-linear-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tournaments</CardTitle>
@@ -325,7 +327,7 @@ const HomePage = () => {
         </Card>
       </div>
 
-      <div>
+      <div data-tour="dashboard-quick-actions">
         <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
         <div className="grid gap-4 md:grid-cols-3">
           {quickActions.map((action) => {

@@ -28,6 +28,9 @@ model User {
   publicEmail      Boolean   @default(false)
   updatedProfileAt DateTime?
 
+  // Onboarding: tracks which tour IDs the user has already completed
+  seenTutorials String[] @default([])
+
   // Relationships
   institutionMemberships InstitutionMember[]
   tournamentsCreated     Tournament[]

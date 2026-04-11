@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return <>{children}</>;
   }
 
-  const [institutionCount, participations, ownedTournaments] = await Promise.all([
+  const [institutionCount, participations, ownedTournaments, userRecord] = await Promise.all([
     prisma.institutionMember.count({ where: { userId } }),
     prisma.tournamentParticipant.findMany({
       where: { userId },
@@ -28,6 +28,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       select: { id: true, name: true },
       orderBy: { createdAt: 'desc' },
       take: 5,
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { seenTutorials: true },
     }),
   ]);
 
@@ -56,7 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <AppShell userContext={userContext}>
+    <AppShell userContext={userContext} seenTutorials={userRecord?.seenTutorials ?? []}>
       {children}
     </AppShell>
   );
