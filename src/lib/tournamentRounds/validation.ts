@@ -80,13 +80,111 @@ export const ALL_ROUND_STATUSES: TournamentRoundStatusType[] = [
   'COMPLETED',
 ];
 
+const ALLOWED_STATUS_TRANSITIONS: Record<
+  TournamentRoundStatusType,
+  TournamentRoundStatusType[]
+> = {
+  DRAFT: ['PUBLISHED'],
+  PUBLISHED: ['DRAFT', 'IN_PROGRESS'],
+  IN_PROGRESS: ['PUBLISHED', 'COMPLETED'],
+  COMPLETED: [],
+};
+
 /**
  * Check if a status transition is valid.
- * Organizers can freely change round status to any value.
  */
 export function isValidStatusTransition(
-  _currentStatus: TournamentRoundStatusType,
-  _newStatus: TournamentRoundStatusType
+  currentStatus: TournamentRoundStatusType,
+  newStatus: TournamentRoundStatusType
 ): boolean {
-  return true;
+  return ALLOWED_STATUS_TRANSITIONS[currentStatus].includes(newStatus);
+}
+
+export async function getRoundPublicationValidationErrors(roundId: string) {
+  const { prisma } = await import('@/lib/prisma');
+  const round = await prisma.tournamentRound.findUnique({
+    where: { id: roundId },
+    include: {
+      tournament: {
+        select: {
+          settings: {
+            select: {
+              teamSizeMin: true,
+            },
+          },
+          teamMinSize: true,
+        },
+      },
+      debates: {
+        orderBy: { order: 'asc' },
+        include: {
+          judges: {
+            select: { role: true },
+          },
+          propTeam: {
+            select: {
+              id: true,
+              members: { select: { id: true } },
+            },
+          },
+          oppTeam: {
+            select: {
+              id: true,
+              members: { select: { id: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!round) {
+    return ['Round not found'];
+  }
+
+  const validationErrors: string[] = [];
+  const teamSizeMin = round.tournament.settings?.teamSizeMin ?? round.tournament.teamMinSize;
+
+  for (const debate of round.debates) {
+    if (debate.isBye) {
+      continue;
+    }
+
+    const debateNumber = debate.order + 1;
+
+    if (!debate.propTeamId) {
+      validationErrors.push(`Debate ${debateNumber}: Missing proposition team`);
+    }
+
+    if (!debate.oppTeamId) {
+      validationErrors.push(`Debate ${debateNumber}: Missing opposition team`);
+    }
+
+    if (debate.judges.length === 0) {
+      validationErrors.push(`Debate ${debateNumber}: No judges assigned`);
+    }
+
+    const chairs = debate.judges.filter((judge) => judge.role === 'CHAIR');
+    if (chairs.length === 0) {
+      validationErrors.push(`Debate ${debateNumber}: No chair judge assigned`);
+    } else if (chairs.length > 1) {
+      validationErrors.push(
+        `Debate ${debateNumber}: Multiple chair judges assigned (must be exactly 1)`
+      );
+    }
+
+    if (debate.propTeam && debate.propTeam.members.length < teamSizeMin) {
+      validationErrors.push(
+        `Debate ${debateNumber}: Proposition team has fewer than ${teamSizeMin} debaters`
+      );
+    }
+
+    if (debate.oppTeam && debate.oppTeam.members.length < teamSizeMin) {
+      validationErrors.push(
+        `Debate ${debateNumber}: Opposition team has fewer than ${teamSizeMin} debaters`
+      );
+    }
+  }
+
+  return validationErrors;
 }

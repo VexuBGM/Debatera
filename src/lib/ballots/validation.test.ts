@@ -137,4 +137,138 @@ describe('validateBallotSubmission', () => {
       ])
     );
   });
+
+  it('accepts the exact minimum constructive score (60)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'OPP_1')!.score = 60;
+
+    expect(validateBallotSubmission(submission)).toEqual([]);
+  });
+
+  it('accepts the exact maximum constructive score (80)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'PROP_1')!.score = 80;
+
+    expect(validateBallotSubmission(submission)).toEqual([]);
+  });
+
+  it('rejects a constructive score of 59.5 (below minimum)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'PROP_1')!.score = 59.5;
+
+    expect(validateBallotSubmission(submission)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'speeches.PROP_1.score',
+        }),
+      ])
+    );
+  });
+
+  it('rejects a constructive score of 80.5 (above maximum)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'PROP_1')!.score = 80.5;
+
+    expect(validateBallotSubmission(submission)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'speeches.PROP_1.score',
+        }),
+      ])
+    );
+  });
+
+  it('accepts the exact minimum reply score (30)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'OPP_REPLY')!.score = 30;
+
+    expect(validateBallotSubmission(submission)).toEqual([]);
+  });
+
+  it('accepts the exact maximum reply score (40)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'PROP_REPLY')!.score = 40;
+
+    expect(validateBallotSubmission(submission)).toEqual([]);
+  });
+
+  it('rejects a reply score of 29.5 (below minimum)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'PROP_REPLY')!.score = 29.5;
+
+    expect(validateBallotSubmission(submission)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'speeches.PROP_REPLY.score',
+        }),
+      ])
+    );
+  });
+
+  it('rejects a reply score of 40.5 (above maximum)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'PROP_REPLY')!.score = 40.5;
+
+    expect(validateBallotSubmission(submission)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'speeches.PROP_REPLY.score',
+        }),
+      ])
+    );
+  });
+
+  it('rejects OPP_REPLY delivered by OPP_3 speaker (only OPP_1 or OPP_2 allowed)', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'OPP_REPLY')!.speakerId = 'opp_3';
+
+    expect(validateBallotSubmission(submission)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'speeches.OPP_REPLY.speaker',
+        }),
+      ])
+    );
+  });
+
+  it('accepts OPP_REPLY delivered by OPP_2 speaker', () => {
+    const submission = validSubmission();
+    submission.speeches.find((speech) => speech.role === 'OPP_REPLY')!.speakerId = 'opp_2';
+
+    expect(validateBallotSubmission(submission)).toEqual([]);
+  });
+
+  it('rejects a vote for PROPOSITION when totals are exactly equal (tie)', () => {
+    const submission = validSubmission();
+    submission.vote = 'PROPOSITION';
+
+    for (const speech of submission.speeches) {
+      speech.score = speech.role.endsWith('REPLY') ? 35 : 70;
+    }
+
+    expect(validateBallotSubmission(submission)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'vote',
+        }),
+      ])
+    );
+  });
+
+  it('rejects a vote for OPPOSITION when totals are exactly equal (tie)', () => {
+    const submission = validSubmission();
+    submission.vote = 'OPPOSITION';
+
+    for (const speech of submission.speeches) {
+      speech.score = speech.role.endsWith('REPLY') ? 35 : 70;
+    }
+
+    expect(validateBallotSubmission(submission)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'vote',
+        }),
+      ])
+    );
+  });
 });

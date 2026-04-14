@@ -9,11 +9,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, TournamentRoundStatus } from '@prisma/client';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { getTeamDisplayName } from '@/lib/teams/teamDisplayName';
 import { REPLY_ROLES } from '@/lib/ballots/constants';
 import { parsePaginationParams, buildPaginationMeta, type PaginationMeta } from '@/lib/pagination';
 import { filterTopSpeakers } from '@/lib/domains/reporting/filterTopSpeakers';
+import { getTournamentViewAccess } from '@/lib/security/access';
 
 // ============================================================================
 // Types
@@ -85,6 +87,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: tournamentId } = await params;
+  const { userId } = await auth();
+  const access = await getTournamentViewAccess(tournamentId, userId);
+
+  if (!access.exists || !access.canView) {
+    return NextResponse.json(
+      { error: 'Tournament not found' },
+      { status: 404 },
+    );
+  }
 
   // Check tournament exists & get name
   const tournament = await prisma.tournament.findUnique({

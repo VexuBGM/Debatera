@@ -15,6 +15,7 @@ import {
   deleteRound,
   UpdateRoundSchema,
   isValidStatusTransition,
+  getRoundPublicationValidationErrors,
   TournamentRoundStatusType,
 } from '@/lib/tournamentRounds';
 import { TournamentRoundStatus } from '@prisma/client';
@@ -155,28 +156,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
       // Validate before publishing: all non-bye debates need teams + judges
       if (newStatus === 'PUBLISHED') {
-        const validationErrors: string[] = [];
-
-        for (const debate of round.debates) {
-          if (!debate.isBye) {
-            if (!debate.propTeamId) {
-              validationErrors.push(`Debate ${debate.order + 1}: Missing proposition team`);
-            }
-            if (!debate.oppTeamId) {
-              validationErrors.push(`Debate ${debate.order + 1}: Missing opposition team`);
-            }
-            if (debate.judges.length === 0) {
-              validationErrors.push(`Debate ${debate.order + 1}: No judges assigned`);
-            }
-            // Validate exactly 1 chair per debate
-            const chairs = debate.judges.filter((j) => j.role === 'CHAIR');
-            if (chairs.length === 0) {
-              validationErrors.push(`Debate ${debate.order + 1}: No chair judge assigned`);
-            } else if (chairs.length > 1) {
-              validationErrors.push(`Debate ${debate.order + 1}: Multiple chair judges assigned (must be exactly 1)`);
-            }
-          }
-        }
+        const validationErrors = await getRoundPublicationValidationErrors(roundId);
 
         if (validationErrors.length > 0) {
           return NextResponse.json(

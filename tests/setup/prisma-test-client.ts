@@ -53,7 +53,6 @@ export async function startTestDatabase() {
     db,
     host: '127.0.0.1',
     port: 0,
-    maxConnections: 8,
   });
   await server.start();
 

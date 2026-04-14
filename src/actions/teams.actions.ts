@@ -1013,6 +1013,11 @@ export async function assignDebaterToTeam({
             const existingMembership = await prisma.tournamentTeamMember.findUnique({
                 where: { participantId },
             });
+
+            if (existingMembership?.teamId === teamId) {
+                return { success: false, error: 'Debater is already assigned to this team' };
+            }
+
             const newCount = existingMembership?.teamId === teamId
                 ? targetTeam.members.length // no change
                 : targetTeam.members.length + 1;
