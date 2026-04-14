@@ -149,8 +149,8 @@ Developer/reference docs:
 | `PORTAL_TOKEN_TTL_DAYS`               | Optional          | Judge portal token lifetime, defaults to `14`  |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL`       | Optional          | Overrides the sign-in route                    |
 | `NEXT_PUBLIC_CLERK_SIGN_UP_URL`       | Optional          | Overrides the sign-up route                    |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Optional          | Post sign-in redirect                          |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Optional          | Post sign-up redirect                          |
+| `NEXT_PUBLIC_CLERK_FALLBACK_REDIRECT_URL` | Optional      | Default post sign-in redirect                  |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | Optional | Default post sign-up redirect                  |
 
 ### Local development notes
 
