@@ -7,23 +7,88 @@ import prisma from '@/lib/prisma';
  */
 const publicProfileInclude = {
   institutionMemberships: {
-    include: { institution: true },
+    select: {
+      id: true,
+      role: true,
+      createdAt: true,
+      institution: {
+        select: {
+          id: true,
+          name: true,
+          isPublic: true,
+          createdAt: true,
+        },
+      },
+    },
     orderBy: { createdAt: 'desc' as const },
   },
   tournamentParticipants: {
-    include: {
-      tournament: true,
-      institution: true,
+    select: {
+      id: true,
+      role: true,
+      createdAt: true,
+      tournament: {
+        select: {
+          id: true,
+          name: true,
+          isPublic: true,
+          createdAt: true,
+        },
+      },
+      institution: {
+        select: {
+          id: true,
+          name: true,
+          isPublic: true,
+          createdAt: true,
+        },
+      },
       teamMembership: {
-        include: { team: true },
+        select: {
+          id: true,
+          teamId: true,
+          createdAt: true,
+          team: {
+            select: {
+              id: true,
+              name: true,
+              tournamentId: true,
+              institutionId: true,
+              createdByUserId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
       },
     },
     orderBy: { createdAt: 'desc' as const },
   },
   teamsCreated: {
-    include: {
-      tournament: true,
-      institution: true,
+    select: {
+      id: true,
+      name: true,
+      tournamentId: true,
+      institutionId: true,
+      createdByUserId: true,
+      createdAt: true,
+      updatedAt: true,
+      tournament: {
+        select: {
+          id: true,
+          name: true,
+          isPublic: true,
+          createdAt: true,
+        },
+      },
+      institution: {
+        select: {
+          id: true,
+          name: true,
+          isPublic: true,
+          createdAt: true,
+        },
+      },
     },
     orderBy: { createdAt: 'desc' as const },
   },
