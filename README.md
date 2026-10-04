@@ -1,3 +1,8 @@
+> [!NOTE]
+> **Project Status: Archived**
+>
+> Active development has stopped, but the repository remains available for reference.
+
 # Debatera
 
 Debatera is a platform for organizing and running debate tournaments in one place. It is built for organizers, institutions, debaters, and judges, and it keeps tournament history, ballots, and results in one system, with account-linked continuity where authenticated identities are used.
